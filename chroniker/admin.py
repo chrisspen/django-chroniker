@@ -15,6 +15,7 @@ from django.utils.text import capfirst
 from django.utils.translation import ungettext, get_date_formats, ugettext_lazy as _
 
 from chroniker.models import Job, Log
+from chroniker.utils import get_admin_changelist_url
 
 from datetime import datetime
 
@@ -35,15 +36,34 @@ class HTMLWidget(forms.Widget):
 
 class JobAdmin(admin.ModelAdmin):
     actions = ['run_selected_jobs']
-    list_display = ('name', 'last_run_with_link', 'get_timeuntil',
-                    'get_frequency',  'check_is_running', 'run_button', 'view_logs_button')
+    list_display = (
+        'name',
+        'last_run_with_link',
+        'get_timeuntil',
+        'get_frequency',
+        'check_is_running',
+        'run_button',
+        'view_logs_button',
+    )
+    readonly_fields = (
+        'check_is_running',
+        'view_logs_button',
+    )
     list_display_links = ('name', )
     list_filter = ('last_run_successful', 'frequency', 'disabled')
     filter_horizontal = ('subscribers',)
     fieldsets = (
         ('Job Details', {
             'classes': ('wide',),
-            'fields': ('name', 'command', 'args', 'disabled',)
+            'fields': (
+                'name',
+                'command',
+                'args',
+                'disabled',
+                'check_is_running',
+                'force_run',
+                'view_logs_button',
+            )
         }),
         ('E-mail subscriptions', {
             'classes': ('wide',),
@@ -91,16 +111,18 @@ class JobAdmin(admin.ModelAdmin):
     get_frequency.admin_order_field = 'frequency'
     get_frequency.short_description = 'Frequency'
     
-    
     def run_button(self, obj):
-        on_click = "window.location='%d/run/?inline=1';" % obj.id
-        return '<input type="button" onclick="%s" value="Run" />' % on_click
+        url = '%d/run/?inline=1' % obj.id
+        return '<a href="%s"><input type="button" value="Run" /></a>' % url
     run_button.allow_tags = True
     run_button.short_description = 'Run'
     
     def view_logs_button(self, obj):
-        on_click = "window.location='../log/?job=%d';" % obj.id
-        return '<input type="button" onclick="%s" value="View Logs" />' % on_click
+        q = obj.logs.all()
+        url = get_admin_changelist_url(Log)
+        return ('<a href="%s?job=%d" target="_blank">'
+            '<input type="button" value="View %i" /></a>') % \
+            (url, obj.id, q.count())
     view_logs_button.allow_tags = True
     view_logs_button.short_description = 'Logs'
     
@@ -163,12 +185,34 @@ class JobAdmin(admin.ModelAdmin):
         return super(JobAdmin, self).formfield_for_dbfield(db_field, **kwargs)
 
 class LogAdmin(admin.ModelAdmin):
-    list_display = ('job_name', 'run_start_datetime', 'job_success', 'output', 'errors', )
-    search_fields = ('stdout', 'stderr', 'job__name', 'job__command')
+    list_display = (
+        'job_name',
+        'run_start_datetime',
+        'run_end_datetime',
+        'job_success',
+        'output',
+        'errors',
+    )
+    search_fields = (
+        'stdout',
+        'stderr',
+        'job__name',
+        'job__command',
+    )
+    readonly_fields = (
+        'run_start_datetime',
+        'run_end_datetime',
+        'duration_seconds',
+    )
     date_hierarchy = 'run_start_datetime'
     fieldsets = (
         (None, {
-            'fields': ('job',)
+            'fields': (
+                'job',
+                'run_start_datetime',
+                'run_end_datetime',
+                'duration_seconds',
+            )
         }),
         ('Output', {
             'fields': ('stdout', 'stderr',)

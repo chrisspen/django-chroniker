@@ -2,6 +2,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.db import models
+from django.db.models import Q
 from django.template import loader, Context
 from django.utils.encoding import smart_str
 from django.utils.timesince import timeuntil
@@ -35,7 +36,9 @@ class JobManager(models.Manager):
         responsibility to call ``Job.check_is_running()`` to determine whether
         or not the ``Job`` actually needs to be run.
         """
-        return self.filter(next_run__lte=datetime.now(), disabled=False)
+        q = self.filter(Q(next_run__lte=datetime.now()) | Q(force_run=True))
+        q = q.filter(disabled=False)
+        return q
 
 # A lot of rrule stuff is from django-schedule
 freqs = (   ("YEARLY", _("Yearly")),
@@ -86,33 +89,77 @@ class Job(models.Model):
     """
     A recurring ``django-admin`` command to be run.
     """
-    name = models.CharField(_("name"), max_length=200)
-    frequency = models.CharField(_("frequency"), choices=freqs, max_length=10)
-    params = models.TextField(_("params"), null=True, blank=True,
-        help_text=_('Comma-separated list of '
-                    '<a href="http://labix.org/python-dateutil" '
-                    'target="_blank">rrule parameters</a>. '
-                    'e.g: interval:15'))
-    command = models.CharField(_("command"), max_length=200, blank=True,
-        help_text=_("A valid django-admin command to "
-               "run."))
-    args = models.CharField(_("args"), max_length=200, blank=True,
+    name = models.CharField(
+        _("name"),
+        max_length=200)
+    
+    frequency = models.CharField(
+        _("frequency"),
+        choices=freqs,
+        max_length=10)
+    
+    params = models.TextField(
+        _("params"),
+        null=True,
+        blank=True,
+        help_text=_(
+            'Comma-separated list of '
+            '<a href="http://labix.org/python-dateutil" '
+            'target="_blank">rrule parameters</a>. '
+            'e.g: interval:15'))
+    
+    command = models.CharField(
+        _("command"),
+        max_length=200,
+        blank=True,
+        help_text=_("A valid django-admin command to run."))
+    
+    args = models.CharField(
+        _("args"),
+        max_length=200,
+        blank=True,
         help_text=_("Space separated list; e.g: arg1 option1=True"))
-    disabled = models.BooleanField(default=False, help_text=_('If checked this '
-                                                              'job will never '
-                                                              'run.'))
-    next_run = models.DateTimeField(_("next run"), blank=True, null=True,
-                                    help_text=_("If you don't set this it will"
-                                                " be determined automatically"))
-    last_run = models.DateTimeField(_("last run"), editable=False, blank=True,
-                                    null=True)
-    is_running = models.BooleanField(default=False, editable=False)
-    last_run_successful = models.BooleanField(default=True, blank=False,
-                                              null=False, editable=False)
-    subscribers = models.ManyToManyField(User, blank=True,
-                                         limit_choices_to={'is_staff':True})
-    lock_file = models.CharField(max_length=255, blank=True, editable=False)
-    force_run = models.BooleanField(default=False)
+    
+    disabled = models.BooleanField(
+        default=False,
+        help_text=_('If checked this job will never run.'))
+    
+    next_run = models.DateTimeField(
+        _("next run"),
+        blank=True,
+        null=True,
+        help_text=_("If you don't set this it will"
+            " be determined automatically"))
+    
+    last_run = models.DateTimeField(
+        _("last run"),
+        editable=False,
+        blank=True,
+        null=True)
+    
+    is_running = models.BooleanField(
+        default=False,
+        editable=False)
+    
+    last_run_successful = models.BooleanField(
+        default=True,
+        blank=False,
+        null=False,
+        editable=False)
+    
+    subscribers = models.ManyToManyField(
+        User,
+        blank=True,
+        limit_choices_to={'is_staff':True})
+    
+    lock_file = models.CharField(
+        max_length=255,
+        blank=True,
+        editable=False)
+    
+    force_run = models.BooleanField(
+        default=False,
+        help_text=_("If checked this job will be run immediately."))
     
     objects = JobManager()
     
@@ -313,6 +360,7 @@ class Job(models.Model):
         
         self.save()
         
+        t0 = time.time()
         heartbeat.start()
         try:
             logger.debug("Calling command '%s'" % self.command)
@@ -333,6 +381,7 @@ class Job(models.Model):
         logger.debug("Stopping heartbeat")
         heartbeat.stop()
         heartbeat.join()
+        duration_seconds = time.time() - t0
         
         run_end_datetime = datetime.now()
         self.is_running = False
@@ -367,14 +416,15 @@ class Job(models.Model):
             # unsuccessful
             self.last_run_successful = False
         
-        if stdout_str or stderr_str:
-            log = Log.objects.create(
-                job = self,
-                run_start_datetime = run_start_datetime,
-                run_end_datetime = run_end_datetime,
-                stdout = stdout_str,
-                stderr = stderr_str
-            )
+        log = Log.objects.create(
+            job = self,
+            run_start_datetime = run_start_datetime,
+            run_end_datetime = run_end_datetime,
+            duration_seconds = duration_seconds,
+            stdout = stdout_str,
+            stderr = stderr_str,
+            success = self.last_run_successful,
+        )
 
         # Redirect output back to default
         sys.stdout = ostdout
@@ -407,15 +457,18 @@ class Log(models.Model):
     """
     A record of stdout and stderr of a ``Job``.
     """
-    job = models.ForeignKey(Job)
+    job = models.ForeignKey(Job, related_name='logs')
     run_start_datetime = models.DateTimeField(
+        editable=False,
         default=datetime.now,
         blank=False,
         null=False)
     run_end_datetime = models.DateTimeField(
+        editable=False,
         blank=True,
         null=True)
     duration_seconds = models.PositiveIntegerField(
+        editable=False,
         blank=True,
         null=True)
     stdout = models.TextField(blank=True)

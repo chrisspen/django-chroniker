@@ -42,6 +42,7 @@ class Command(BaseCommand):
             sys.stdout.write("Starting cronserver.  Jobs will run every %d seconds.\n" % time_wait)
             sys.stdout.write("Quit the server with CONTROL-C.\n")
             
+            # Wait until we're synchronized with the system clock.
             seconds = datetime.now().second
             if seconds > 0:
                 sleep(60-seconds)
