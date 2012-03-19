@@ -1,0 +1,8 @@
+{% load i18n %}
+{% trans "The job failed to run.  The exception was " %}:
+
+{{ exception|safe }}
+
+{% for line in traceback %}
+{{ line|safe }}
+{% endfor %}

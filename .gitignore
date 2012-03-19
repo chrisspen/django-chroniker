@@ -1,0 +1,7 @@
+.project
+.pydevproject
+.settings
+build
+dist
+MANIFEST
+django_chroniker.egg-info

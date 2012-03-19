@@ -1,0 +1,40 @@
+.. _architecture:
+
+Architecture
+============
+
+The trickiest thing to get right in ``Chronograph`` is the ability to properly
+manage the state of a ``Job``, i.e. reliably determining whether or not a
+job is or isn't running, if it has been killed or terminated prematurely.  In
+the first version of ``Chronograph`` this issue was "solved" by keeping track
+of the PID of each running job and using the ``ps`` command to have the
+operating system tell us if the job was still running.  However, this route was
+less than ideal, for a few reasons, but most importantly because isn't wasn't
+cross-platform.  Additionally, using a series of ``subprocess.Popen`` calls was
+leading to path-related issues for some users, even on "supported" platforms.
+
+Newer version of ``Chronograph`` have attempted to solve this problem in the
+following way:
+
+	1.	Get a list of ``Job``\s that are "due"
+	2.	For each ``Job``, launch a ``multiprocessing.Process`` instance, which
+		internally calls ``django.core.management.call_command``
+	3.	When the ``Job`` is run, we spawn a ``threading.Thread`` instance whose
+		sole purpose is to keep track of a lock file.  This thread exists only
+		while the Job is running and updates the file every second.  We store
+		the path to this temporary file (an instance of
+		``tempfile.NamedTemporaryFile``) on the ``Job`` model (which is then
+		stored in the database).  When we want to check if a ``Job`` is running
+		we do the following:
+		
+		1.	If ``is_running`` equals ``True``, and ``lock_file`` point to a
+			file, then:
+			
+			1.	If the lock file actually exists and has been updated more
+				recently than ``CHRONOGRAPH_LOCK_TIMEOUT`` seconds, then we
+				can assume that the ``Job`` is still running
+		2.	Else we assume the ``Job`` is not running and update the database
+			accordingly
+
+This new method should would much more reliably across all platforms that
+support the threading and multiprocess libraries.
