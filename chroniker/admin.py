@@ -41,6 +41,7 @@ class JobAdmin(admin.ModelAdmin):
         'last_run_with_link',
         'get_timeuntil',
         'get_frequency',
+        'disabled',
         'check_is_running',
         'run_button',
         'view_logs_button',
