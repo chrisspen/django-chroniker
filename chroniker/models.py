@@ -1,14 +1,15 @@
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.mail import send_mail
 from django.core.management import call_command
 from django.db import models
 from django.db.models import Q
-from django.template import loader, Context
+from django.template import loader, Context, Template
 from django.utils.encoding import smart_str
 from django.utils.timesince import timeuntil
 from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
 
-from chroniker.settings import LOCK_TIMEOUT
+import chroniker.settings
 
 import logging
 import os
@@ -151,6 +152,16 @@ class Job(models.Model):
         User,
         blank=True,
         limit_choices_to={'is_staff':True})
+    
+    email_errors_to_subscribers = models.BooleanField(
+        default=True,
+        help_text='If checked, the stdout and stderr of a job will ' + \
+            'be emailed to the subscribers if an error occur.')
+    
+    email_success_to_subscribers = models.BooleanField(
+        default=False,
+        help_text='If checked, the stdout of a job will ' + \
+            'be emailed to the subscribers if not errors occur.')
     
     lock_file = models.CharField(
         max_length=255,
@@ -429,6 +440,14 @@ class Job(models.Model):
         # Redirect output back to default
         sys.stdout = ostdout
         sys.stderr = ostderr
+        
+        # Email subscribers.
+        if self.last_run_successful:
+            if self.email_success_to_subscribers:
+                log.email_subscribers()
+        else:
+            if self.email_errors_to_subscribers:
+                log.email_subscribers()
     
     def check_is_running(self):
         """
@@ -442,7 +461,7 @@ class Job(models.Model):
                 # The lock file exists, but if the file hasn't been modified
                 # in less than LOCK_TIMEOUT seconds ago, we assume the process
                 # is dead
-                if (time.time() - os.stat(self.lock_file).st_mtime) <= LOCK_TIMEOUT:
+                if (time.time() - os.stat(self.lock_file).st_mtime) <= chroniker.settings.LOCK_TIMEOUT:
                     return True
             
             # This job isn't running; update it's info
@@ -485,11 +504,25 @@ class Log(models.Model):
         subscribers = []
         for user in self.job.subscribers.all():
             subscribers.append('"%s" <%s>' % (user.get_full_name(), user.email))
-
+        
+        is_error = bool((self.stderr or '').strip())
+        if is_error:
+            subject_tmpl = chroniker.settings.EMAIL_SUBJECT_ERROR
+        else:
+            subject_tmpl = chroniker.settings.EMAIL_SUBJECT_SUCCESS
+        
+        t = Template(subject_tmpl)
+        args = self.__dict__.copy()
+        args['job'] = self.job
+        c = Context(args)
+        subject = t.render(c)
+        
         send_mail(
-            from_email = '"%s" <%s>' % (settings.EMAIL_SENDER,
-                                        settings.EMAIL_HOST_USER),
-            subject = '%s' % self,
+            from_email = '"%s" <%s>' % (
+                chroniker.settings.EMAIL_SENDER,
+                chroniker.settings.EMAIL_HOST_USER),
+            subject = subject,
             recipient_list = subscribers,
             message = "Ouput:\n%s\nError output:\n%s" % (self.stdout, self.stderr)
         )
+        

@@ -17,7 +17,52 @@ you can add jobs.
 Installation
 ------------
 
+Install the package via pip with:
+
+    pip install https://github.com/chrisspen/django-chroniker/tarball/master
+    
+Add 'chroniker' to the INSTALLED_APPS list in your settings.py.
+
+If you're using South (which you should be), install Chroniker's models by running:
+
+    python manage.py migrate
+    
+otherwise run:
+
+    python manage.py syncdb
+
 Usage
 -----
+
+In your admin, creating and jobs under the Chroniker section.
+
+If you're in a development setting, you can test your Chroniker-based cron jobs by first checking "force run" on your job, and then running:
+
+    python manage.py cron
+
+Also, you can simulate a simple cron server that will automatically run any pending cron jobs every N seconds with:
+
+    python manage.py cronserver
+
+To allow Chroniker can send email, ensure you have valid email parameters in your settings.py. A very basic example using Gmail might be:
+
+    EMAIL_USE_TLS = True
+    EMAIL_HOST = 'smtp.gmail.com'
+    EMAIL_HOST_USER = 'myusername@gmail.com'
+    EMAIL_HOST_PASSWORD = os.environ['GMAILPASS']
+
+You can customize the "name" Chroniker uses in its emails with:
+
+    CHRONIKER_EMAIL_SENDER = 'Jon Doe'
+
+You can also specify a separate email user for Chroniker with:
+
+    CHRONIKER_EMAIL_HOST_USER = 'someotherusername@otherdomain.com'
+
+When installing Chroniker in a production environment, you'll need to add a single cron job that calls bin/chroniker. You'll need to specify where this script is installed, where your Python virtual environment is located (if you're using one), and where your Django project is located. An example of this might be: 
+
+    * * * * * /usr/local/myproject/bin/chroniker -e /usr/local/myproject/.env/bin/activate_this.py -p /usr/local/myproject
+
+Run `bin/chroniker --help` for a full listing of options.
 
 .. _Chronograph: https://bitbucket.org/wnielson/django-chronograph/

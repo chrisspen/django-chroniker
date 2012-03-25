@@ -68,7 +68,11 @@ class JobAdmin(admin.ModelAdmin):
         }),
         ('E-mail subscriptions', {
             'classes': ('wide',),
-            'fields': ('subscribers',)
+            'fields': (
+                'subscribers',
+                'email_errors_to_subscribers',
+                'email_success_to_subscribers',
+            )
         }),
         ('Frequency options', {
             'classes': ('wide',),
