@@ -35,7 +35,10 @@ class HTMLWidget(forms.Widget):
         return mark_safe("<div%s>%s</div>" % (flatatt(final_attrs), linebreaks(value)))
 
 class JobAdmin(admin.ModelAdmin):
-    actions = ['run_selected_jobs']
+    actions = (
+        'run_selected_jobs',
+        'toggle_disabled',
+    )
     list_display = (
         'name',
         'last_run_with_link',
@@ -165,6 +168,18 @@ class JobAdmin(admin.ModelAdmin):
             message_bit = "%s jobs were" % rows_updated
         self.message_user(request, "%s successfully set to run." % message_bit)
     run_selected_jobs.short_description = "Run selected jobs"
+    
+    def toggle_disabled(self, request, queryset):
+        for row in queryset:
+            row.disabled = not row.disabled
+            row.save()
+        rows_updated = queryset.count()
+        if rows_updated == 1:
+            message_bit = "1 job was toggled"
+        else:
+            message_bit = "%s jobs were toggled" % rows_updated
+        self.message_user(request, message_bit)
+    toggle_disabled.short_description = "Toggle disabled flag on selected jobs"
     
     def formfield_for_dbfield(self, db_field, **kwargs):
         request = kwargs.pop("request", None)
