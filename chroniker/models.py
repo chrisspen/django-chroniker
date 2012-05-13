@@ -183,16 +183,17 @@ class Job(models.Model):
         return u"%s - %s" % (self.name, self.timeuntil)
     
     def save(self, *args, **kwargs):
-        if not self.disabled:
+        if self.disabled:
+            self.next_run = None
+        else:
             if self.pk:
                 j = Job.objects.get(pk=self.pk)
             else:
                 j = self
             if not self.next_run or j.params != self.params:
                 logger.debug("Updating 'next_run")
-                self.next_run = self.rrule.after(self.next_run)
-        else:
-            self.next_run = None
+                next_run = self.next_run or datetime.now()
+                self.next_run = self.rrule.after(next_run)
         
         super(Job, self).save(*args, **kwargs)
 
