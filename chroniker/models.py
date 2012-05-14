@@ -1,16 +1,3 @@
-from django.conf import settings
-from django.contrib.auth.models import User
-from django.core.mail import send_mail
-from django.core.management import call_command
-from django.db import models
-from django.db.models import Q
-from django.template import loader, Context, Template
-from django.utils.encoding import smart_str
-from django.utils.timesince import timeuntil
-from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
-
-import chroniker.settings
-
 import logging
 import os
 import re
@@ -24,6 +11,20 @@ from datetime import datetime, timedelta
 from dateutil import rrule
 from StringIO import StringIO
 from threading import Thread
+
+from django.conf import settings
+from django.contrib.auth.models import User
+from django.core.mail import send_mail
+from django.core.management import call_command
+from django.db import models
+from django.db.models import Q
+from django.template import loader, Context, Template
+from django.utils.encoding import smart_str
+from django.utils.timesince import timeuntil
+from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
+
+import chroniker.settings
+import chroniker.utils
 
 logger = logging.getLogger('chroniker.models')
 
@@ -374,14 +375,17 @@ class Job(models.Model):
         method.
         """     
         args, options = self.get_args()
-        stdout = StringIO()
-        stderr = StringIO()
+#        stdout = StringIO()
+#        stderr = StringIO()
+        stdout = chroniker.utils.TeeFile(sys.stdout)
+        stderr = chroniker.utils.TeeFile(sys.stderr)
 
         # Redirect output so that we can log it if there is any
         ostdout = sys.stdout
         ostderr = sys.stderr
         sys.stdout = stdout
         sys.stderr = stderr
+        
         stdout_str, stderr_str = "", ""
 
         heartbeat = JobHeartbeatThread()
