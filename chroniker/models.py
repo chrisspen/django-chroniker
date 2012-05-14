@@ -143,10 +143,9 @@ class Job(models.Model):
         default=False,
         editable=False)
     
-    last_run_successful = models.BooleanField(
-        default=True,
-        blank=False,
-        null=False,
+    last_run_successful = models.NullBooleanField(
+        blank=True,
+        null=True,
         editable=False)
     
     subscribers = models.ManyToManyField(
@@ -200,14 +199,6 @@ class Job(models.Model):
                 self.next_run = self.rrule.after(next_run)
         
         super(Job, self).save(*args, **kwargs)
-        
-    def last_run_successful(self):
-        q = self.logs.all().order_by('-run_start_datetime')
-        if not q.count():
-            return
-        return q[0].success
-    last_run_successful.short_description = _('Success')
-    last_run_successful = property(last_run_successful)
 
     def get_timeuntil(self):
         """

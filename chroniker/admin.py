@@ -109,11 +109,6 @@ class JobAdmin(admin.ModelAdmin):
     last_run_with_link.allow_tags = True
     last_run_with_link.short_description = 'Last run'
     
-    def last_run_successful(self, obj):
-        return obj.last_run_successful
-    last_run_successful.short_description = _('Success')
-    last_run_successful.boolean = True
-    
     def get_timeuntil(self, obj):
         format = get_date_formats()[1]
         value = capfirst(dateformat.format(obj.next_run, format))
