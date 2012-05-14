@@ -38,7 +38,7 @@ class JobManager(models.Manager):
         or not the ``Job`` actually needs to be run.
         """
         q = self.filter(Q(next_run__lte=datetime.now()) | Q(force_run=True))
-        q = q.filter(disabled=False)
+        q = q.filter(enabled=True)
         return q
 
 # A lot of rrule stuff is from django-schedule
@@ -121,9 +121,9 @@ class Job(models.Model):
         blank=True,
         help_text=_("Space separated list; e.g: arg1 option1=True"))
     
-    disabled = models.BooleanField(
-        default=False,
-        help_text=_('If checked this job will never run.'))
+    enabled = models.BooleanField(
+        default=True,
+        help_text=_('If checked this job will run.'))
     
     next_run = models.DateTimeField(
         _("next run"),
@@ -175,15 +175,18 @@ class Job(models.Model):
     objects = JobManager()
     
     class Meta:
-        ordering = ('disabled', 'next_run',)
+        ordering = (
+            'name',
+            #'enabled', 'next_run',
+        )
     
     def __unicode__(self):
-        if self.disabled:
+        if not self.enabled:
             return _(u"%(name)s - disabled") % {'name': self.name}
         return u"%s - %s" % (self.name, self.timeuntil)
     
     def save(self, *args, **kwargs):
-        if self.disabled:
+        if not self.enabled:
             self.next_run = None
         else:
             if self.pk:
@@ -196,6 +199,14 @@ class Job(models.Model):
                 self.next_run = self.rrule.after(next_run)
         
         super(Job, self).save(*args, **kwargs)
+        
+    def last_run_successful(self):
+        q = self.logs.all().order_by('-run_start_datetime')
+        if not q.count():
+            return
+        return q[0].success
+    last_run_successful.short_description = _('Success')
+    last_run_successful = property(last_run_successful)
 
     def get_timeuntil(self):
         """
@@ -207,7 +218,7 @@ class Job(models.Model):
         >>> job.get_timeuntil().translate('en')
         u'due'
         """
-        if self.disabled:
+        if not self.enabled:
             return _('never (disabled)')
         
         delta = self.next_run - datetime.now()
@@ -325,12 +336,15 @@ class Job(models.Model):
         >>> job.is_due()
         True
         
-        >>> job = Job(next_run=datetime.now(), disabled=True)
+        >>> job = Job(next_run=datetime.now(), enabled=False)
         >>> job.is_due()
         False
         """
-        reqs =  (self.next_run <= datetime.now() and self.disabled == False 
-                and self.check_is_running() == False)
+        reqs =  (
+            self.next_run <= datetime.now()
+            and self.enabled
+            and self.check_is_running() == False
+        )
         return (reqs or self.force_run)
     
     def run(self):
@@ -340,10 +354,16 @@ class Job(models.Model):
         
         Returns ``True`` if the ``Job`` ran, ``False`` otherwise.
         """
-        if not self.disabled:
-            if not self.check_is_running() and self.is_due():
+        if self.enabled:
+            if self.check_is_running():
+                print 'Job already running. Aborting run.'
+            elif not self.is_due():
+                print 'Job not due. Aborting run.'
+            else:
                 call_command('run_job', str(self.pk))
                 return True
+        else:
+            print 'Job disabled. Aborting run.'
         return False
     
     def handle_run(self):

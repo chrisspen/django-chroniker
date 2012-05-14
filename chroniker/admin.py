@@ -37,24 +37,29 @@ class HTMLWidget(forms.Widget):
 class JobAdmin(admin.ModelAdmin):
     actions = (
         'run_selected_jobs',
-        'toggle_disabled',
+        'toggle_enabled',
     )
     list_display = (
         'name',
         'last_run_with_link',
         'get_timeuntil',
         'get_frequency',
-        'disabled',
+        'enabled',
         'check_is_running',
+        'last_run_successful',
         'run_button',
         'view_logs_button',
     )
     readonly_fields = (
         'check_is_running',
         'view_logs_button',
+        'last_run_successful',
     )
     list_display_links = ('name', )
-    list_filter = ('last_run_successful', 'frequency', 'disabled')
+    list_filter = (
+        'frequency',
+        'enabled',
+    )
     filter_horizontal = ('subscribers',)
     fieldsets = (
         ('Job Details', {
@@ -63,10 +68,11 @@ class JobAdmin(admin.ModelAdmin):
                 'name',
                 'command',
                 'args',
-                'disabled',
+                'enabled',
                 'check_is_running',
                 'force_run',
                 'view_logs_button',
+                'last_run_successful',
             )
         }),
         ('E-mail subscriptions', {
@@ -102,6 +108,11 @@ class JobAdmin(admin.ModelAdmin):
     last_run_with_link.admin_order_field = 'last_run'
     last_run_with_link.allow_tags = True
     last_run_with_link.short_description = 'Last run'
+    
+    def last_run_successful(self, obj):
+        return obj.last_run_successful
+    last_run_successful.short_description = _('Success')
+    last_run_successful.boolean = True
     
     def get_timeuntil(self, obj):
         format = get_date_formats()[1]
@@ -169,9 +180,9 @@ class JobAdmin(admin.ModelAdmin):
         self.message_user(request, "%s successfully set to run." % message_bit)
     run_selected_jobs.short_description = "Run selected jobs"
     
-    def toggle_disabled(self, request, queryset):
+    def toggle_enabled(self, request, queryset):
         for row in queryset:
-            row.disabled = not row.disabled
+            row.enabled = not row.enabled
             row.save()
         rows_updated = queryset.count()
         if rows_updated == 1:
@@ -179,7 +190,7 @@ class JobAdmin(admin.ModelAdmin):
         else:
             message_bit = "%s jobs were toggled" % rows_updated
         self.message_user(request, message_bit)
-    toggle_disabled.short_description = "Toggle disabled flag on selected jobs"
+    toggle_enabled.short_description = "Toggle enabled flag on selected jobs"
     
     def formfield_for_dbfield(self, db_field, **kwargs):
         request = kwargs.pop("request", None)
