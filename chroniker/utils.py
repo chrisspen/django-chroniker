@@ -14,15 +14,24 @@ def get_admin_changelist_url(obj):
     return reverse(list_url_name)
 
 class TeeFile(StringIO):
-    def __init__(self, file):
+    """
+    A helper class for allowing output to be stored in a StringIO instance
+    while still be directed to a second file object, such as sys.stdout.
+    """
+    def __init__(self, file, auto_flush=False):
         #super(TeeFile, self).__init__()
         StringIO.__init__(self)
         self.file = file
+        self.auto_flush = auto_flush
+        self.length = 0
 
     def write(self, s):
+        self.length += len(s)
         self.file.write(s)
         #super(TeeFile, self).write(s)
         StringIO.write(self, s)
+        if self.auto_flush:
+            self.file.flush()
         
     def flush(self):
         self.file.flush()

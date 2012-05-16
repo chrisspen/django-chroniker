@@ -12,7 +12,11 @@ from django.utils.datastructures import MultiValueDict
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
 from django.utils.text import capfirst
-from django.utils.translation import ungettext, get_date_formats, ugettext_lazy as _
+from django.utils.translation import (
+    ungettext,
+    get_date_formats,
+    ugettext_lazy as _
+)
 
 from chroniker.models import Job, Log
 from chroniker.utils import get_admin_changelist_url
@@ -28,11 +32,16 @@ class HTMLWidget(forms.Widget):
         if self.rel is not None:
             key = self.rel.get_related_field().name
             obj = self.rel.to._default_manager.get(**{key: value})
-            related_url = '../../../%s/%s/%d/' % (self.rel.to._meta.app_label, self.rel.to._meta.object_name.lower(), value)
+            related_url = '../../../%s/%s/%d/' % (
+                self.rel.to._meta.app_label,
+                self.rel.to._meta.object_name.lower(),
+                value)
             value = "<a href='%s'>%s</a>" % (related_url, escape(obj))
             
         final_attrs = self.build_attrs(attrs, name=name)
-        return mark_safe("<div%s>%s</div>" % (flatatt(final_attrs), linebreaks(value)))
+        return mark_safe("<div%s>%s</div>" % (
+            flatatt(final_attrs),
+            linebreaks(value)))
 
 class JobAdmin(admin.ModelAdmin):
     actions = (
@@ -46,14 +55,18 @@ class JobAdmin(admin.ModelAdmin):
         'get_frequency',
         'enabled',
         'check_is_running',
+        'is_fresh',
         'last_run_successful',
         'run_button',
+        'stop_button',
         'view_logs_button',
     )
     readonly_fields = (
         'check_is_running',
         'view_logs_button',
         'last_run_successful',
+        'last_heartbeat',
+        'is_fresh',
     )
     list_display_links = ('name', )
     list_filter = (
@@ -71,8 +84,11 @@ class JobAdmin(admin.ModelAdmin):
                 'enabled',
                 'check_is_running',
                 'force_run',
+                'force_stop',
                 'view_logs_button',
                 'last_run_successful',
+                'last_heartbeat',
+                'is_fresh',
             )
         }),
         ('E-mail subscriptions', {
@@ -112,7 +128,8 @@ class JobAdmin(admin.ModelAdmin):
     def get_timeuntil(self, obj):
         format = get_date_formats()[1]
         value = capfirst(dateformat.format(obj.next_run, format))
-        return "%s<br /><span class='mini'>(%s)</span>" % (value, obj.get_timeuntil())
+        return "%s<br /><span class='mini'>(%s)</span>" \
+            % (value, obj.get_timeuntil())
     get_timeuntil.admin_order_field = 'next_run'
     get_timeuntil.allow_tags = True
     get_timeuntil.short_description = _('next scheduled run')
@@ -130,6 +147,17 @@ class JobAdmin(admin.ModelAdmin):
         return '<a href="%s"><input type="button" value="Run" /></a>' % url
     run_button.allow_tags = True
     run_button.short_description = 'Run'
+    
+    def stop_button(self, obj):
+        url = '%d/stop/?inline=1' % obj.id
+        vars = dict(url=url, disabled='')
+        if not obj.is_running:
+            vars['disabled'] = 'disabled'
+        s = ('<a href="%(url)s"><input type="button" %(disabled)s ' + \
+            'value="Stop" /></a>') % vars
+        return s
+    stop_button.allow_tags = True
+    stop_button.short_description = 'Stop'
     
     def view_logs_button(self, obj):
         q = obj.logs.all()
@@ -152,7 +180,31 @@ class JobAdmin(admin.ModelAdmin):
         # simply force the Job to be run by the next cron job
         job.force_run = True
         job.save()
-        request.user.message_set.create(message=_('The job "%(job)s" has been scheduled to run.') % {'job': job})        
+        request.user.message_set.create(
+            message=_('The job "%(job)s" has been scheduled to run.') \
+                % {'job': job})
+        if 'inline' in request.GET:
+            redirect = request.path + '../../'
+        else:
+            redirect = request.REQUEST.get('next', request.path + "../")
+        return HttpResponseRedirect(redirect)
+    
+    def stop_job_view(self, request, pk):
+        """
+        Stop the specified job.
+        """
+        try:
+            job = Job.objects.get(pk=pk)
+        except Job.DoesNotExist:
+            raise Http404
+        # Rather than actually running the Job right now, we
+        # simply force the Job to be run by the next cron job
+        job.force_run = False
+        job.force_stop = True
+        job.save()
+        request.user.message_set.create(
+            message=_('The job "%(job)s" is being signalled to stop.') \
+                % {'job': job})
         if 'inline' in request.GET:
             redirect = request.path + '../../'
         else:
@@ -162,7 +214,12 @@ class JobAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super(JobAdmin, self).get_urls()
         my_urls = patterns('',
-            url(r'^(.+)/run/$', self.admin_site.admin_view(self.run_job_view), name="chroniker_job_run")
+            url(r'^(.+)/run/$',
+                self.admin_site.admin_view(self.run_job_view),
+                name="chroniker_job_run"),
+            url(r'^(.+)/stop/$',
+                self.admin_site.admin_view(self.stop_job_view),
+                name="chroniker_job_stop"),
         )
         return my_urls + urls
     
