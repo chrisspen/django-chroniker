@@ -84,6 +84,7 @@ class JobHeartbeatThread(threading.Thread):
         Do not call this directly; call ``start()`` instead.
         """
         while not self.halt:
+            #print 'Heartbeat check...'
             self.lock_file.seek(0)
             self.lock_file.write(str(time.time()))
             self.lock_file.flush()
@@ -113,6 +114,7 @@ class JobHeartbeatThread(threading.Thread):
         """
         self.halt = True
         while self.is_alive():
+            #print 'Waiting for heartbeat to stop...'
             time.sleep(.1)
         self.lock_file.close()
 
@@ -465,10 +467,13 @@ class Job(models.Model):
             # next_run date
             next_run = self.next_run
             if not self.force_run:
-                logger.debug("Determining 'next_run'")
-                while self.next_run < datetime.now():
-                    next_run = self.rrule.after(self.next_run)
-                logger.debug("'next_run = ' %s" % next_run)
+                #print "Determining 'next_run'"
+                while next_run < datetime.now():
+                    _next_run = next_run
+                    next_run = self.rrule.after(next_run)
+                    #print "'next_run = ' %s" % next_run
+                    assert next_run != _next_run, \
+                        'RRule failed to increment next run datetime.'
             
             last_run_successful = not bool(stderr.length)
                 
