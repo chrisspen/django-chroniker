@@ -25,7 +25,6 @@ class Command(BaseCommand):
     help = _("Emulates a reoccurring cron call to run jobs at a specified "
              "interval.  This is meant primarily for development use.")
     
-    
     def handle( self, *args, **options ):
         from django.core.management import call_command
         
@@ -47,7 +46,7 @@ class Command(BaseCommand):
             if seconds > 0:
                 sleep(60-seconds)
             
-            # Run server untill killed
+            # Run server until killed.
             while True:
                 thread = CronThread()
                 thread.start()
