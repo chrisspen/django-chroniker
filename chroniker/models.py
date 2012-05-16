@@ -105,7 +105,7 @@ class JobHeartbeatThread(threading.Thread):
                 thread.interrupt_main()
                 return
             
-            time.sleep(1)
+            time.sleep(10)
     
     def stop(self):
         """
@@ -489,14 +489,6 @@ class Job(models.Model):
             job.save()
             lock.release()
             
-            # Email subscribers.
-            if last_run_successful:
-                if self.email_success_to_subscribers:
-                    log.email_subscribers()
-            else:
-                if self.email_errors_to_subscribers:
-                    log.email_subscribers()
-                    
         finally:
             
             # Redirect output back to default
@@ -504,6 +496,7 @@ class Job(models.Model):
             sys.stderr = ostderr
             
             # Record run log.
+            print 'Recording log...'
             log = Log.objects.create(
                 job = self,
                 run_start_datetime = run_start_datetime,
@@ -513,6 +506,17 @@ class Job(models.Model):
                 stderr = stderr.getvalue(),
                 success = last_run_successful,
             )
+            
+            # Email subscribers.
+            try:
+                if last_run_successful:
+                    if self.email_success_to_subscribers:
+                        log.email_subscribers()
+                else:
+                    if self.email_errors_to_subscribers:
+                        log.email_subscribers()
+            except Exception, e:
+                print>>sys.stderr, e
             
             # If an exception occurs above, ensure we unmark is_running.
             lock.acquire()
@@ -524,6 +528,8 @@ class Job(models.Model):
                 job.last_run_successful = False
                 job.save()
             lock.release()
+            
+            print 'Job done.'
     
     def check_is_running(self):
         """
