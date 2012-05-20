@@ -54,7 +54,8 @@ class JobAdmin(admin.ModelAdmin):
         'get_timeuntil',
         'get_frequency',
         'enabled',
-        'check_is_running',
+        #'check_is_running',
+        'check_is_complete',
         'is_fresh',
         'last_run_successful',
         'run_button',
@@ -63,6 +64,7 @@ class JobAdmin(admin.ModelAdmin):
     )
     readonly_fields = (
         'check_is_running',
+        'check_is_complete',
         'view_logs_button',
         'last_run_successful',
         'last_heartbeat',
@@ -124,6 +126,11 @@ class JobAdmin(admin.ModelAdmin):
     last_run_with_link.admin_order_field = 'last_run'
     last_run_with_link.allow_tags = True
     last_run_with_link.short_description = 'Last run'
+    
+    def check_is_complete(self, obj):
+        return not obj.check_is_running()
+    check_is_complete.short_description = _('is complete')
+    check_is_complete.boolean = True
     
     def get_timeuntil(self, obj):
         format = get_date_formats()[1]
