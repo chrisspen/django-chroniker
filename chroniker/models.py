@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import socket
 import subprocess
 import sys
 import tempfile
@@ -17,7 +18,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.core.management import call_command
-from django.db import models
+from django.db import models, connection
 from django.db.models import Q
 from django.template import loader, Context, Template
 from django.utils.encoding import smart_str
@@ -40,7 +41,10 @@ class JobManager(models.Manager):
         responsibility to call ``Job.check_is_running()`` to determine whether
         or not the ``Job`` actually needs to be run.
         """
+        q = self.select_for_update()
         q = self.filter(Q(next_run__lte=datetime.now()) | Q(force_run=True))
+        q = self.filter(
+            Q(hostname__isnull=True) | Q(hostname=socket.gethostname()))
         q = q.filter(enabled=True)
         return q
 
@@ -117,6 +121,53 @@ class JobHeartbeatThread(threading.Thread):
             #print 'Waiting for heartbeat to stop...'
             time.sleep(.1)
         self.lock_file.close()
+
+class JobDependency(models.Model):
+    """
+    Represents a scheduling dependency between two jobs.
+    """
+    
+    dependent = models.ForeignKey('Job', related_name='dependencies')
+    
+    dependee = models.ForeignKey('Job', related_name='dependents')
+    
+    wait_for_completion = models.BooleanField(
+        default=True,
+        help_text='If checked, the dependent job will not run until ' + \
+            'the dependee job has completed.')
+    
+    wait_for_success = models.BooleanField(
+        default=True,
+        help_text='If checked, the dependent job will not run until ' + \
+            'the dependee job has completed successfully.')
+    
+    wait_for_next_run = models.BooleanField(
+        default=True,
+        help_text='If checked, the dependent job will not run until ' + \
+            'the dependee job has a next_run greater than its next_run.')
+    
+    def criteria_met(self):
+        if self.wait_for_completion and self.dependee.is_running:
+            # Don't run until our dependency completes.
+            return False
+        if self.wait_for_success and not self.dependee.last_run_successful:
+            # Don't run until our dependency completes successfully.
+            return False
+        if self.wait_for_next_run:
+            # Don't run until our dependency is scheduled until after
+            # our next run.
+            if not self.dependent.next_run or not self.dependee.next_run:
+                return False
+            if self.dependee.next_run < self.dependent.next_run:
+                return False
+        return True
+    criteria_met.boolean = True
+    
+    class Meta:
+        
+        unique_together = (
+            ('dependent', 'dependee'),
+        )
 
 class Job(models.Model):
     """
@@ -214,6 +265,15 @@ class Job(models.Model):
         default=False,
         help_text=_("If checked and running then this job will be stopped."))
     
+    hostname = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text=('If given, ensures the job is only run on the server ' + \
+            'with the equivalent host name.<br/>Not setting any hostname ' + \
+            'will cause the job to be ran on an arbitrary server.<br/> ' + \
+            'The current hostname is <b>%s</b>.') % socket.gethostname())
+    
     objects = JobManager()
     
     class Meta:
@@ -241,6 +301,16 @@ class Job(models.Model):
                 self.next_run = self.rrule.after(next_run)
         
         super(Job, self).save(*args, **kwargs)
+
+    def dependencies_met(self):
+        """
+        Returns true if all dependency scheduling criteria have been met.
+        Returns false otherwise.
+        """
+        for dep in self.dependencies.all():
+            if not dep.criteria_met():
+                return False
+        return True
 
     def is_fresh(self):
         return not self.is_running or (
@@ -396,12 +466,16 @@ class Job(models.Model):
         Returns ``True`` if the ``Job`` ran, ``False`` otherwise.
         """
         if self.enabled:
+            if not self.dependencies_met():
+                # Note, this will cause the job to be re-checked
+                # the next time cron runs.
+                print 'Job has unmet dependencies. Aborting run.'
             if self.check_is_running():
                 print 'Job already running. Aborting run.'
             elif not self.is_due():
                 print 'Job not due. Aborting run.'
             else:
-                call_command('run_job', str(self.pk))
+                call_command('run_job', str(self.pk)) # Calls handle_run().
                 return True
         else:
             print 'Job disabled. Aborting run.'

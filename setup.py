@@ -43,7 +43,7 @@ setup(
         'Framework :: Django',
     ],
     zip_safe = False,
-    install_requires = get_reqs(["Django>=1.0", "python-dateutil<=1.5"]),
+    install_requires = get_reqs(["Django>=1.4.0", "python-dateutil<=1.5"]),
     dependency_links = [
         'http://labix.org/download/python-dateutil/python-dateutil-1.5.tar.gz',
     ]

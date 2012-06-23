@@ -1,3 +1,6 @@
+
+from datetime import datetime
+
 from django import forms
 from django.conf.urls.defaults import patterns, url
 from django.contrib import admin
@@ -9,19 +12,18 @@ from django.http import HttpResponseRedirect, Http404
 from django.template.defaultfilters import linebreaks
 from django.utils import dateformat
 from django.utils.datastructures import MultiValueDict
+from django.utils.formats import get_format
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
 from django.utils.text import capfirst
 from django.utils.translation import (
     ungettext,
-    get_date_formats,
     ugettext_lazy as _
 )
 
-from chroniker.models import Job, Log
+from chroniker.models import Job, Log, JobDependency
 from chroniker.utils import get_admin_changelist_url
-
-from datetime import datetime
+from chroniker.widgets import ImproveRawIdFieldsFormTabularInline
 
 class HTMLWidget(forms.Widget):
     def __init__(self,rel=None, attrs=None):
@@ -42,6 +44,19 @@ class HTMLWidget(forms.Widget):
         return mark_safe("<div%s>%s</div>" % (
             flatatt(final_attrs),
             linebreaks(value)))
+
+class JobDependencyInline(ImproveRawIdFieldsFormTabularInline):
+    model = JobDependency
+    extra = 1
+    fk_name = 'dependent'
+    
+    readonly_fields = (
+        'criteria_met',
+    )
+    
+    raw_id_fields = (
+        'dependee',
+    )
 
 class JobAdmin(admin.ModelAdmin):
     actions = (
@@ -74,6 +89,7 @@ class JobAdmin(admin.ModelAdmin):
     list_filter = (
         'frequency',
         'enabled',
+        'hostname',
     )
     filter_horizontal = ('subscribers',)
     fieldsets = (
@@ -83,6 +99,7 @@ class JobAdmin(admin.ModelAdmin):
                 'name',
                 'command',
                 'args',
+                'hostname',
                 'enabled',
                 'check_is_running',
                 'force_run',
@@ -108,8 +125,12 @@ class JobAdmin(admin.ModelAdmin):
     )
     search_fields = ('name', )
     
+    inlines = (
+       JobDependencyInline,
+    )
+    
     def last_run_with_link(self, obj):
-        format = get_date_formats()[1]
+        format = get_format('DATETIME_FORMAT')
         value = capfirst(dateformat.format(obj.last_run, format))
         
         try:
@@ -133,7 +154,7 @@ class JobAdmin(admin.ModelAdmin):
     check_is_complete.boolean = True
     
     def get_timeuntil(self, obj):
-        format = get_date_formats()[1]
+        format = get_format('DATETIME_FORMAT')
         value = capfirst(dateformat.format(obj.next_run, format))
         return "%s<br /><span class='mini'>(%s)</span>" \
             % (value, obj.get_timeuntil())
