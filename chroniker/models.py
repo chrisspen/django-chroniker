@@ -43,7 +43,9 @@ class JobManager(models.Manager):
         q = self.select_for_update()
         q = self.filter(Q(next_run__lte=datetime.now()) | Q(force_run=True))
         q = self.filter(
-            Q(hostname__isnull=True) | Q(hostname=socket.gethostname()))
+            Q(hostname__isnull=True) | \
+            Q(hostname='') | \
+            Q(hostname=socket.gethostname()))
         q = q.filter(enabled=True)
         return q
 
@@ -139,16 +141,28 @@ class JobDependency(models.Model):
     def criteria_met(self):
         if self.wait_for_completion and self.dependee.is_running:
             # Don't run until our dependency completes.
+            print '"%s": Dependee "%s" is still running.' \
+                % (self.dependent.name, self.dependee.name,)
             return False
         if self.wait_for_success and not self.dependee.last_run_successful:
             # Don't run until our dependency completes successfully.
+            print '"%s": Dependee "%s" failed its last run.' \
+                % (self.dependent.name, self.dependee.name,)
             return False
         if self.wait_for_next_run:
             # Don't run until our dependency is scheduled until after
             # our next run.
-            if not self.dependent.next_run or not self.dependee.next_run:
+            if not self.dependent.next_run:
+                print '"%s": Our next scheduled run has not been set.' \
+                    % (self.dependent.name,)
+                return False
+            if not self.dependee.next_run:
+                print '"%s": Dependee "%s" has not been scheduled to run.' \
+                    % (self.dependent.name, self.dependee.name,)
                 return False
             if self.dependee.next_run < self.dependent.next_run:
+                print '"%s": Dependee "%s" has not yet run before us.' \
+                    % (self.dependent.name, self.dependee.name,)
                 return False
         return True
     criteria_met.boolean = True
