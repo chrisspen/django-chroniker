@@ -27,10 +27,9 @@ from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
 
 import chroniker.settings
 import chroniker.utils
+import chroniker.constants as const
 
 logger = logging.getLogger('chroniker.models')
-
-RRULE_WEEKDAY_DICT = {"MO":0,"TU":1,"WE":2,"TH":3,"FR":4,"SA":5,"SU":6}
 
 class JobManager(models.Manager):
     
@@ -54,15 +53,6 @@ class JobManager(models.Manager):
             Q(last_heartbeat__isnull=True) | 
             Q(last_heartbeat__lt=datetime.now() - timedelta(minutes=5)))
         return q
-    
-# A lot of rrule stuff is from django-schedule
-freqs = (   ("YEARLY", _("Yearly")),
-            ("MONTHLY", _("Monthly")),
-            ("WEEKLY", _("Weekly")),
-            ("DAILY", _("Daily")),
-            ("HOURLY", _("Hourly")),
-            ("MINUTELY", _("Minutely")),
-            ("SECONDLY", _("Secondly")))
 
 class JobHeartbeatThread(threading.Thread):
     """
@@ -179,7 +169,7 @@ class Job(models.Model):
     
     frequency = models.CharField(
         _("frequency"),
-        choices=freqs,
+        choices=const.FREQ_CHOICES,
         max_length=10)
     
     params = models.TextField(
@@ -380,8 +370,8 @@ class Job(models.Model):
         >>> job.get_params()
         {'byweekday': [1, 2, 4, 5]}
         """
-        if param_value in RRULE_WEEKDAY_DICT:
-            return RRULE_WEEKDAY_DICT[param_value]
+        if param_value in const.RRULE_WEEKDAY_DICT:
+            return const.RRULE_WEEKDAY_DICT[param_value]
         try:
             val = int(param_value)
         except ValueError:
@@ -469,11 +459,11 @@ class Job(models.Model):
             if not self.dependencies_met():
                 # Note, this will cause the job to be re-checked
                 # the next time cron runs.
-                print 'Job has unmet dependencies. Aborting run.'
+                print 'Job "%s" has unmet dependencies. Aborting run.' % (self.name,)
             if self.check_is_running():
-                print 'Job already running. Aborting run.'
+                print 'Job "%s" already running. Aborting run.' % (self.name,)
             elif not self.is_due():
-                print 'Job not due. Aborting run.'
+                print 'Job "%s" not due. Aborting run.' % (self.name,)
             else:
                 call_command('run_job', str(self.pk)) # Calls handle_run().
                 return True
@@ -494,6 +484,7 @@ class Job(models.Model):
         last_run_successful = False
         stdout = chroniker.utils.TeeFile(sys.stdout, auto_flush=True)
         stderr = chroniker.utils.TeeFile(sys.stderr, auto_flush=True)
+        t0 = time.time()
         
         try:
     

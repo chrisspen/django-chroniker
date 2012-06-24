@@ -1,13 +1,14 @@
-from django.core.management.base import BaseCommand
-
 import logging
 import os
 import sys
 import time
 
+from django.core.management.base import BaseCommand
+from django.db import connection
+
 from multiprocessing import Process
 
-logger = logging.getLogger('chroniker.commands.cron')
+from chroniker.models import Job
 
 class JobProcess(Process):
     """
@@ -18,16 +19,25 @@ class JobProcess(Process):
     def __init__(self, job, *args, **kwargs):
         self.job = job
         Process.__init__(self, *args, **kwargs)
+        
+        # Don't let this process hold up the parent.
+        self.daemon = True
     
     def run(self):
-        logger.info("Running Job: '%s'" % self.job)
+        print "Running Job: '%s'" % self.job
+        # TODO:Fix? Remove multiprocess and just running all jobs serially?
+        # Multiprocessing does not play well with Django's PostgreSQL
+        # connection, as it seems Django's connection code is not thread-safe.
+        # It's a hacky solution, but the short-term fix seems to be to close
+        # the connection in this thread, forcing Django to open a new
+        # connection unique to this thread.
+        connection.close()
         self.job.run()
 
 class Command(BaseCommand):
     help = 'Runs all jobs that are due.'
     
     def handle(self, *args, **options):
-        from chroniker.models import Job
         
         procs = []
         for job in Job.objects.due():
@@ -37,13 +47,12 @@ class Command(BaseCommand):
                 proc.start()
                 procs.append(proc)
         
-        logger.info("%d Jobs are due" % len(procs))
+        print "%d Jobs are due" % len(procs)
         
         # Keep looping until all jobs are done
         while procs:
-            for i in range(len(procs)):
-                if not procs[i].is_alive():
-                    procs.pop(i)
-                    break
-                time.sleep(.1)
-                
+            for proc in list(procs):
+                if not proc.is_alive():
+                    print 'Process %s ended.' % (proc,)
+                    procs.remove(proc)
+            time.sleep(.1)
