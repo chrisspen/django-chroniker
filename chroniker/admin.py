@@ -208,8 +208,9 @@ class JobAdmin(admin.ModelAdmin):
         # simply force the Job to be run by the next cron job
         job.force_run = True
         job.save()
-        request.user.message_set.create(
-            message=_('The job "%(job)s" has been scheduled to run.') \
+        self.message_user(
+            request,
+            _('The job "%(job)s" has been scheduled to run.') \
                 % {'job': job})
         if 'inline' in request.GET:
             redirect = request.path + '../../'
@@ -230,8 +231,9 @@ class JobAdmin(admin.ModelAdmin):
         job.force_run = False
         job.force_stop = True
         job.save()
-        request.user.message_set.create(
-            message=_('The job "%(job)s" is being signalled to stop.') \
+        self.message_user(
+            request,
+            _('The job "%(job)s" is being signalled to stop.') \
                 % {'job': job})
         if 'inline' in request.GET:
             redirect = request.path + '../../'
