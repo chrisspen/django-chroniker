@@ -12,7 +12,10 @@ from datetime import datetime, timedelta
 from dateutil import rrule
 from StringIO import StringIO
 import threading
-import thread
+try:
+    import thread
+except ImportError:
+    import dummy_thread as thread
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -24,12 +27,48 @@ from django.template import loader, Context, Template
 from django.utils.encoding import smart_str
 from django.utils.timesince import timeuntil
 from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
+from django.utils import timezone
 
 import chroniker.settings
 import chroniker.utils
 import chroniker.constants as const
 
 logger = logging.getLogger('chroniker.models')
+
+_state = {} # {thread_ident:job_id}
+_state_heartbeat = {} # {thread_ident:heartbeat thread object}
+
+def get_current_job():
+    """
+    Retrieves the job associated with the current thread.
+    """
+    thread_ident = thread.get_ident()
+    if thread_ident in _state:
+        try:
+            job_id = _state.get(thread_ident)
+            return Job.objects.get(id=job_id)
+        except Job.DoesNotExist:
+            return
+
+def get_current_heartbeat():
+    thread_ident = thread.get_ident()
+    return _state_heartbeat.get(thread_ident, None)
+
+def set_current_job(job):
+    """
+    Associates a job with the current thread.
+    """
+    thread_ident = thread.get_ident()
+    if thread_ident not in _state:
+        _state[thread_ident] = job if isinstance(job, int) else job.id
+
+def set_current_heartbeat(obj):
+    """
+    Associates a heartbeat with the current thread.
+    """
+    thread_ident = thread.get_ident()
+    if thread_ident not in _state_heartbeat:
+        _state_heartbeat[thread_ident] = obj
 
 class JobManager(models.Manager):
     
@@ -73,6 +112,8 @@ class JobHeartbeatThread(threading.Thread):
         self.job_id = job_id
         self.lock = lock
         self.lock_file = tempfile.NamedTemporaryFile()
+        set_current_job(job_id)
+        set_current_heartbeat(self)
         threading.Thread.__init__(self, *args, **kwargs)
 
     def run(self):
@@ -103,6 +144,8 @@ class JobHeartbeatThread(threading.Thread):
                 return
             
             time.sleep(10)
+            
+        set_current_heartbeat(None)
     
     def stop(self):
         """
@@ -113,6 +156,15 @@ class JobHeartbeatThread(threading.Thread):
             #print 'Waiting for heartbeat to stop...'
             time.sleep(.1)
         self.lock_file.close()
+        
+    def update_progress(self, total_parts, total_parts_complete):
+        self.lock.acquire()
+        Job.objects.update()
+        job = Job.objects.get(id=self.job_id)
+        job.total_parts = total_parts
+        job.total_parts_complete = total_parts_complete
+        job.save()
+        self.lock.release()
 
 class JobDependency(models.Model):
     """
@@ -168,7 +220,7 @@ class JobDependency(models.Model):
     criteria_met.boolean = True
     
     class Meta:
-        
+        verbose_name_plural = 'job dependencies'
         unique_together = (
             ('dependent', 'dependee'),
         )
@@ -219,8 +271,14 @@ class Job(models.Model):
         help_text=_("If you don't set this it will"
             " be determined automatically"))
     
+    last_run_start_timestamp = models.DateTimeField(
+        _("last run start timestamp"),
+        editable=False,
+        blank=True,
+        null=True)
+    
     last_run = models.DateTimeField(
-        _("last run"),
+        _("last run end timestamp"),
         editable=False,
         blank=True,
         null=True)
@@ -278,6 +336,20 @@ class Job(models.Model):
             'will cause the job to be ran on an arbitrary server.<br/> ' + \
             'The current hostname is <b>%s</b>.') % socket.gethostname())
     
+    total_parts_complete = models.PositiveIntegerField(
+        default=0,
+        editable=False,
+        blank=False,
+        null=False,
+        help_text=('The total number of parts of the task that are complete.'))
+    
+    total_parts = models.PositiveIntegerField(
+        default=0,
+        editable=False,
+        blank=False,
+        null=False,
+        help_text=('The total number of parts of the task.'))
+    
     objects = JobManager()
     
     class Meta:
@@ -291,10 +363,62 @@ class Job(models.Model):
             return _(u"%(name)s - disabled") % {'name': self.name}
         return u"%s - %s" % (self.name, self.timeuntil)
     
+    @property
+    def progress_ratio(self):
+        if not self.total_parts_complete and not self.total_parts:
+            return
+        return self.total_parts_complete/float(self.total_parts)
+    
+    @property
+    def progress_percent(self):
+        progress = self.progress_ratio
+        if progress is None:
+            return
+        return progress*100
+    
+    def progress_percent_str(self):
+        progress = self.progress_percent
+        if progress is None:
+            return ''
+        return '%.0f%%' % (progress,)
+    progress_percent_str.short_description = 'Progress'
+    
+    @property
+    def estimated_seconds_to_completion(self):
+        """
+        Returns an estimate of how many seconds are remaining until processing
+        is complete.
+        """
+        if not self.is_running:
+            return
+        progress_ratio = self.progress_ratio
+        if progress_ratio is None:
+            return
+        if not self.last_run_start_timestamp:
+            return
+        td = timezone.now() - self.last_run_start_timestamp
+        total_sec = td.seconds/progress_ratio
+        remaining_sec = total_sec - td.seconds
+        return remaining_sec
+    
+    @property
+    def estimated_completion_datetime(self):
+        from datetime import datetime, timedelta
+        remaining_sec = self.estimated_seconds_to_completion
+        if remaining_sec is None:
+            return
+        return timezone.now() + timedelta(seconds=int(remaining_sec))
+    
+    def estimated_completion_datetime_str(self):
+        c = self.estimated_completion_datetime
+        if c is None:
+            return ''
+        return c.replace(microsecond=0)
+    estimated_completion_datetime_str.short_description = 'ETC'
+    estimated_completion_datetime_str.help_text = 'sdf dsf sfds dflskfjslf'
+    
     def save(self, *args, **kwargs):
-        if not self.enabled:
-            self.next_run = None
-        else:
+        if self.enabled:
             if self.pk:
                 j = Job.objects.get(pk=self.pk)
             else:
@@ -335,6 +459,9 @@ class Job(models.Model):
         """
         if not self.enabled:
             return _('never (disabled)')
+        
+        if not self.next_run:
+            self.next_run = datetime.now()
         
         delta = self.next_run - datetime.now()
         if delta.days < 0:
@@ -509,13 +636,16 @@ class Job(models.Model):
             sys.stderr = stderr
             
             args, options = self.get_args()
-    
+            
             heartbeat = JobHeartbeatThread(job_id=self.id, lock=lock)
             
             lock.acquire()
             Job.objects.update()
             job = Job.objects.get(id=self.id)
             job.is_running = True
+            job.last_run_start_timestamp = timezone.now()
+            job.total_parts = 0
+            job.total_parts_complete = 0
             job.lock_file = heartbeat.lock_file.name
             job.save()
             lock.release()
@@ -637,6 +767,12 @@ class Job(models.Model):
         return False
     check_is_running.short_description = "is running"
     check_is_running.boolean = True
+    
+    @classmethod
+    def update_progress(cls, *args, **kwargs):
+        heartbeat = get_current_heartbeat()
+        if heartbeat:
+            return heartbeat.update_progress(*args, **kwargs)
 
 class Log(models.Model):
     """

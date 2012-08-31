@@ -6,7 +6,8 @@ from django.core.management.base import BaseCommand
 from chroniker.models import Job, Log
 
 class Command(BaseCommand):
-    help = 'Runs a specific job. THe job will only run if it is not currently running.'
+    help = 'Runs a specific job. The job will only run if it is not ' + \
+        'currently running.'
     args = "job.id"
     
     def handle(self, *args, **options):

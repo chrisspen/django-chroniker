@@ -73,6 +73,8 @@ class JobAdmin(admin.ModelAdmin):
         'check_is_complete',
         'is_fresh',
         'last_run_successful',
+        'progress_percent_str',
+        'estimated_completion_datetime_str',
         'run_button',
         'stop_button',
         'view_logs_button',
@@ -84,6 +86,12 @@ class JobAdmin(admin.ModelAdmin):
         'last_run_successful',
         'last_heartbeat',
         'is_fresh',
+        'last_run_start_timestamp',
+        'last_run',
+        'total_parts',
+        'total_parts_complete',
+        'progress_percent_str',
+        'estimated_completion_datetime_str',
     )
     list_display_links = ('name', )
     list_filter = (
@@ -108,6 +116,12 @@ class JobAdmin(admin.ModelAdmin):
                 'last_run_successful',
                 'last_heartbeat',
                 'is_fresh',
+                'last_run_start_timestamp',
+                'last_run',
+                'total_parts',
+                'total_parts_complete',
+                'progress_percent_str',
+                'estimated_completion_datetime_str',
             )
         }),
         ('E-mail subscriptions', {
