@@ -415,7 +415,7 @@ class Job(models.Model):
             return ''
         return c.replace(microsecond=0)
     estimated_completion_datetime_str.short_description = 'ETC'
-    estimated_completion_datetime_str.help_text = 'sdf dsf sfds dflskfjslf'
+    estimated_completion_datetime_str.help_text = 'Estimated time of completion'
     
     def save(self, *args, **kwargs):
         if self.enabled:
