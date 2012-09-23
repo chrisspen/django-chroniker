@@ -158,6 +158,7 @@ class JobHeartbeatThread(threading.Thread):
         self.lock_file.close()
         
     def update_progress(self, total_parts, total_parts_complete):
+        print 'Updating progress:', total_parts, total_parts_complete
         self.lock.acquire()
         Job.objects.update()
         job = Job.objects.get(id=self.job_id)
@@ -773,6 +774,8 @@ class Job(models.Model):
         heartbeat = get_current_heartbeat()
         if heartbeat:
             return heartbeat.update_progress(*args, **kwargs)
+        else:
+            print 'Unable to update progress. No heartbeat found.'
 
 class Log(models.Model):
     """
@@ -781,20 +784,26 @@ class Log(models.Model):
     job = models.ForeignKey(Job, related_name='logs')
     run_start_datetime = models.DateTimeField(
         editable=False,
+        db_index=True,
         default=datetime.now,
         blank=False,
         null=False)
     run_end_datetime = models.DateTimeField(
         editable=False,
+        db_index=True,
         blank=True,
         null=True)
     duration_seconds = models.PositiveIntegerField(
         editable=False,
+        db_index=True,
         blank=True,
         null=True)
     stdout = models.TextField(blank=True)
     stderr = models.TextField(blank=True)
-    success = models.BooleanField(default=True, editable=False)
+    success = models.BooleanField(
+        default=True,
+        db_index=True,
+        editable=False)
         
     class Meta:
         ordering = ('-run_start_datetime',)
@@ -827,4 +836,34 @@ class Log(models.Model):
             recipient_list = subscribers,
             message = "Ouput:\n%s\nError output:\n%s" % (self.stdout, self.stderr)
         )
-        
+    
+    def stdout_sample(self):
+        result = self.stdout or ''
+        if len(result) > 40:
+            result = result[:40] + '...'
+        return result or '(No output)'
+
+    def stderr_sample(self):
+        result = self.stderr or ''
+        if len(result) > 40:
+            result = result[:40] + '...'
+        return result or '(No errors)'
+    
+    def stdout_long_sample(self):
+        l = 10000
+        result = self.stdout or ''
+        if len(result) > l*3:
+            result = result[:l] + '\n...\n' + result[-l:]
+        result = result.replace('\n', '<br/>')
+        return result or '(No output)'
+    stdout_long_sample.allow_tags = True
+
+    def stderr_long_sample(self):
+        l = 10000
+        result = self.stderr or ''
+        if len(result) > l*3:
+            result = result[:l] + '\n...\n' + result[-l:]
+        result = result.replace('\n', '<br/>')
+        return result or '(No output)'
+    stderr_long_sample.allow_tags = True
+    

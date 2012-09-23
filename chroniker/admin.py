@@ -317,8 +317,8 @@ class LogAdmin(admin.ModelAdmin):
         'run_start_datetime',
         'run_end_datetime',
         'job_success',
-        'output',
-        'errors',
+        #'stdout_sample',
+        #'stderr_sample',
     )
     search_fields = (
         'stdout',
@@ -330,6 +330,10 @@ class LogAdmin(admin.ModelAdmin):
         'run_start_datetime',
         'run_end_datetime',
         'duration_seconds',
+        'stdout_long_sample',
+        'stderr_long_sample',
+        'stdout_link',
+        'stderr_link',
     )
     date_hierarchy = 'run_start_datetime'
     fieldsets = (
@@ -342,9 +346,57 @@ class LogAdmin(admin.ModelAdmin):
             )
         }),
         ('Output', {
-            'fields': ('stdout', 'stderr',)
+            'fields': (
+                'stderr_link',
+                'stderr_long_sample',
+                'stdout_link',
+                'stdout_long_sample',
+            )
         }),
     )
+    
+    def stdout_link(self, obj):
+        url = reverse("admin:chroniker_log_change", args=(obj.id,)) + 'stdout/'
+        return '<a href="%s">Download</a>' % (url,)
+    stdout_link.allow_tags = True
+    stdout_link.short_description = 'Stdout full'
+    
+    def stderr_link(self, obj):
+        url = reverse("admin:chroniker_log_change", args=(obj.id,)) + 'stderr/'
+        return '<a href="%s">Download</a>' % (url,)
+    stderr_link.allow_tags = True
+    stderr_link.short_description = 'Stderr full'
+    
+    def view_full_stdout(self, request, log_id):
+        from django.http import HttpResponse
+        log = Log.objects.get(id=log_id)
+        resp = HttpResponse(
+            log.stdout,
+            mimetype='application/x-download',
+        )
+        resp['Content-Disposition'] = 'filename=log-%s-stdout.txt' % (log_id,)
+        return resp
+    
+    def view_full_stderr(self, request, log_id):
+        from django.http import HttpResponse
+        log = Log.objects.get(id=log_id)
+        resp = HttpResponse(
+            log.stderr,
+            mimetype='application/x-download',
+        )
+        resp['Content-Disposition'] = 'filename=log-%s-stderr.txt' % (log_id,)
+        return resp
+    
+    def get_urls(self):
+        from django.conf.urls.defaults import *
+        urls = super(LogAdmin, self).get_urls()
+        my_urls = patterns('',
+            (r'^(?P<log_id>[0-9]+)/stdout/?$',
+                self.admin_site.admin_view(self.view_full_stdout)),
+            (r'^(?P<log_id>[0-9]+)/stderr/?$',
+                self.admin_site.admin_view(self.view_full_stderr)),
+        )
+        return my_urls + urls
     
     def job_name(self, obj):
       return obj.job.name
@@ -354,18 +406,6 @@ class LogAdmin(admin.ModelAdmin):
             return obj.success
     job_success.short_description = _(u'OK')
     job_success.boolean = True
-
-    def output(self, obj):
-        result = obj.stdout or ''
-        if len(result) > 40:
-            result = result[:40] + '...'
-        return result or '(No output)'
-
-    def errors(self, obj):
-        result = obj.stderr or ''
-        if len(result) > 40:
-            result = result[:40] + '...'
-        return result or '(No errors)'
     
     def has_add_permission(self, request):
         return False
