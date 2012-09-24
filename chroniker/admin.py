@@ -316,6 +316,8 @@ class LogAdmin(admin.ModelAdmin):
         'job_name',
         'run_start_datetime',
         'run_end_datetime',
+        'duration_seconds',
+        'duration_str',
         'job_success',
         #'stdout_sample',
         #'stderr_sample',
@@ -334,6 +336,7 @@ class LogAdmin(admin.ModelAdmin):
         'stderr_long_sample',
         'stdout_link',
         'stderr_link',
+        'duration_str',
     )
     date_hierarchy = 'run_start_datetime'
     fieldsets = (
@@ -343,6 +346,7 @@ class LogAdmin(admin.ModelAdmin):
                 'run_start_datetime',
                 'run_end_datetime',
                 'duration_seconds',
+                'duration_str',
             )
         }),
         ('Output', {

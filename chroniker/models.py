@@ -796,6 +796,7 @@ class Log(models.Model):
     duration_seconds = models.PositiveIntegerField(
         editable=False,
         db_index=True,
+        verbose_name='duration (total seconds)',
         blank=True,
         null=True)
     stdout = models.TextField(blank=True)
@@ -810,6 +811,29 @@ class Log(models.Model):
     
     def __unicode__(self):
         return u"%s - %s" % (self.job.name, self.run_start_datetime)
+    
+    def duration_str(self):
+        from datetime import datetime, timedelta
+        sec = timedelta(seconds=self.duration_seconds)
+        d = datetime(1,1,1) + sec
+        days = d.day-1
+        hours = d.hour
+        minutes = d.minute
+        seconds = d.second
+        #return '%i (%02i:%02i:%02i:%02i)' % (self.duration_seconds, days, hours, minutes, seconds)
+        return '%02i:%02i:%02i:%02i' % (days, hours, minutes, seconds)
+#        parts = []
+#        if days:
+#            parts.append('%i day%s' % (days, 's' if days > 1 else ''))
+#        if hours:
+#            parts.append('%i hour%s' % (hours, 's' if hours > 1 else ''))
+#        if minutes:
+#            parts.append('%i minute%s' % (minutes, 's' if minutes > 1 else ''))
+#        if seconds:
+#            parts.append('%i second%s' % (seconds, 's' if seconds > 1 else ''))
+#        return ' '.join(parts)
+    duration_str.short_description = 'duration (days:hours:min:sec)'
+    duration_str.allow_tags = True
     
     def email_subscribers(self):
         subscribers = []
