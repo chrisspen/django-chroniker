@@ -7,6 +7,7 @@ from django.contrib import admin
 from django.core.management import get_commands
 from django.core.urlresolvers import reverse, NoReverseMatch
 from django.db import models
+from django.forms import TextInput
 from django.forms.util import flatatt
 from django.http import HttpResponseRedirect, Http404
 from django.template.defaultfilters import linebreaks
@@ -21,7 +22,7 @@ from django.utils.translation import (
     ugettext_lazy as _
 )
 
-from chroniker.models import Job, Log, JobDependency
+from chroniker.models import Job, Log, JobDependency, Monitor
 from chroniker.utils import get_admin_changelist_url
 from chroniker.widgets import ImproveRawIdFieldsFormTabularInline
 
@@ -59,6 +60,13 @@ class JobDependencyInline(ImproveRawIdFieldsFormTabularInline):
     )
 
 class JobAdmin(admin.ModelAdmin):
+    
+    formfield_overrides = {
+        models.CharField: {
+            'widget': TextInput(attrs={'size':'100',})
+        },
+    }
+    
     actions = (
         'run_selected_jobs',
         'toggle_enabled',
@@ -122,6 +130,8 @@ class JobAdmin(admin.ModelAdmin):
                 'total_parts_complete',
                 'progress_percent_str',
                 'estimated_completion_datetime_str',
+                'is_monitor',
+                'monitor_url',
             )
         }),
         ('E-mail subscriptions', {
@@ -433,3 +443,118 @@ except admin.sites.AlreadyRegistered:
     pass
 
 admin.site.register(Log, LogAdmin)
+
+class MonitorAdmin(admin.ModelAdmin):
+    list_display = (
+        'name_str',
+        'status',
+        'get_timeuntil',
+        'enabled',
+        'action_buttons',
+    )
+    list_filter = (
+        'last_run_successful',
+    )
+    readonly_fields = (
+        'name_str',
+        'action_buttons',
+        'status',
+        'get_timeuntil',
+    )
+    
+    def get_timeuntil(self, obj):
+        format = get_format('DATETIME_FORMAT')
+        value = capfirst(dateformat.format(obj.next_run, format))
+        return "%s<br /><span class='mini'>(%s)</span>" \
+            % (value, obj.get_timeuntil())
+    get_timeuntil.admin_order_field = 'next_run'
+    get_timeuntil.allow_tags = True
+    get_timeuntil.short_description = _('next check')
+    
+    def get_actions(self, request):
+        actions = super(MonitorAdmin, self).get_actions(request)
+        del actions['delete_selected']
+        return actions
+    
+    def has_delete_permission(self, request, obj=None):
+        return False
+    
+    def has_add_permission(self, request):
+        return False 
+    
+    def queryset(self, request):
+        qs = super(MonitorAdmin, self).queryset(request)
+        qs = qs.filter(is_monitor=True)
+        qs = qs.order_by('name')
+        return qs
+    
+    def name_str(self, obj):
+        if obj.monitor_url:
+            return '<a href="%s" target="_blank">%s</a>' % (obj.monitor_url, obj.name)
+        else:
+            return obj.name
+    name_str.short_description = 'Name'
+    name_str.allow_tags = True
+    
+    def action_buttons(self, obj):
+        buttons = []
+        url = '%d/run/?inline=1' % obj.id
+        buttons.append('<a href="%s"><input type="button" value="Check now" /></a>' % url)
+        buttons.append('<a href="/admin/chroniker/job/%i/" target="_blank"><input type="button" value="Edit" /></a>' % (obj.id,))
+        return ' '.join(buttons)
+    action_buttons.allow_tags = True
+    action_buttons.short_description = 'Actions'
+    
+    def status(self, obj):
+        if obj.is_running:
+            help_text = 'The monitor is currently being checked.'
+            temp = '<img src="/media/admin/img/icon-unknown.gif" alt="%(help_text)s" title="%(help_text)s" />'
+        elif obj.last_run_successful:
+            help_text = 'All checks passed.'
+            temp = '<img src="/media/admin/img/icon_success.gif" alt="%(help_text)s" title="%(help_text)s" />'
+        else:
+            help_text = 'Requires attention.'
+            temp = '<img src="/media/admin/img/icon_alert.gif" alt="%(help_text)s" title="%(help_text)s" />'
+        return temp % dict(help_text=help_text)
+            
+    status.allow_tags = True
+
+    def changelist_view(self, request, extra_context=None):
+        return super(MonitorAdmin, self).changelist_view(
+            request, extra_context=dict(title='View monitors'))
+
+    def run_job_view(self, request, pk):
+        """
+        Runs the specified job.
+        """
+        try:
+            job = Job.objects.get(pk=pk)
+        except Job.DoesNotExist:
+            raise Http404
+        # Rather than actually running the Job right now, we
+        # simply force the Job to be run by the next cron job
+        job.force_run = True
+        job.save()
+        self.message_user(
+            request,
+            _('The monitor "%(job)s" will be checked.') \
+                % {'job': job})
+        if 'inline' in request.GET:
+            redirect = request.path + '../../'
+        else:
+            redirect = request.REQUEST.get('next', request.path + "../")
+        return HttpResponseRedirect(redirect)
+    
+    def get_urls(self):
+        urls = super(MonitorAdmin, self).get_urls()
+        my_urls = patterns('',
+            url(r'^(.+)/run/$',
+                self.admin_site.admin_view(self.run_job_view),
+                name="chroniker_job_run"),
+#            url(r'^(.+)/stop/$',
+#                self.admin_site.admin_view(self.stop_job_view),
+#                name="chroniker_job_stop"),
+        )
+        return my_urls + urls
+
+admin.site.register(Monitor, MonitorAdmin)

@@ -334,7 +334,8 @@ class Job(models.Model):
         null=True,
         help_text=('If given, ensures the job is only run on the server ' + \
             'with the equivalent host name.<br/>Not setting any hostname ' + \
-            'will cause the job to be ran on an arbitrary server.<br/> ' + \
+            'will cause the job to be run on the first server that ' + \
+            'processes pending jobs.<br/> ' + \
             'The current hostname is <b>%s</b>.') % socket.gethostname())
     
     total_parts_complete = models.PositiveIntegerField(
@@ -350,6 +351,14 @@ class Job(models.Model):
         blank=False,
         null=False,
         help_text=('The total number of parts of the task.'))
+    
+    is_monitor = models.BooleanField(
+        default=False,
+        help_text=('If checked, will appear in the monitors section.'))
+    
+    monitor_url = models.CharField(
+        max_length=255, blank=True, null=True,
+        help_text=('URL provided to further explain the monitor.'))
     
     objects = JobManager()
     
@@ -375,7 +384,7 @@ class Job(models.Model):
         progress = self.progress_ratio
         if progress is None:
             return
-        return progress*100
+        return min(progress*100, 100)
     
     def progress_percent_str(self):
         progress = self.progress_percent
@@ -701,6 +710,9 @@ class Job(models.Model):
             job.force_run = False
             job.next_run = next_run
             job.last_run_successful = last_run_successful
+            # Ensure we report 100% progress if everything ran successfully.
+            if job.last_run_successful and job.total_parts is not None:
+                job.total_parts_complete = job.total_parts
             job.save()
             lock.release()
             
@@ -890,4 +902,17 @@ class Log(models.Model):
         result = result.replace('\n', '<br/>')
         return result or '(No output)'
     stderr_long_sample.allow_tags = True
+
+class MonitorManager(models.Manager):
     
+    def all(self):
+        q = super(MonitorManager, self).all()
+        q = q.filter(is_monitor=True)
+        return q
+
+class Monitor(Job):
+    
+    objects = MonitorManager()
+    
+    class Meta:
+        proxy = True
