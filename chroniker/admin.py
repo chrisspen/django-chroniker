@@ -11,7 +11,7 @@ from django.forms import TextInput
 from django.forms.util import flatatt
 from django.http import HttpResponseRedirect, Http404
 from django.template.defaultfilters import linebreaks
-from django.utils import dateformat
+from django.utils import dateformat, timezone
 from django.utils.datastructures import MultiValueDict
 from django.utils.formats import get_format
 from django.utils.html import escape
@@ -490,7 +490,14 @@ class MonitorAdmin(admin.ModelAdmin):
     
     def name_str(self, obj):
         if obj.monitor_url:
-            return '<a href="%s" target="_blank">%s</a>' % (obj.monitor_url, obj.name)
+            from django.template import Context, Template
+            from django.template.loader import render_to_string
+            t = Template(obj.monitor_url)
+            c = Context(dict(
+                #date=timezone.now(),#.strftime('%Y-%m-%d'),
+            ))
+            url = t.render(c)
+            return '<a href="%s" target="_blank">%s</a>' % (url, obj.name)
         else:
             return obj.name
     name_str.short_description = 'Name'
