@@ -58,9 +58,15 @@ def set_current_job(job):
     """
     Associates a job with the current thread.
     """
+    try:
+        job_id = int(job)
+    except ValueError, e:
+        job_id = job.id
+    except TypeError, e:
+        job_id = job.id
     thread_ident = thread.get_ident()
     if thread_ident not in _state:
-        _state[thread_ident] = job if isinstance(job, int) else job.id
+        _state[thread_ident] = job_id
 
 def set_current_heartbeat(obj):
     """
@@ -80,7 +86,7 @@ class JobManager(models.Manager):
         or not the ``Job`` actually needs to be run.
         """
         q = self.select_for_update()
-        q = self.filter(Q(next_run__lte=datetime.now()) | Q(force_run=True))
+        q = self.filter(Q(next_run__lte=timezone.now()) | Q(force_run=True))
         q = self.filter(
             Q(hostname__isnull=True) | \
             Q(hostname='') | \
@@ -92,7 +98,7 @@ class JobManager(models.Manager):
         q = self.filter(is_running=True)
         q = q.filter(
             Q(last_heartbeat__isnull=True) | 
-            Q(last_heartbeat__lt=datetime.now() - timedelta(minutes=5)))
+            Q(last_heartbeat__lt=timezone.now() - timedelta(minutes=5)))
         return q
 
 class JobHeartbeatThread(threading.Thread):
@@ -130,7 +136,7 @@ class JobHeartbeatThread(threading.Thread):
             self.lock.acquire()
             Job.objects.update()
             job = Job.objects.get(id=self.job_id)
-            job.last_heartbeat = datetime.now()
+            job.last_heartbeat = timezone.now()
             force_stop = job.force_stop
             job.force_stop = False
             job.force_run = False
@@ -435,7 +441,7 @@ class Job(models.Model):
                 j = self
             if not self.next_run or j.params != self.params:
                 logger.debug("Updating 'next_run")
-                next_run = self.next_run or datetime.now()
+                next_run = self.next_run or timezone.now()
                 self.next_run = self.rrule.after(next_run)
         
         super(Job, self).save(*args, **kwargs)
@@ -453,7 +459,7 @@ class Job(models.Model):
     def is_fresh(self):
         return not self.is_running or (
             self.is_running and self.last_heartbeat
-            and self.last_heartbeat >= datetime.now() - timedelta(minutes=5)
+            and self.last_heartbeat >= timezone.now() - timedelta(minutes=5)
         )
     is_fresh.boolean = True
 
@@ -463,7 +469,7 @@ class Job(models.Model):
         time this Job will be run (actually, the "string" returned
         is really an instance of ``ugettext_lazy``).
         
-        >>> job = Job(next_run=datetime.now())
+        >>> job = Job(next_run=timezone.now())
         >>> job.get_timeuntil().translate('en')
         u'due'
         """
@@ -471,9 +477,9 @@ class Job(models.Model):
             return _('never (disabled)')
         
         if not self.next_run:
-            self.next_run = datetime.now()
+            self.next_run = timezone.now()
         
-        delta = self.next_run - datetime.now()
+        delta = self.next_run - timezone.now()
         if delta.days < 0:
             # The job is past due and should be run as soon as possible
             if self.check_is_running():
@@ -568,7 +574,10 @@ class Job(models.Model):
         options = {}
         for arg in self.args.split():
             if arg.find('=') > -1:
-                key, value = arg.split('=')
+                #key, value = arg.split('=')
+                parts = arg.split('=')
+                key = parts[0]
+                value = '='.join(parts[1:])
                 options[smart_str(key)] = smart_str(value)
             else:
                 args.append(arg)
@@ -576,11 +585,11 @@ class Job(models.Model):
     
     def is_due(self):
         """
-        >>> job = Job(next_run=datetime.now())
+        >>> job = Job(next_run=timezone.now())
         >>> job.is_due()
         True
         
-        >>> job = Job(next_run=datetime.now()+timedelta(seconds=60))
+        >>> job = Job(next_run=timezone.now()+timedelta(seconds=60))
         >>> job.is_due()
         False
         
@@ -588,12 +597,12 @@ class Job(models.Model):
         >>> job.is_due()
         True
         
-        >>> job = Job(next_run=datetime.now(), enabled=False)
+        >>> job = Job(next_run=timezone.now(), enabled=False)
         >>> job.is_due()
         False
         """
         reqs =  (
-            self.next_run <= datetime.now()
+            self.next_run <= timezone.now()
             and self.enabled
             and self.check_is_running() == False
         )
@@ -631,7 +640,7 @@ class Job(models.Model):
         """
         
         lock = threading.Lock()
-        run_start_datetime = datetime.now()
+        run_start_datetime = timezone.now()
         last_run_successful = False
         stdout = chroniker.utils.TeeFile(sys.stdout, auto_flush=True)
         stderr = chroniker.utils.TeeFile(sys.stderr, auto_flush=True)
@@ -687,7 +696,7 @@ class Job(models.Model):
             next_run = self.next_run
             if not self.force_run:
                 #print "Determining 'next_run'"
-                while next_run < datetime.now():
+                while next_run < timezone.now():
                     _next_run = next_run
                     next_run = self.rrule.after(next_run)
                     #print "'next_run = ' %s" % next_run
@@ -701,12 +710,13 @@ class Job(models.Model):
             job = Job.objects.get(id=self.id)
             job.is_running = False
             job.lock_file = ""
-            job.last_run = datetime(
+            job.last_run = timezone.datetime(
                 run_start_datetime.year,
                 run_start_datetime.month,
                 run_start_datetime.day,
                 run_start_datetime.hour,
-                run_start_datetime.minute)
+                run_start_datetime.minute,
+                tzinfo=timezone.get_current_timezone())
             job.force_run = False
             job.next_run = next_run
             job.last_run_successful = last_run_successful
@@ -727,7 +737,7 @@ class Job(models.Model):
             log = Log.objects.create(
                 job = self,
                 run_start_datetime = run_start_datetime,
-                run_end_datetime = datetime.now(),
+                run_end_datetime = timezone.now(),
                 duration_seconds = time.time() - t0,
                 stdout = stdout.getvalue(),
                 stderr = stderr.getvalue(),
@@ -797,7 +807,7 @@ class Log(models.Model):
     run_start_datetime = models.DateTimeField(
         editable=False,
         db_index=True,
-        default=datetime.now,
+        default=timezone.now,
         blank=False,
         null=False)
     run_end_datetime = models.DateTimeField(
