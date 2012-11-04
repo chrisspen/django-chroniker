@@ -41,11 +41,16 @@ class Command(BaseCommand):
         
         procs = []
         for job in Job.objects.due():
-            if not job.check_is_running():
-                # Only run the Job if it isn't already running
-                proc = JobProcess(job)
-                proc.start()
-                procs.append(proc)
+            if job.check_is_running():
+                # Don't run if already running.
+                continue
+            elif not job.dependencies_met():
+                # Don't run if dependencies aren't met.
+                continue
+            # Only run the Job if it isn't already running
+            proc = JobProcess(job)
+            proc.start()
+            procs.append(proc)
         
         print "%d Jobs are due" % len(procs)
         

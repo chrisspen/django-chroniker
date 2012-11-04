@@ -620,7 +620,7 @@ class Job(models.Model):
                 # Note, this will cause the job to be re-checked
                 # the next time cron runs.
                 print 'Job "%s" has unmet dependencies. Aborting run.' % (self.name,)
-            if self.check_is_running():
+            elif self.check_is_running():
                 print 'Job "%s" already running. Aborting run.' % (self.name,)
             elif not self.is_due():
                 print 'Job "%s" not due. Aborting run.' % (self.name,)
