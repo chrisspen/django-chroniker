@@ -692,16 +692,16 @@ class Job(models.Model):
             heartbeat.join()
             
             # If this was a forced run, then don't update the
-            # next_run date
-            next_run = self.next_run
+            # next_run date.
+            next_run = self.next_run.replace(tzinfo=None)
             if not self.force_run:
-                #print "Determining 'next_run'"
-                while next_run < timezone.now():
+                print "Determining 'next_run'..."
+                while next_run < timezone.datetime.now():
                     _next_run = next_run
                     next_run = self.rrule.after(next_run)
-                    #print "'next_run = ' %s" % next_run
                     assert next_run != _next_run, \
                         'RRule failed to increment next run datetime.'
+            next_run = next_run.replace(tzinfo=timezone.get_current_timezone())
             
             last_run_successful = not bool(stderr.length)
                 
