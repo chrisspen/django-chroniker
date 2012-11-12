@@ -1,5 +1,7 @@
 from django import template
 from django.core.urlresolvers import reverse, NoReverseMatch
+from django.utils import timezone
+from django.conf import settings
 
 register = template.Library()
 
@@ -33,3 +35,17 @@ def do_get_run_job_url(parser, token):
     return RunJobURLNode(object_id)
 
 register.tag('get_run_job_url', do_get_run_job_url)
+
+@register.simple_tag
+def now_offset(format_string, offset_days=0):
+    """
+    Like Django's built-in {% now ... %} tag, except it accepts a second
+    integer parameter representing days to add to the current datetime.
+    """
+    from django.template.defaultfilters import date
+    from datetime import datetime, timedelta
+    offset_days = int(offset_days)
+    tzinfo = timezone.get_current_timezone() if settings.USE_TZ else None
+    dt = datetime.now(tz=tzinfo) + timedelta(days=offset_days)
+    return date(dt, format_string)
+    

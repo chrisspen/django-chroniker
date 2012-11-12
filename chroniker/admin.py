@@ -492,7 +492,7 @@ class MonitorAdmin(admin.ModelAdmin):
         if obj.monitor_url:
             from django.template import Context, Template
             from django.template.loader import render_to_string
-            t = Template(obj.monitor_url)
+            t = Template('{% load chronograph_tags %}' + obj.monitor_url)
             c = Context(dict(
                 #date=timezone.now(),#.strftime('%Y-%m-%d'),
             ))
@@ -521,7 +521,7 @@ class MonitorAdmin(admin.ModelAdmin):
             temp = '<img src="/media/admin/img/icon_success.gif" alt="%(help_text)s" title="%(help_text)s" />'
         else:
             help_text = 'Requires attention.'
-            temp = '<img src="/media/admin/img/icon_alert.gif" alt="%(help_text)s" title="%(help_text)s" />'
+            temp = '<img src="/media/admin/img/icon_error.gif" alt="%(help_text)s" title="%(help_text)s" />'
         return temp % dict(help_text=help_text)
             
     status.allow_tags = True
