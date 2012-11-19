@@ -87,7 +87,7 @@ class JobManager(models.Manager):
         """
         q = self.select_for_update()
         q = self.filter(Q(next_run__lte=timezone.now()) | Q(force_run=True))
-        q = self.filter(
+        q = q.filter(
             Q(hostname__isnull=True) | \
             Q(hostname='') | \
             Q(hostname=socket.gethostname()))
@@ -511,7 +511,7 @@ class Job(models.Model):
         2011-08-04 09:19:00
         """
         frequency = eval('rrule.%s' % self.frequency)
-        return rrule.rrule(frequency, dtstart=self.last_run, **self.get_params())
+        return rrule.rrule(frequency, dtstart=self.next_run, **self.get_params())
     rrule = property(get_rrule)
 
     def param_to_int(self, param_value):
@@ -657,17 +657,28 @@ class Job(models.Model):
             args, options = self.get_args()
             
             heartbeat = JobHeartbeatThread(job_id=self.id, lock=lock)
-            
-            lock.acquire()
-            Job.objects.update()
-            job = Job.objects.get(id=self.id)
-            job.is_running = True
-            job.last_run_start_timestamp = timezone.now()
-            job.total_parts = 0
-            job.total_parts_complete = 0
-            job.lock_file = heartbeat.lock_file.name
-            job.save()
-            lock.release()
+
+            try:
+                lock.acquire()
+                Job.objects.update()
+                job = Job.objects.get(id=self.id)
+                job.is_running = True
+                job.last_run_start_timestamp = timezone.now()
+                job.total_parts = 0
+                job.total_parts_complete = 0
+                job.lock_file = heartbeat.lock_file.name
+                job.save()
+            except Exception, e:
+                # The command failed to run; log the exception
+                t = loader.get_template('chroniker/error_message.txt')
+                c = Context({
+                  'exception': unicode(e),
+                  'traceback': ['\n'.join(traceback.format_exception(*sys.exc_info()))]
+                })
+                print>>sys.stderr, t.render(c)
+                success = False
+            finally:
+                lock.release()
             
             t0 = time.time()
             heartbeat.start()
@@ -693,39 +704,43 @@ class Job(models.Model):
             
             # If this was a forced run, then don't update the
             # next_run date.
-            next_run = self.next_run.replace(tzinfo=None)
+            next_run = self.next_run
             if not self.force_run:
                 print "Determining 'next_run'..."
-                while next_run < timezone.datetime.now():
+                while next_run < timezone.now():
                     _next_run = next_run
                     next_run = self.rrule.after(next_run)
                     assert next_run != _next_run, \
                         'RRule failed to increment next run datetime.'
-            next_run = next_run.replace(tzinfo=timezone.get_current_timezone())
             
             last_run_successful = not bool(stderr.length)
-                
-            lock.acquire()
-            Job.objects.update()
-            job = Job.objects.get(id=self.id)
-            job.is_running = False
-            job.lock_file = ""
-            job.last_run = timezone.datetime(
-                run_start_datetime.year,
-                run_start_datetime.month,
-                run_start_datetime.day,
-                run_start_datetime.hour,
-                run_start_datetime.minute,
-                tzinfo=timezone.get_current_timezone())
-            job.force_run = False
-            job.next_run = next_run
-            job.last_run_successful = last_run_successful
-            # Ensure we report 100% progress if everything ran successfully.
-            if job.last_run_successful and job.total_parts is not None:
-                job.total_parts_complete = job.total_parts
-            job.save()
-            lock.release()
             
+            try:
+                lock.acquire()
+                Job.objects.update()
+                job = Job.objects.get(id=self.id)
+                job.is_running = False
+                job.lock_file = ""
+                job.last_run = run_start_datetime
+                job.force_run = False
+                job.next_run = next_run
+                job.last_run_successful = last_run_successful
+                # Ensure we report 100% progress if everything ran successfully.
+                if job.last_run_successful and job.total_parts is not None:
+                    job.total_parts_complete = job.total_parts
+                job.save()
+            except Exception, e:
+                # The command failed to run; log the exception
+                t = loader.get_template('chroniker/error_message.txt')
+                c = Context({
+                  'exception': unicode(e),
+                  'traceback': ['\n'.join(traceback.format_exception(*sys.exc_info()))]
+                })
+                print>>sys.stderr, t.render(c)
+                success = False
+            finally:
+                lock.release()
+                            
         finally:
             
             # Redirect output back to default
