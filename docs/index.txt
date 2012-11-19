@@ -1,9 +1,9 @@
-.. Chronograph documentation master file, created by
+.. Chroniker documentation master file, created by
    sphinx-quickstart on Tue Mar 23 13:09:42 2010.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Chronograph's documentation!
+Welcome to Chroniker's documentation!
 =======================================
 
 Contents:

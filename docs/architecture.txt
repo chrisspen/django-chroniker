@@ -3,17 +3,17 @@
 Architecture
 ============
 
-The trickiest thing to get right in ``Chronograph`` is the ability to properly
+The trickiest thing to get right in ``Chroniker`` is the ability to properly
 manage the state of a ``Job``, i.e. reliably determining whether or not a
 job is or isn't running, if it has been killed or terminated prematurely.  In
-the first version of ``Chronograph`` this issue was "solved" by keeping track
+the first version of ``Chroniker`` this issue was "solved" by keeping track
 of the PID of each running job and using the ``ps`` command to have the
 operating system tell us if the job was still running.  However, this route was
 less than ideal, for a few reasons, but most importantly because isn't wasn't
 cross-platform.  Additionally, using a series of ``subprocess.Popen`` calls was
 leading to path-related issues for some users, even on "supported" platforms.
 
-Newer version of ``Chronograph`` have attempted to solve this problem in the
+Newer version of ``Chroniker`` have attempted to solve this problem in the
 following way:
 
 	1.	Get a list of ``Job``\s that are "due"

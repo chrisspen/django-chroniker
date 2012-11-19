@@ -1,11 +1,12 @@
-from setuptools import setup, find_packages
+ 
+from setuptools import setup, find_packages, Command
 
 import os
 import urllib
 
 import chroniker
 
-def get_reqs(reqs=[]):
+def get_reqs(reqs=["Django>=1.4.0", "python-dateutil"]):
     # optparse is included with Python <= 2.7, but has been deprecated in favor
     # of argparse.  We try to import argparse and if we can't, then we'll add
     # it to the requirements
@@ -15,6 +16,27 @@ def get_reqs(reqs=[]):
         reqs.append("argparse>=1.1")
     return reqs
 
+class TestCommand(Command):
+    description = "Runs unittests."
+    user_options = []
+    def initialize_options(self):
+        pass
+    def finalize_options(self):
+        pass
+    def run(self):
+        args = dict(
+            virtual_env_dir = './.env',
+        )
+        if not os.path.isdir(args['virtual_env_dir']):
+            os.system('virtualenv %(virtual_env_dir)s' % args)
+            for package in get_reqs():
+                args['package'] = package
+                cmd = '. %(virtual_env_dir)s/bin/activate; pip install -U %(package)s; deactivate' % args
+                print cmd
+                os.system(cmd)
+        os.system('. ./.env/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings tests; deactivate')
+        #os.system('. ./.env/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings tests tests.JobTestCase.testCronCommand; deactivate')
+        
 setup(
     name = "django-chroniker",
     version = chroniker.__version__,
@@ -43,8 +65,11 @@ setup(
         'Framework :: Django',
     ],
     zip_safe = False,
-    install_requires = get_reqs(["Django>=1.4.0", "python-dateutil<=1.5"]),
-    dependency_links = [
-        'http://labix.org/download/python-dateutil/python-dateutil-1.5.tar.gz',
-    ]
+    install_requires = get_reqs(),
+#    dependency_links = [
+#        'http://labix.org/download/python-dateutil/python-dateutil-1.5.tar.gz',
+#    ]
+    cmdclass={
+        'test': TestCommand,
+    },
 )

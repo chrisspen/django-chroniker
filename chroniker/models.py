@@ -608,7 +608,7 @@ class Job(models.Model):
         )
         return (reqs or self.force_run)
     
-    def run(self):
+    def run(self, *args, **kwargs):
         """
         Runs this ``Job``.  A ``Log`` will be created if there is any output
         from either stdout or stderr.
@@ -625,13 +625,14 @@ class Job(models.Model):
             elif not self.is_due():
                 print 'Job "%s" not due. Aborting run.' % (self.name,)
             else:
-                call_command('run_job', str(self.pk)) # Calls handle_run().
+                #call_command('run_job', str(self.pk)) # Calls handle_run().
+                self.handle_run(*args, **kwargs)
                 return True
         else:
             print 'Job disabled. Aborting run.'
         return False
     
-    def handle_run(self):
+    def handle_run(self, update_heartbeat=True, *args, **kwargs):
         """
         This method implements the code to actually run a ``Job``.  This is
         meant to be run, primarily, by the `run_job` management command as a
@@ -656,7 +657,9 @@ class Job(models.Model):
             
             args, options = self.get_args()
             
-            heartbeat = JobHeartbeatThread(job_id=self.id, lock=lock)
+            heartbeat = None
+            if update_heartbeat:
+                heartbeat = JobHeartbeatThread(job_id=self.id, lock=lock)
 
             try:
                 lock.acquire()
@@ -666,7 +669,8 @@ class Job(models.Model):
                 job.last_run_start_timestamp = timezone.now()
                 job.total_parts = 0
                 job.total_parts_complete = 0
-                job.lock_file = heartbeat.lock_file.name
+                if heartbeat:
+                    job.lock_file = heartbeat.lock_file.name
                 job.save()
             except Exception, e:
                 # The command failed to run; log the exception
@@ -681,7 +685,8 @@ class Job(models.Model):
                 lock.release()
             
             t0 = time.time()
-            heartbeat.start()
+            if heartbeat:
+                heartbeat.start()
             success = True
             try:
                 logger.debug("Calling command '%s'" % self.command)
@@ -698,20 +703,25 @@ class Job(models.Model):
                 success = False
             
             # Stop the heartbeat
-            logger.debug("Stopping heartbeat")
-            heartbeat.stop()
-            heartbeat.join()
+            if heartbeat:
+                logger.debug("Stopping heartbeat")
+                heartbeat.stop()
+                heartbeat.join()
             
             # If this was a forced run, then don't update the
             # next_run date.
+            #next_run = self.next_run.replace(tzinfo=None)
             next_run = self.next_run
             if not self.force_run:
                 print "Determining 'next_run'..."
-                while next_run < timezone.now():
-                    _next_run = next_run
-                    next_run = self.rrule.after(next_run)
-                    assert next_run != _next_run, \
-                        'RRule failed to increment next run datetime.'
+                if next_run < timezone.now():
+                    next_run = timezone.now()
+                _next_run = next_run
+                next_run = self.rrule.after(next_run)
+                print _next_run, next_run
+                assert next_run != _next_run, \
+                    'RRule failed to increment next run datetime.'
+            #next_run = next_run.replace(tzinfo=timezone.get_current_timezone()) 
             
             last_run_successful = not bool(stderr.length)
             

@@ -3,13 +3,13 @@
 Installation
 ============
 
-Installing ``chronograph`` is pretty simple.  First add it into
+Installing ``chroniker`` is pretty simple.  First add it into
 ``INSTALLED_APPS`` in your ``settings.py`` file.  If you're running a version
 of Django older than revision 9739 (basically anything after 1.0 but before
 1.1), then you'll need to add the following to your project's ``urls.py``::
   
-	url(r'^admin/chronograph/job/(?P<pk>\d+)/run/$',
-		'chronograph.views.job_run', name="chronograph_job_run"),
+	url(r'^admin/chroniker/job/(?P<pk>\d+)/run/$',
+		'chroniker.views.job_run', name="chroniker_job_run"),
 
 .. note::
 
@@ -18,8 +18,8 @@ of Django older than revision 9739 (basically anything after 1.0 but before
 Your ``urls.py`` should then look something like::
 
   ...
-  url(r'^admin/chronograph/job/(?P<pk>\d+)/run/$',
-	  'chronograph.views.job_run', name="admin_chronograph_job_run"),
+  url(r'^admin/chroniker/job/(?P<pk>\d+)/run/$',
+	  'chroniker.views.job_run', name="admin_chroniker_job_run"),
   ('^admin/(.*)', admin.site.root),
   ...
 
@@ -35,18 +35,18 @@ jobs and if you do they'll be run.  No more mucking about with your
 ``crontab``.
 
 If you have a more complicated setup where ``manage.py`` might not work by
-default see the section below on installing ``chronograph`` in a virtual
+default see the section below on installing ``chroniker`` in a virtual
 environment.
 
 .. versionadded:: 0.2.0
-	Added ``chronograph`` script
+	Added ``chroniker`` script
 
 If your project does not reside within your global python path then the above
-crontab snippet won't work.  Instead, ``django-chronograph`` now comes with a
-script called ``chronograph`` (located at :file:`bin/chronograph`) that
+crontab snippet won't work.  Instead, ``django-chroniker`` now comes with a
+script called ``chroniker`` (located at :file:`bin/chroniker`) that
 provides an easy way to run all jobs that are due, like so::
 
-	/path/to/bin/chronograph -p /path/to/your/project
+	/path/to/bin/chroniker -p /path/to/your/project
 
 For use in a virtual environment, see below.
 
@@ -55,29 +55,29 @@ Within a Virtual Environment
 ----------------------------
 
 .. versionadded:: 0.2.0
-	Added ``chronograph`` script
+	Added ``chroniker`` script
 
-When running ``setup.py`` a script named ``chronograph`` should get installed
+When running ``setup.py`` a script named ``chroniker`` should get installed
 into your ``bin`` directory.  This script is meant to make it really easy to
-call your ``django-chronograph`` jobs.  For extended usage information, see
+call your ``django-chroniker`` jobs.  For extended usage information, see
 the output from the script.  Here is an example of how to use this script from
 within the system's crontab::
 
-	* * * * * /path/to/bin/chronograph -e /path/to/ve/bin/activate_this.py -p /path/to/your/project
+	* * * * * /path/to/bin/chroniker -e /path/to/ve/bin/activate_this.py -p /path/to/your/project
 
 .. note::
 	This script is new and should be considered experimental.  Please report
 	any bugs to the `issue tracker`_.
 
-	.. _issue tracker: http://bitbucket.org/wnielson/django-chronograph/issues
+	.. _issue tracker: http://bitbucket.org/wnielson/django-chroniker/issues
 
 .. deprecated:: 0.2.0
-	``chronograph.sh`` has been removed.  Use ``chronograph`` instead (see
+	``chroniker.sh`` has been removed.  Use ``chroniker`` instead (see
 	above).
 
-If you're using a virtual environment, setting up ``chronograph `` involves a
+If you're using a virtual environment, setting up ``chroniker `` involves a
 bit more work, but not by much.  Included is a script called
-``chronograph.sh``.  Copy this file to your project directory.
+``chroniker.sh``.  Copy this file to your project directory.
 
 You should open up this script and modify the path to your virtual
 environment's ``activate`` script::
@@ -87,17 +87,17 @@ environment's ``activate`` script::
 Make sure that this file is executable and then update your ``crontab`` to
 execute the script.  Running `crontab -e`::
 
-    * * * * * /path/to/your/project/chronograph.sh /path/to/your/project
+    * * * * * /path/to/your/project/chroniker.sh /path/to/your/project
 
 Make sure that you pass ``/path/to/your/project`` to the script as the first
 argument.  This will ensure that ``cron`` will not have any problems finding
 your project directory.
 
-Using Chronograph
+Using Chroniker
 =================
 
 If you've completed the above steps, you're all done.  Now you can add some
-jobs to the system.  Remember, ``chronograph`` is designed to run any installed
+jobs to the system.  Remember, ``chroniker`` is designed to run any installed
 ``django-admin`` management command and it accommodates command-line arguments
 as well.
 
@@ -115,7 +115,7 @@ following::
   python manage.py cron_clean weeks 1
 
 Since this is just a simple management command, you can also easily add it to
-``chronograph``, via the admin, so that it will clear out old logs
+``chroniker``, via the admin, so that it will clear out old logs
 automatically.
 
 Other Useful Bits
