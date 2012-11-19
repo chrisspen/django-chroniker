@@ -155,7 +155,7 @@ class JobAdmin(admin.ModelAdmin):
     
     def last_run_with_link(self, obj):
         format = get_format('DATETIME_FORMAT')
-        value = capfirst(dateformat.format(obj.last_run, format))
+        value = capfirst(dateformat.format(timezone.localtime(obj.last_run), format))
         
         try:
             log_id = obj.log_set.latest('run_start_datetime').id
@@ -179,7 +179,7 @@ class JobAdmin(admin.ModelAdmin):
     
     def get_timeuntil(self, obj):
         format = get_format('DATETIME_FORMAT')
-        value = capfirst(dateformat.format(obj.next_run, format))
+        value = capfirst(dateformat.format(timezone.localtime(obj.next_run), format))
         return "%s<br /><span class='mini'>(%s)</span>" \
             % (value, obj.get_timeuntil())
     get_timeuntil.admin_order_field = 'next_run'
@@ -278,7 +278,7 @@ class JobAdmin(admin.ModelAdmin):
         return my_urls + urls
     
     def run_selected_jobs(self, request, queryset):
-        rows_updated = queryset.update(next_run=datetime.now())
+        rows_updated = queryset.update(next_run=timezone.now())
         if rows_updated == 1:
             message_bit = "1 job was"
         else:
@@ -464,7 +464,7 @@ class MonitorAdmin(admin.ModelAdmin):
     
     def get_timeuntil(self, obj):
         format = get_format('DATETIME_FORMAT')
-        value = capfirst(dateformat.format(obj.next_run, format))
+        value = capfirst(dateformat.format(timezone.localtime(obj.next_run), format))
         return "%s<br /><span class='mini'>(%s)</span>" \
             % (value, obj.get_timeuntil())
     get_timeuntil.admin_order_field = 'next_run'
