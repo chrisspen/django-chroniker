@@ -19,3 +19,13 @@ RRULE_WEEKDAY_DICT = {
     "SA":5,
     "SU":6,
 }
+
+DEFAULT_MONITOR_ERROR_TEMPLATE = '''
+The monitor "{{ job.name }}" has indicated a problem.
+
+Please review this monitor at {{ url }}
+
+{{ job.monitor_description }}
+
+{{ stderr }}
+'''

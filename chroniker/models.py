@@ -19,19 +19,21 @@ except ImportError:
 
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.contrib.sites.models import Site
 from django.core.mail import send_mail
 from django.core.management import call_command
 from django.db import models, connection
 from django.db.models import Q
 from django.template import loader, Context, Template
+from django.utils import timezone
 from django.utils.encoding import smart_str
+from django.utils.safestring import mark_safe
 from django.utils.timesince import timeuntil
 from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
-from django.utils import timezone
 
+import chroniker.constants as const
 import chroniker.settings
 import chroniker.utils
-import chroniker.constants as const
 
 logger = logging.getLogger('chroniker.models')
 
@@ -313,13 +315,13 @@ class Job(models.Model):
     
     email_errors_to_subscribers = models.BooleanField(
         default=True,
-        help_text='If checked, the stdout and stderr of a job will ' + \
-            'be emailed to the subscribers if an error occur.')
+        help_text=_('If checked, the stdout and stderr of a job will ' + \
+            'be emailed to the subscribers if an error occur.'))
     
     email_success_to_subscribers = models.BooleanField(
         default=False,
-        help_text='If checked, the stdout of a job will ' + \
-            'be emailed to the subscribers if not errors occur.')
+        help_text=_('If checked, the stdout of a job will ' + \
+            'be emailed to the subscribers if not errors occur.'))
     
     lock_file = models.CharField(
         max_length=255,
@@ -338,7 +340,7 @@ class Job(models.Model):
         max_length=255,
         blank=True,
         null=True,
-        help_text=('If given, ensures the job is only run on the server ' + \
+        help_text=_('If given, ensures the job is only run on the server ' + \
             'with the equivalent host name.<br/>Not setting any hostname ' + \
             'will cause the job to be run on the first server that ' + \
             'processes pending jobs.<br/> ' + \
@@ -349,22 +351,33 @@ class Job(models.Model):
         editable=False,
         blank=False,
         null=False,
-        help_text=('The total number of parts of the task that are complete.'))
+        help_text=_('The total number of parts of the task that are complete.'))
     
     total_parts = models.PositiveIntegerField(
         default=0,
         editable=False,
         blank=False,
         null=False,
-        help_text=('The total number of parts of the task.'))
+        help_text=_('The total number of parts of the task.'))
     
     is_monitor = models.BooleanField(
         default=False,
-        help_text=('If checked, will appear in the monitors section.'))
+        help_text=_('If checked, will appear in the monitors section.'))
     
     monitor_url = models.CharField(
         max_length=255, blank=True, null=True,
-        help_text=('URL provided to further explain the monitor.'))
+        help_text=_('URL provided to further explain the monitor.'))
+    
+    monitor_error_template = models.TextField(
+        blank=True, null=True,
+        default=const.DEFAULT_MONITOR_ERROR_TEMPLATE,
+        help_text=_('If this is a monitor, this is the template used ' + \
+            'to compose the error text email.<br/>' + \
+            'Available variables: {{ job }} {{ stderr }} {{ url }}'))
+    
+    monitor_description = models.TextField(
+        blank=True, null=True,
+        help_text=_('An explanation of the monitor\'s purpose.'))
     
     objects = JobManager()
     
@@ -378,6 +391,20 @@ class Job(models.Model):
         if not self.enabled:
             return _(u"%(name)s - disabled") % {'name': self.name}
         return u"%s - %s" % (self.name, self.timeuntil)
+    
+    @property
+    def monitor_url_rendered(self):
+        if not self.is_monitor or not self.monitor_url:
+            return
+        from django.template import Context, Template
+        from django.template.loader import render_to_string
+        t = Template('{% load chronograph_tags %}' + self.monitor_url)
+        c = Context(dict(
+            #date=timezone.now(),#.strftime('%Y-%m-%d'),
+        ))
+        url = t.render(c)
+        url = url.replace(' ', r'%20')
+        return url
     
     @property
     def progress_ratio(self):
@@ -883,6 +910,8 @@ class Log(models.Model):
     duration_str.allow_tags = True
     
     def email_subscribers(self):
+        current_site = Site.objects.get_current()
+        
         subscribers = []
         for user in self.job.subscribers.all():
             subscribers.append('"%s" <%s>' % (user.get_full_name(), user.email))
@@ -893,11 +922,18 @@ class Log(models.Model):
         else:
             subject_tmpl = chroniker.settings.EMAIL_SUBJECT_SUCCESS
         
-        t = Template(subject_tmpl)
         args = self.__dict__.copy()
         args['job'] = self.job
+#        args['stdout'] = self.stdout
+        args['stderr'] = self.stderr if self.job.is_monitor else None
+        args['url'] = mark_safe('http://%s%s' % (current_site.domain, self.job.monitor_url_rendered))
         c = Context(args)
-        subject = t.render(c)
+        subject = Template(subject_tmpl).render(c)
+        
+        if is_error and self.job.monitor_error_template:
+            body = Template(self.job.monitor_error_template).render(c)
+        else:
+            body = "Ouput:\n%s\nError output:\n%s" % (self.stdout, self.stderr)
         
         send_mail(
             from_email = '"%s" <%s>' % (
@@ -905,7 +941,7 @@ class Log(models.Model):
                 chroniker.settings.EMAIL_HOST_USER),
             subject = subject,
             recipient_list = subscribers,
-            message = "Ouput:\n%s\nError output:\n%s" % (self.stdout, self.stderr)
+            message = body
         )
     
     def stdout_sample(self):

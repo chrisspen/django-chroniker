@@ -132,6 +132,8 @@ class JobAdmin(admin.ModelAdmin):
                 'estimated_completion_datetime_str',
                 'is_monitor',
                 'monitor_url',
+                'monitor_error_template',
+                'monitor_description',
             )
         }),
         ('E-mail subscriptions', {
@@ -490,13 +492,7 @@ class MonitorAdmin(admin.ModelAdmin):
     
     def name_str(self, obj):
         if obj.monitor_url:
-            from django.template import Context, Template
-            from django.template.loader import render_to_string
-            t = Template('{% load chronograph_tags %}' + obj.monitor_url)
-            c = Context(dict(
-                #date=timezone.now(),#.strftime('%Y-%m-%d'),
-            ))
-            url = t.render(c)
+            url = obj.monitor_url_rendered
             return '<a href="%s" target="_blank">%s</a>' % (url, obj.name)
         else:
             return obj.name
