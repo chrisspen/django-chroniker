@@ -25,7 +25,7 @@ The monitor "{{ job.name }}" has indicated a problem.
 
 Please review this monitor at {{ url }}
 
-{{ job.monitor_description }}
+{{ job.monitor_description_safe }}
 
 {{ stderr }}
 '''

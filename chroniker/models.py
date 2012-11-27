@@ -407,6 +407,10 @@ class Job(models.Model):
         return url
     
     @property
+    def monitor_description_safe(self):
+        return mark_safe(self.monitor_description)
+    
+    @property
     def progress_ratio(self):
         if not self.total_parts_complete and not self.total_parts:
             return
