@@ -238,6 +238,7 @@ class Job(models.Model):
     """
     A recurring ``django-admin`` command to be run.
     """
+    
     name = models.CharField(
         _("name"),
         max_length=200)
@@ -403,7 +404,7 @@ class Job(models.Model):
             #date=timezone.now(),#.strftime('%Y-%m-%d'),
         ))
         url = t.render(c)
-        url = url.replace(' ', r'%20')
+        url = url.replace(' ', '+')
         return url
     
     @property
@@ -898,18 +899,7 @@ class Log(models.Model):
         hours = d.hour
         minutes = d.minute
         seconds = d.second
-        #return '%i (%02i:%02i:%02i:%02i)' % (self.duration_seconds, days, hours, minutes, seconds)
         return '%02i:%02i:%02i:%02i' % (days, hours, minutes, seconds)
-#        parts = []
-#        if days:
-#            parts.append('%i day%s' % (days, 's' if days > 1 else ''))
-#        if hours:
-#            parts.append('%i hour%s' % (hours, 's' if hours > 1 else ''))
-#        if minutes:
-#            parts.append('%i minute%s' % (minutes, 's' if minutes > 1 else ''))
-#        if seconds:
-#            parts.append('%i second%s' % (seconds, 's' if seconds > 1 else ''))
-#        return ' '.join(parts)
     duration_str.short_description = 'duration (days:hours:min:sec)'
     duration_str.allow_tags = True
     
@@ -918,7 +908,8 @@ class Log(models.Model):
         
         subscribers = []
         for user in self.job.subscribers.all():
-            subscribers.append('"%s" <%s>' % (user.get_full_name(), user.email))
+            subscribers.append('"%s" <%s>' % \
+                (user.get_full_name(), user.email))
         
         is_error = bool((self.stderr or '').strip())
         if is_error:
@@ -928,13 +919,14 @@ class Log(models.Model):
         
         args = self.__dict__.copy()
         args['job'] = self.job
-#        args['stdout'] = self.stdout
         args['stderr'] = self.stderr if self.job.is_monitor else None
-        args['url'] = mark_safe('http://%s%s' % (current_site.domain, self.job.monitor_url_rendered))
+        args['url'] = mark_safe('http://%s%s' % \
+            (current_site.domain, self.job.monitor_url_rendered))
         c = Context(args)
         subject = Template(subject_tmpl).render(c)
         
-        if is_error and self.job.monitor_error_template:
+        if is_error and self.job.is_monitor \
+        and self.job.monitor_error_template:
             body = Template(self.job.monitor_error_template).render(c)
         else:
             body = "Ouput:\n%s\nError output:\n%s" % (self.stdout, self.stderr)

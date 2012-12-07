@@ -10,7 +10,7 @@ class Migration(SchemaMigration):
     def forwards(self, orm):
         # Adding field 'Job.monitor_error_template'
         db.add_column('chroniker_job', 'monitor_error_template',
-                      self.gf('django.db.models.fields.TextField')(default='\nhello there\n', null=True, blank=True),
+                      self.gf('django.db.models.fields.TextField')(default='\nThe monitor "{{ job.name }}" has indicated a problem.\n\nPlease review this monitor at {{ url }}\n\n{{ job.monitor_description_safe }}\n\n{{ stderr }}\n', null=True, blank=True),
                       keep_default=False)
 
 
@@ -68,7 +68,7 @@ class Migration(SchemaMigration):
             'last_run_start_timestamp': ('django.db.models.fields.DateTimeField', [], {'null': 'True', 'blank': 'True'}),
             'last_run_successful': ('django.db.models.fields.NullBooleanField', [], {'null': 'True', 'blank': 'True'}),
             'lock_file': ('django.db.models.fields.CharField', [], {'max_length': '255', 'blank': 'True'}),
-            'monitor_error_template': ('django.db.models.fields.TextField', [], {'default': "'\\nhello there\\n'", 'null': 'True', 'blank': 'True'}),
+            'monitor_error_template': ('django.db.models.fields.TextField', [], {'default': '\'\\nThe monitor "{{ job.name }}" has indicated a problem.\\n\\nPlease review this monitor at {{ url }}\\n\\n{{ job.monitor_description_safe }}\\n\\n{{ stderr }}\\n\'', 'null': 'True', 'blank': 'True'}),
             'monitor_url': ('django.db.models.fields.CharField', [], {'max_length': '255', 'null': 'True', 'blank': 'True'}),
             'name': ('django.db.models.fields.CharField', [], {'max_length': '200'}),
             'next_run': ('django.db.models.fields.DateTimeField', [], {'null': 'True', 'blank': 'True'}),
