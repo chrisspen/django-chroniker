@@ -380,6 +380,11 @@ class Job(models.Model):
         blank=True, null=True,
         help_text=_('An explanation of the monitor\'s purpose.'))
     
+    maximum_log_entries = models.PositiveIntegerField(
+        default=1000,
+        help_text='The maximum number of most recent log entries to keep.' + \
+            '<br/>A value of 0 keeps all log entries.')
+    
     objects = JobManager()
     
     class Meta:
@@ -477,6 +482,11 @@ class Job(models.Model):
                 self.next_run = self.rrule.after(next_run)
         
         super(Job, self).save(*args, **kwargs)
+        
+        # Delete expired logs.
+        if self.maximum_log_entries:
+            for o in self.logs.all().order_by('-run_start_datetime')[self.maximum_log_entries:]:
+                o.delete()
 
     def dependencies_met(self):
         """

@@ -130,6 +130,7 @@ class JobAdmin(admin.ModelAdmin):
                 'total_parts_complete',
                 'progress_percent_str',
                 'estimated_completion_datetime_str',
+                'maximum_log_entries',
                 'is_monitor',
                 'monitor_url',
                 'monitor_error_template',
