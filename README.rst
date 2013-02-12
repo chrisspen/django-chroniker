@@ -14,6 +14,21 @@ django-chroniker you simply create a single cron job to run every minute,
 point it at your site's directory and run manage.py cron. Then from the admin
 you can add jobs.
 
+Features
+--------
+
+This package contains the following improvements over the parent Chronograph project:
+
+* Allow Django management commands to record their percent-progress and display it in admin.
+* Improved logging of management command stdout and stderr, and efficiently displaying these in admin.
+* Creation of the `Monitor` model, a proxy of the `Job` model, to allow easier setup of system and database state monitoring. e.g.
+
+    from chroniker.models import Job
+    Job.update_progress(total_parts=77, total_parts_complete=13)
+    
+* Addition of a model for documenting inter-job dependencies as well as flags for controlling job behavior based on these dependencies. e.g. You can configure one job to not run until another job has successfully run, or run at a later date.
+* Improved support for coordinating job execution in a multi-server environment.
+
 Installation
 ------------
 

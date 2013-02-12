@@ -68,6 +68,8 @@ class JobAdmin(admin.ModelAdmin):
     }
     
     actions = (
+        'enable_jobs',
+        'disable_jobs',
         'run_selected_jobs',
         'toggle_enabled',
     )
@@ -77,6 +79,7 @@ class JobAdmin(admin.ModelAdmin):
         'get_timeuntil',
         'get_frequency',
         'enabled',
+        #'force_run',
         #'check_is_running',
         'check_is_complete',
         'is_fresh',
@@ -281,13 +284,14 @@ class JobAdmin(admin.ModelAdmin):
         return my_urls + urls
     
     def run_selected_jobs(self, request, queryset):
-        rows_updated = queryset.update(next_run=timezone.now())
+        #rows_updated = queryset.update(next_run=timezone.now())
+        rows_updated = queryset.update(force_run=True)
         if rows_updated == 1:
             message_bit = "1 job was"
         else:
             message_bit = "%s jobs were" % rows_updated
         self.message_user(request, "%s successfully set to run." % message_bit)
-    run_selected_jobs.short_description = "Run selected jobs"
+    run_selected_jobs.short_description = "Force run selected jobs"
     
     def toggle_enabled(self, request, queryset):
         for row in queryset:
@@ -300,6 +304,30 @@ class JobAdmin(admin.ModelAdmin):
             message_bit = "%s jobs were toggled" % rows_updated
         self.message_user(request, message_bit)
     toggle_enabled.short_description = "Toggle enabled flag on selected jobs"
+    
+    def disable_jobs(self, request, queryset):
+        for row in queryset:
+            row.enabled = False
+            row.save()
+        rows_updated = queryset.count()
+        if rows_updated == 1:
+            message_bit = "1 job was toggled"
+        else:
+            message_bit = "%s jobs were toggled" % rows_updated
+        self.message_user(request, message_bit)
+    disable_jobs.short_description = "Disable selected jobs"
+    
+    def enable_jobs(self, request, queryset):
+        for row in queryset:
+            row.enabled = True
+            row.save()
+        rows_updated = queryset.count()
+        if rows_updated == 1:
+            message_bit = "1 job was toggled"
+        else:
+            message_bit = "%s jobs were toggled" % rows_updated
+        self.message_user(request, message_bit)
+    enable_jobs.short_description = "Enable selected jobs"
     
     def formfield_for_dbfield(self, db_field, **kwargs):
         request = kwargs.pop("request", None)
