@@ -83,6 +83,7 @@ class JobAdmin(admin.ModelAdmin):
         #'check_is_running',
         'check_is_complete',
         'is_fresh',
+        #'is_monitor',
         'last_run_successful',
         'progress_percent_str',
         'estimated_completion_datetime_str',
@@ -109,6 +110,7 @@ class JobAdmin(admin.ModelAdmin):
         'frequency',
         'enabled',
         'hostname',
+        'is_monitor',
     )
     filter_horizontal = ('subscribers',)
     fieldsets = (
