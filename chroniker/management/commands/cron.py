@@ -6,6 +6,7 @@ from optparse import make_option
 
 from django.core.management.base import BaseCommand
 from django.db import connection
+import django
 
 from multiprocessing import Process
 
@@ -26,14 +27,14 @@ class JobProcess(Process):
         self.update_heartbeat = update_heartbeat
     
     def run(self):
-        print "Running Job: '%s'" % self.job
+        print "Running Job: '%s' with args: %s" % (self.job, self.job.args)
         # TODO:Fix? Remove multiprocess and just running all jobs serially?
         # Multiprocessing does not play well with Django's PostgreSQL
         # connection, as it seems Django's connection code is not thread-safe.
         # It's a hacky solution, but the short-term fix seems to be to close
         # the connection in this thread, forcing Django to open a new
         # connection unique to this thread.
-        connection.close()
+        #connection.close()
         self.job.run(update_heartbeat=self.update_heartbeat)
 
 class Command(BaseCommand):
@@ -50,10 +51,11 @@ class Command(BaseCommand):
         update_heartbeat = int(options['update_heartbeat'])
         
         procs = []
-        for job in Job.objects.due():
-            if job.check_is_running():
-                # Don't run if already running.
-                continue
+#        for job in Job.objects.due():
+        for job in Job.objects.due_with_met_dependencies():
+#            if job.check_is_running():
+#                # Don't run if already running.
+#                continue
 #            elif not job.dependencies_met():
 #                # Don't run if dependencies aren't met.
 #                continue

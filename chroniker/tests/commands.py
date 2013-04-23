@@ -6,13 +6,11 @@ class Sleeper(BaseCommand):
     args = '[time in seconds to loop]'
     help = 'A simple command that simply sleeps for the specified duration'
     
-    def handle(self, *args, **options):
+    def handle(self, target_time, **options):
         start_time = time.time()
+        target_time = float(target_time)
         
-        try:
-            target_time = float(args[0])
-        except:
-            target_time = 10
+        print "Sleeping for %s seconds..." % (target_time,)
         time.sleep(target_time)
         
         end_time = time.time()

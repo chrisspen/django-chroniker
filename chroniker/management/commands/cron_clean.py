@@ -25,4 +25,6 @@ class Command( BaseCommand ):
                 return
         kwargs = { unit: amount }
         time_ago = datetime.now() - timedelta( **kwargs )
-        Log.objects.filter( run_start_datetime__lte = time_ago ).delete()
+        #Log.objects.filter( run_start_datetime__lte = time_ago ).delete()
+        Log.cleanup(time_ago)
+        

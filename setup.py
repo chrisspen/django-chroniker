@@ -34,8 +34,9 @@ class TestCommand(Command):
                 cmd = '. %(virtual_env_dir)s/bin/activate; pip install -U %(package)s; deactivate' % args
                 print cmd
                 os.system(cmd)
-        os.system('. ./.env/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings tests; deactivate')
-        #os.system('. ./.env/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings tests tests.JobTestCase.testCronCommand; deactivate')
+        #os.system('. ./.env/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings tests; deactivate')
+        os.system('. ./.env/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings tests tests.JobTestCase.testCronCommand; deactivate')
+        #os.system('. ./.env/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings tests tests.JobTestCase.testJobRun; deactivate')
         
 setup(
     name = "django-chroniker",

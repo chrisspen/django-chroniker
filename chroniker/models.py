@@ -17,6 +17,7 @@ try:
 except ImportError:
     import dummy_thread as thread
 
+import django
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
@@ -80,21 +81,60 @@ def set_current_heartbeat(obj):
 
 class JobManager(models.Manager):
     
-    def due(self):
+    def due(self, job=None):
         """
         Returns a ``QuerySet`` of all jobs waiting to be run.  NOTE: this may
         return ``Job``s that are still currently running; it is your
         responsibility to call ``Job.check_is_running()`` to determine whether
         or not the ``Job`` actually needs to be run.
         """
-        q = self.select_for_update()
-        q = self.filter(Q(next_run__lte=timezone.now()) | Q(force_run=True))
+        
+        # Lock the Job record if possible with the backend.
+        # https://docs.djangoproject.com/en/dev/ref/models/querysets/#select-for-update
+        # Note, select_for_update() may not be supported, such as with MySQL.
+        # Those backends will need to use an explicit backend-specific locking
+        # mechanism.
+        q = self.select_for_update(nowait=False)
+        q = q.filter(Q(next_run__lte=timezone.now()) | Q(force_run=True))
         q = q.filter(
             Q(hostname__isnull=True) | \
             Q(hostname='') | \
             Q(hostname=socket.gethostname()))
         q = q.filter(enabled=True)
+        if job is not None:
+            if isinstance(job, int):
+                job = job.id
+            q = q.filter(id=job.id)
         return q
+
+    def due_with_met_dependencies(self):
+        """
+        Iterates over the results of due(), ignoring jobs
+        that are dependent on another job that is also due.
+        """
+        
+#        def cmp_deps(j1, j2):
+#            a = j1.dependencies.filter(dependee=j2).count()
+#            b = j2.dependencies.filter(dependee=j1).count()
+#            if a and not b:
+#                return +1
+#            elif not a and b:
+#                return -1
+#            return 0
+#        
+#        return sorted(self.due(), cmp=cmp_deps)
+
+        for job in self.due():
+            deps = job.dependencies.all()
+            valid = True
+            if job.check_is_running():
+                continue
+            for dep in deps:
+                if dep.wait_for_completion and dep.dependee.is_due():
+                    valid = False
+                    break
+            if valid and job.dependencies_met():
+                yield job
 
     def stale(self):
         q = self.filter(is_running=True)
@@ -113,7 +153,9 @@ class JobHeartbeatThread(threading.Thread):
     The heartbeat should be started with the ``start`` method and once the
     ``Job`` is completed it should be stopped by calling the ``stop`` method.
     """
+    
     daemon = True
+    
     halt = False
 
     def __init__(self, job_id, lock, *args, **kwargs):
@@ -311,6 +353,7 @@ class Job(models.Model):
     
     subscribers = models.ManyToManyField(
         User,
+        related_name='subscribed_jobs',
         blank=True,
         limit_choices_to={'is_staff':True})
     
@@ -643,12 +686,14 @@ class Job(models.Model):
         >>> job.is_due()
         False
         """
-        reqs =  (
-            self.next_run <= timezone.now()
-            and self.enabled
-            and self.check_is_running() == False
-        )
-        return (reqs or self.force_run)
+#        reqs =  (
+#            self.next_run <= timezone.now()
+#            and self.enabled
+#            and self.check_is_running() == False
+#        )
+#        return (reqs or self.force_run)
+        q = type(self).objects.due(self)
+        return bool(q.count())
     
     def run(self, *args, **kwargs):
         """
@@ -755,7 +800,7 @@ class Job(models.Model):
             #next_run = self.next_run.replace(tzinfo=None)
             next_run = self.next_run
             if not self.force_run:
-                print "Determining 'next_run'..."
+                print "Determining 'next_run' for job %d..." % (self.id,)
                 if next_run < timezone.now():
                     next_run = timezone.now()
                 _next_run = next_run
@@ -781,6 +826,7 @@ class Job(models.Model):
                 if job.last_run_successful and job.total_parts is not None:
                     job.total_parts_complete = job.total_parts
                 job.save()
+                #django.db.transaction.commit()
             except Exception, e:
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
@@ -801,13 +847,23 @@ class Job(models.Model):
             
             # Record run log.
             print 'Recording log...'
+            stdout = stdout.getvalue()
+            if isinstance(stdout, unicode):
+                stdout = stdout.encode('utf-8', 'replace')
+            else:
+                stdout = unicode(stdout, 'utf-8', 'replace')
+            stderr = stderr.getvalue()
+            if isinstance(stderr, unicode):
+                stderr = stderr.encode('utf-8', 'replace')
+            else:
+                stderr = unicode(stderr, 'utf-8', 'replace')
             log = Log.objects.create(
                 job = self,
                 run_start_datetime = run_start_datetime,
                 run_end_datetime = timezone.now(),
                 duration_seconds = time.time() - t0,
-                stdout = stdout.getvalue(),
-                stderr = stderr.getvalue(),
+                stdout = stdout,
+                stderr = stderr,
                 success = last_run_successful,
             )
             
@@ -979,6 +1035,16 @@ class Log(models.Model):
         result = result.replace('\n', '<br/>')
         return result or '(No output)'
     stderr_long_sample.allow_tags = True
+    
+    @classmethod
+    def cleanup(cls, time_ago=None):
+        """
+        Deletes all log entries older than the given date.
+        """
+        q = cls.objects.all()
+        if time_ago:
+            q = q.filter(run_start_datetime__lte = time_ago)
+        q.delete()
 
 class MonitorManager(models.Manager):
     
