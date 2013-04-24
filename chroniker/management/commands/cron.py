@@ -34,7 +34,9 @@ class JobProcess(Process):
         # It's a hacky solution, but the short-term fix seems to be to close
         # the connection in this thread, forcing Django to open a new
         # connection unique to this thread.
-        #connection.close()
+        # Without this call to connection.close(), we'll get the error
+        # "Lost connection to MySQL server during query".
+        connection.close()
         self.job.run(update_heartbeat=self.update_heartbeat)
 
 class Command(BaseCommand):

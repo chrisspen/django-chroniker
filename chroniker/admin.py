@@ -435,7 +435,6 @@ class LogAdmin(admin.ModelAdmin):
         return resp
     
     def get_urls(self):
-        from django.conf.urls.defaults import *
         urls = super(LogAdmin, self).get_urls()
         my_urls = patterns('',
             (r'^(?P<log_id>[0-9]+)/stdout/?$',
