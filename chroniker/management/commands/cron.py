@@ -2,15 +2,29 @@ import logging
 import os
 import sys
 import time
+import errno
 from optparse import make_option
 
 from django.core.management.base import BaseCommand
 from django.db import connection
 import django
+from django.conf import settings
 
 from multiprocessing import Process
 
 from chroniker.models import Job
+from chroniker import constants as c
+
+def pid_exists(pid):
+    """Check whether pid exists in the current process table."""
+    if pid < 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except OSError, e:
+        return e.errno == errno.EPERM
+    else:
+        return True
 
 class JobProcess(Process):
     """
@@ -27,7 +41,8 @@ class JobProcess(Process):
         self.update_heartbeat = update_heartbeat
     
     def run(self):
-        print "Running Job: '%s' with args: %s" % (self.job, self.job.args)
+        print "Running Job: %i - '%s' with args: %s" \
+            % (self.job.id, self.job, self.job.args)
         # TODO:Fix? Remove multiprocess and just running all jobs serially?
         # Multiprocessing does not play well with Django's PostgreSQL
         # connection, as it seems Django's connection code is not thread-safe.
@@ -47,31 +62,67 @@ class Command(BaseCommand):
             default=1,
             help='If given, launches a thread to asynchronously update ' + \
                 'job heartbeat status.'),
-        )
+        make_option('--force_run',
+            dest='force_run',
+            action='store_true',
+            default=False,
+            help='If given, forces all jobs to run.'),
+    )
     
     def handle(self, *args, **options):
-        update_heartbeat = int(options['update_heartbeat'])
-        
-        procs = []
-#        for job in Job.objects.due():
-        for job in Job.objects.due_with_met_dependencies():
-#            if job.check_is_running():
-#                # Don't run if already running.
-#                continue
-#            elif not job.dependencies_met():
-#                # Don't run if dependencies aren't met.
-#                continue
-            # Only run the Job if it isn't already running
-            proc = JobProcess(job, update_heartbeat=update_heartbeat)
-            proc.start()
-            procs.append(proc)
-        
-        print "%d Jobs are due" % len(procs)
-        
-        # Keep looping until all jobs are done
-        while procs:
-            for proc in list(procs):
-                if not proc.is_alive():
-                    print 'Process %s ended.' % (proc,)
-                    procs.remove(proc)
-            time.sleep(.1)
+        pid_fn = settings.CHRONIKER_PID_FN
+        clear_pid = False
+        try:
+            update_heartbeat = int(options['update_heartbeat'])
+            
+            # Check PID file to prevent conflicts with prior executions.
+            if settings.CHRONIKER_USE_PID:
+                pid = str(os.getpid())
+                if os.path.isfile(pid_fn):
+                    try:
+                        old_pid = int(open(pid_fn, 'r').read())
+                        if pid_exists(old_pid):
+                            print '%s already exists, exiting' % pid_fn
+                            sys.exit()
+                        else:
+                            print ('%s already exists, but contains stale '
+                                'PID, continuing') % pid_fn
+                    except ValueError:
+                        pass
+                    except TypeError:
+                        pass
+                file(pid_fn, 'w').write(pid)
+                clear_pid = True
+            
+            procs = []
+            if options['force_run']:
+                q = Job.objects.all()
+            else:
+                #q = Job.objects.due()
+                q = Job.objects.due_with_met_dependencies()
+            for job in q:
+    #            if job.check_is_running():
+    #                # Don't run if already running.
+    #                continue
+    #            elif not job.dependencies_met():
+    #                # Don't run if dependencies aren't met.
+    #                continue
+                # Only run the Job if it isn't already running
+                proc = JobProcess(job, update_heartbeat=update_heartbeat)
+                proc.start()
+                procs.append(proc)
+            
+            print "%d Jobs are due" % len(procs)
+            
+            # Keep looping until all jobs are done
+            while procs:
+                for proc in list(procs):
+                    if not proc.is_alive():
+                        print 'Process %s ended.' % (proc,)
+                        procs.remove(proc)
+                time.sleep(.1)
+        finally:
+            if settings.CHRONIKER_USE_PID and os.path.isfile(pid_fn) \
+            and clear_pid:
+                os.unlink(pid_fn)
+                

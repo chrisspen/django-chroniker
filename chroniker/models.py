@@ -17,6 +17,8 @@ try:
 except ImportError:
     import dummy_thread as thread
 
+import settings as _settings
+
 import django
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -33,7 +35,6 @@ from django.utils.timesince import timeuntil
 from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
 
 import chroniker.constants as const
-import chroniker.settings
 import chroniker.utils
 
 logger = logging.getLogger('chroniker.models')
@@ -903,7 +904,7 @@ class Job(models.Model):
                 # The lock file exists, but if the file hasn't been modified
                 # in less than LOCK_TIMEOUT seconds ago, we assume the process
                 # is dead
-                if (time.time() - os.stat(self.lock_file).st_mtime) <= chroniker.settings.LOCK_TIMEOUT:
+                if (time.time() - os.stat(self.lock_file).st_mtime) <= settings.CHRONIKER_LOCK_TIMEOUT:
                     return True
             
             # This job isn't running; update it's info
@@ -979,9 +980,9 @@ class Log(models.Model):
         
         is_error = bool((self.stderr or '').strip())
         if is_error:
-            subject_tmpl = chroniker.settings.EMAIL_SUBJECT_ERROR
+            subject_tmpl = settings.CHRONIKER_EMAIL_SUBJECT_ERROR
         else:
-            subject_tmpl = chroniker.settings.EMAIL_SUBJECT_SUCCESS
+            subject_tmpl = settings.CHRONIKER_EMAIL_SUBJECT_SUCCESS
         
         args = self.__dict__.copy()
         args['job'] = self.job
@@ -999,8 +1000,8 @@ class Log(models.Model):
         
         send_mail(
             from_email = '"%s" <%s>' % (
-                chroniker.settings.EMAIL_SENDER,
-                chroniker.settings.EMAIL_HOST_USER),
+                settings.CHRONIKER_EMAIL_SENDER,
+                settings.CHRONIKER_EMAIL_HOST_USER),
             subject = subject,
             recipient_list = subscribers,
             message = body
