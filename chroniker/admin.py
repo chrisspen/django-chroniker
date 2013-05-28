@@ -2,6 +2,7 @@
 from datetime import datetime
 
 from django import forms
+from django.conf import settings
 from django.conf.urls.defaults import patterns, url
 from django.contrib import admin
 from django.core.management import get_commands
@@ -163,8 +164,10 @@ class JobAdmin(admin.ModelAdmin):
     
     def last_run_with_link(self, obj):
         format = get_format('DATETIME_FORMAT')
-        value = capfirst(dateformat.format(timezone.localtime(obj.last_run), format))
-        
+        value = None
+        if obj.last_run is not None:
+            value = timezone.localtime(obj.last_run)
+            value = capfirst(dateformat.format(value, format))
         try:
             log_id = obj.log_set.latest('run_start_datetime').id
             try:
@@ -541,13 +544,13 @@ class MonitorAdmin(admin.ModelAdmin):
     def status(self, obj):
         if obj.is_running:
             help_text = 'The monitor is currently being checked.'
-            temp = '<img src="/media/admin/img/icon-unknown.gif" alt="%(help_text)s" title="%(help_text)s" />'
+            temp = '<img src="'+settings.STATIC_URL+'admin/img/icon-unknown.gif" alt="%(help_text)s" title="%(help_text)s" />'
         elif obj.last_run_successful:
             help_text = 'All checks passed.'
-            temp = '<img src="/media/admin/img/icon_success.gif" alt="%(help_text)s" title="%(help_text)s" />'
+            temp = '<img src="'+settings.STATIC_URL+'admin/img/icon_success.gif" alt="%(help_text)s" title="%(help_text)s" />'
         else:
             help_text = 'Requires attention.'
-            temp = '<img src="/media/admin/img/icon_error.gif" alt="%(help_text)s" title="%(help_text)s" />'
+            temp = '<img src="'+settings.STATIC_URL+'admin/img/icon_error.gif" alt="%(help_text)s" title="%(help_text)s" />'
         return temp % dict(help_text=help_text)
             
     status.allow_tags = True
