@@ -162,7 +162,9 @@ class JobAdmin(admin.ModelAdmin):
        JobDependencyInline,
     )
     
-    def last_run_with_link(self, obj):
+    def last_run_with_link(self, obj=None):
+        if not obj or not obj.id:
+            return ''
         format = get_format('DATETIME_FORMAT')
         value = None
         if obj.last_run is not None:
@@ -183,12 +185,16 @@ class JobAdmin(admin.ModelAdmin):
     last_run_with_link.allow_tags = True
     last_run_with_link.short_description = 'Last run'
     
-    def check_is_complete(self, obj):
+    def check_is_complete(self, obj=None):
+        if not obj or not obj.id:
+            return ''
         return not obj.check_is_running()
     check_is_complete.short_description = _('is complete')
     check_is_complete.boolean = True
     
-    def get_timeuntil(self, obj):
+    def get_timeuntil(self, obj=None):
+        if not obj or not obj.id:
+            return ''
         format = get_format('DATETIME_FORMAT')
         value = capfirst(dateformat.format(timezone.localtime(obj.next_run), format))
         return "%s<br /><span class='mini'>(%s)</span>" \
@@ -197,7 +203,9 @@ class JobAdmin(admin.ModelAdmin):
     get_timeuntil.allow_tags = True
     get_timeuntil.short_description = _('next scheduled run')
     
-    def get_frequency(self, obj):
+    def get_frequency(self, obj=None):
+        if not obj or not obj.id:
+            return ''
         freq = capfirst(obj.frequency.lower())
         if obj.params:
             return "%s (%s)" % (freq, obj.params)
@@ -205,13 +213,17 @@ class JobAdmin(admin.ModelAdmin):
     get_frequency.admin_order_field = 'frequency'
     get_frequency.short_description = 'Frequency'
     
-    def run_button(self, obj):
+    def run_button(self, obj=None):
+        if not obj or not obj.id:
+            return ''
         url = '%d/run/?inline=1' % obj.id
         return '<a href="%s"><input type="button" value="Run" /></a>' % url
     run_button.allow_tags = True
     run_button.short_description = 'Run'
     
-    def stop_button(self, obj):
+    def stop_button(self, obj=None):
+        if not obj or not obj.id:
+            return ''
         url = '%d/stop/?inline=1' % obj.id
         vars = dict(url=url, disabled='')
         if not obj.is_running:
@@ -222,7 +234,9 @@ class JobAdmin(admin.ModelAdmin):
     stop_button.allow_tags = True
     stop_button.short_description = 'Stop'
     
-    def view_logs_button(self, obj):
+    def view_logs_button(self, obj=None):
+        if not obj or not obj.id:
+            return ''
         q = obj.logs.all()
         url = get_admin_changelist_url(Log)
         return ('<a href="%s?job=%d" target="_blank">'
