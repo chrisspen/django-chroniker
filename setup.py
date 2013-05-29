@@ -54,7 +54,7 @@ setup(
     },
     author = "Chris Spencer",
     author_email = "chrisspen@gmail.com",
-    description = "",
+    description = "Easily control cron jobs via Django's admin.",
     license = "BSD",
     url = "https://github.com/chrisspen/django-chroniker",
     classifiers = [
