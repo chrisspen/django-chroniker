@@ -167,10 +167,10 @@ class JobAdmin(admin.ModelAdmin):
             return ''
         format = get_format('DATETIME_FORMAT')
         value = None
-        if obj.last_run is not None:
-            value = timezone.localtime(obj.last_run)
-            value = capfirst(dateformat.format(value, format))
         try:
+            if obj.last_run is not None:
+                value = timezone.localtime(obj.last_run)
+                value = capfirst(dateformat.format(value, format))
             log_id = obj.log_set.latest('run_start_datetime').id
             try:
                 # Old way

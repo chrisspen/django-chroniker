@@ -53,3 +53,8 @@ settings.CHRONIKER_USE_PID = getattr(
     settings,
     'CHRONIKER_USE_PID',
     True)
+
+settings.CHRONIKER_SELECT_FOR_UPDATE = getattr(
+    settings,
+    'CHRONIKER_SELECT_FOR_UPDATE',
+    True)

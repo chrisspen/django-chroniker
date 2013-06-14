@@ -95,7 +95,10 @@ class JobManager(models.Manager):
         # Note, select_for_update() may not be supported, such as with MySQL.
         # Those backends will need to use an explicit backend-specific locking
         # mechanism.
-        q = self.select_for_update(nowait=False)
+        if settings.CHRONIKER_SELECT_FOR_UPDATE:
+            q = self.select_for_update(nowait=False)
+        else:
+            q = self.all()
         q = q.filter(Q(next_run__lte=timezone.now()) | Q(force_run=True))
         q = q.filter(
             Q(hostname__isnull=True) | \
@@ -124,7 +127,11 @@ class JobManager(models.Manager):
 #            return 0
 #        
 #        return sorted(self.due(), cmp=cmp_deps)
-
+        
+        # Fixes the "Lost connection to MySQL server during query" error when
+        # called from cron command?
+        connection.close()
+        
         for job in self.due():
             deps = job.dependencies.all()
             valid = True
