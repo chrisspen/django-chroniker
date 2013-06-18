@@ -80,11 +80,8 @@ class JobAdmin(admin.ModelAdmin):
         'get_timeuntil',
         'get_frequency',
         'enabled',
-        #'force_run',
-        #'check_is_running',
         'check_is_complete',
         'is_fresh',
-        #'is_monitor',
         'last_run_successful',
         'progress_percent_str',
         'estimated_completion_datetime_str',
@@ -193,7 +190,7 @@ class JobAdmin(admin.ModelAdmin):
     check_is_complete.boolean = True
     
     def get_timeuntil(self, obj=None):
-        if not obj or not obj.id:
+        if not obj or not obj.id or not obj.next_run:
             return ''
         format = get_format('DATETIME_FORMAT')
         value = capfirst(dateformat.format(timezone.localtime(obj.next_run), format))

@@ -51,7 +51,9 @@ class JobProcess(Process):
         # connection unique to this thread.
         # Without this call to connection.close(), we'll get the error
         # "Lost connection to MySQL server during query".
+        print 'Closing connection.'
         connection.close()
+        print 'Connection closed.'
         self.job.run(update_heartbeat=self.update_heartbeat)
 
 class Command(BaseCommand):
@@ -67,11 +69,20 @@ class Command(BaseCommand):
             action='store_true',
             default=False,
             help='If given, forces all jobs to run.'),
+        make_option('--jobs',
+            dest='jobs',
+            default='',
+            help='A comma-delimited list of job ids to limit executions to.'),
     )
     
     def handle(self, *args, **options):
         pid_fn = settings.CHRONIKER_PID_FN
         clear_pid = False
+        jobs = [
+            int(_.strip())
+            for _ in options.get('jobs', '').strip().split(',')
+            if _.strip().isdigit()
+        ]
         try:
             update_heartbeat = int(options['update_heartbeat'])
             
@@ -97,9 +108,11 @@ class Command(BaseCommand):
             procs = []
             if options['force_run']:
                 q = Job.objects.all()
+                if jobs:
+                    q = q.filter(id__in=jobs)
             else:
                 #q = Job.objects.due()
-                q = Job.objects.due_with_met_dependencies()
+                q = Job.objects.due_with_met_dependencies(jobs=jobs)
             for job in q:
     #            if job.check_is_running():
     #                # Don't run if already running.
@@ -108,7 +121,7 @@ class Command(BaseCommand):
     #                # Don't run if dependencies aren't met.
     #                continue
                 # Only run the Job if it isn't already running
-                proc = JobProcess(job, update_heartbeat=update_heartbeat)
+                proc = JobProcess(job, update_heartbeat=update_heartbeat, name=str(job))
                 proc.start()
                 procs.append(proc)
             

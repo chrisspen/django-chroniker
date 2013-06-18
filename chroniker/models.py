@@ -111,7 +111,7 @@ class JobManager(models.Manager):
             q = q.filter(id=job.id)
         return q
 
-    def due_with_met_dependencies(self):
+    def due_with_met_dependencies(self, jobs=[]):
         """
         Iterates over the results of due(), ignoring jobs
         that are dependent on another job that is also due.
@@ -132,17 +132,39 @@ class JobManager(models.Manager):
         # called from cron command?
         connection.close()
         
+        skipped_job_ids = set()
         for job in self.due():
+            if jobs and job.id not in jobs:
+                print 'Skipping job %i (%s) because jobs are limited to %s.' % (job.id, job, ', '.join(map(str, jobs)))
+                skipped_job_ids.add(job.id)
+                continue
+            
             deps = job.dependencies.all()
             valid = True
+            
             if job.check_is_running():
+                print 'Skipping job %i (%s) which is already running.' % (job.id, job)
+                #skipped_job_ids.add(job.id)
                 continue
+            
             for dep in deps:
-                if dep.wait_for_completion and dep.dependee.is_due():
+                if dep.dependee.id in skipped_job_ids:
+                    continue
+                elif dep.wait_for_completion and dep.dependee.is_due():
                     valid = False
                     break
-            if valid and job.dependencies_met():
-                yield job
+                
+            if not valid:
+                print 'Skipping job %i (%s) which is dependent on a due job.' % (job.id, job)
+                skipped_job_ids.add(job.id)
+                continue
+            
+            if not job.dependencies_met():
+                print 'Skipping job %i (%s) which has unmet dependencies.' % (job.id, job)
+                skipped_job_ids.add(job.id)
+                continue
+            
+            yield job
 
     def stale(self):
         q = self.filter(is_running=True)
@@ -446,7 +468,7 @@ class Job(models.Model):
     
     def __unicode__(self):
         if not self.enabled:
-            return _(u"%(name)s - disabled") % {'name': self.name}
+            return _(u"%(id)s - %(name)s - disabled") % {'name': self.name, 'id':self.id}
         return u"%s - %s" % (self.name, self.timeuntil)
     
     @property
@@ -530,13 +552,27 @@ class Job(models.Model):
             if not self.next_run or j.params != self.params:
                 logger.debug("Updating 'next_run")
                 next_run = self.next_run or timezone.now()
-                self.next_run = self.rrule.after(next_run)
+                
+                #TODO:rrule.after() can't handle timezone-aware datetimes?
+                #Is there a better workaround?
+                tz = timezone.get_default_timezone()
+                self.next_run = timezone.make_aware(
+                    self.rrule.after(timezone.make_naive(next_run, tz)),
+                    tz)
+        
+        #old = None
+        #if self.id:
+        #    old = Job.objects.get(id=self.id)
         
         super(Job, self).save(*args, **kwargs)
         
+        #if old:
+        #    print 'is_running_changed:', old.is_running != self.is_running, old.is_running, '->', self.is_running
+        
         # Delete expired logs.
         if self.maximum_log_entries:
-            for o in self.logs.all().order_by('-run_start_datetime')[self.maximum_log_entries:]:
+            log_q = self.logs.all().order_by('-run_start_datetime')
+            for o in log_q[self.maximum_log_entries:]:
                 o.delete()
 
     def dependencies_met(self):
@@ -734,6 +770,7 @@ class Job(models.Model):
         subprocess, which can be invoked by calling this ``Job``\'s ``run``
         method.
         """
+        print 'Handling run...'
         
         lock = threading.Lock()
         run_start_datetime = timezone.now()
@@ -834,7 +871,6 @@ class Job(models.Model):
                 if job.last_run_successful and job.total_parts is not None:
                     job.total_parts_complete = job.total_parts
                 job.save()
-                #django.db.transaction.commit()
             except Exception, e:
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
@@ -905,20 +941,27 @@ class Job(models.Model):
         Currently, it only supports `posix` systems.  On non-posix systems
         it returns the value of this job's ``is_running`` field.
         """
-        if self.is_running and self.lock_file:
+        if settings.CHRONIKER_CHECK_LOCK_FILE \
+        and self.is_running and self.lock_file:
             # The Job thinks that it is running, so lets actually check
+            # NOTE: This will screw up the record if separate hosts
+            # are processing and reading the jobs.
             if os.path.exists(self.lock_file):
                 # The lock file exists, but if the file hasn't been modified
                 # in less than LOCK_TIMEOUT seconds ago, we assume the process
-                # is dead
-                if (time.time() - os.stat(self.lock_file).st_mtime) <= settings.CHRONIKER_LOCK_TIMEOUT:
+                # is dead.
+                if (time.time() - os.stat(self.lock_file).st_mtime) \
+                <= settings.CHRONIKER_LOCK_TIMEOUT:
                     return True
             
             # This job isn't running; update it's info
             self.is_running = False
             self.lock_file = ""
             self.save()
-        return False
+            return False
+        else:
+            # We assume the database record is definitive.
+            return self.is_running
     check_is_running.short_description = "is running"
     check_is_running.boolean = True
     
