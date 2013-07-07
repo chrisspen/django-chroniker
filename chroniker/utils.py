@@ -29,6 +29,16 @@ class TeeFile(StringIO):
         self.length = 0
 
     def write(self, s):
+        try:
+            import chardet
+            encoding_opinion = chardet.detect(s)
+            encoding = encoding_opinion['encoding']
+            #TODO:fix? not stripping out non-ascii characters result in error
+            #'ascii' codec can't encode character ? in position ?: ordinal not in range(128)
+            s = ''.join(_ for _ in s if ord(_) < 128)
+            s = s.encode(encoding, 'ignore')
+        except ImportError:
+            pass
         self.length += len(s)
         self.file.write(s)
         #super(TeeFile, self).write(s)
