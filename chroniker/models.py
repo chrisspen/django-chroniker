@@ -553,12 +553,14 @@ class Job(models.Model):
                 logger.debug("Updating 'next_run")
                 next_run = self.next_run or timezone.now()
                 
-                #TODO:rrule.after() can't handle timezone-aware datetimes?
-                #Is there a better workaround?
+                #TODO:why can't rrule consistently handle timezone-aware datetimes?!?!?!
                 tz = timezone.get_default_timezone()
-                self.next_run = timezone.make_aware(
-                    self.rrule.after(timezone.make_naive(next_run, tz)),
-                    tz)
+                try:
+                    self.next_run = self.rrule.after(timezone.make_aware(next_run, tz))
+                except TypeError, e:
+                    self.next_run = timezone.make_aware(
+                        self.rrule.after(timezone.make_naive(next_run, tz)),
+                        tz)
         
         #old = None
         #if self.id:
