@@ -55,7 +55,7 @@ class ForeignKeyTextInput(TextInput):
 <input{{ attrs|safe }} />
 {% if instance %}
     <a href="{{ changelist_url|safe }}?t=id" class="related-lookup" id="lookup_{{ id|safe }}" onclick="return showRelatedObjectLookupPopup(this);">
-        <img src="{% static 'admin/img/admin/selector-search.gif' %}" width="16" height="16" alt="Lookup" />
+        <img src="{% static 'admin/img/selector-search.gif' %}" width="16" height="16" alt="Lookup" />
     </a>
     <strong><a href="{{ url|safe }}" target="_blank">{{ instance|safe }}</a></strong>
 {% endif %}

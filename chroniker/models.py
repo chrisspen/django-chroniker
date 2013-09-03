@@ -172,6 +172,9 @@ class JobManager(models.Manager):
             Q(last_heartbeat__isnull=True) | 
             Q(last_heartbeat__lt=timezone.now() - timedelta(minutes=5)))
         return q
+    
+    def all_running(self):
+        return self.filter(is_running=True)
 
 class JobHeartbeatThread(threading.Thread):
     """
@@ -373,7 +376,8 @@ class Job(models.Model):
     
     is_running = models.BooleanField(
         default=False,
-        editable=False)
+        editable=True,
+    )
     
     last_run_successful = models.NullBooleanField(
         _('success'),
@@ -452,6 +456,13 @@ class Job(models.Model):
     monitor_description = models.TextField(
         blank=True, null=True,
         help_text=_('An explanation of the monitor\'s purpose.'))
+    
+    monitor_records = models.IntegerField(
+        blank=True,
+        null=True,
+        #verbose_name='records',
+        editable=False,
+        help_text=_('The number of records that needs attention.'))
     
     maximum_log_entries = models.PositiveIntegerField(
         default=1000,

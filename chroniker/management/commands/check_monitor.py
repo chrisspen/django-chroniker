@@ -8,7 +8,7 @@ from django.utils import timezone
 from optparse import make_option
 import importlib
 
-from chroniker.models import Job, Log
+from chroniker.models import Job, Log, get_current_job
 
 class Command(BaseCommand):
     help = 'Runs a specific monitoring routine.'
@@ -48,6 +48,12 @@ class Command(BaseCommand):
         if verbose:
             print query
         q = eval(query, globals(), locals())
+        
+        job = get_current_job()
+        if job:
+            job.monitor_records = q.count()
+            job.save()
+        
         if q.count():
             print>>sys.stderr, '%i records require attention.' % (q.count(),)
         else:

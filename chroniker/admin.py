@@ -82,6 +82,7 @@ class JobAdmin(admin.ModelAdmin):
         'enabled',
         'check_is_complete',
         'is_fresh',
+        'is_monitor',
         'last_run_successful',
         'progress_percent_str',
         'estimated_completion_datetime_str',
@@ -90,7 +91,7 @@ class JobAdmin(admin.ModelAdmin):
         'view_logs_button',
     )
     readonly_fields = (
-        'check_is_running',
+        #'check_is_running',
         'check_is_complete',
         'view_logs_button',
         'last_run_successful',
@@ -102,6 +103,7 @@ class JobAdmin(admin.ModelAdmin):
         'total_parts_complete',
         'progress_percent_str',
         'estimated_completion_datetime_str',
+        'monitor_records',
     )
     list_display_links = ('name', )
     list_filter = (
@@ -120,7 +122,8 @@ class JobAdmin(admin.ModelAdmin):
                 'args',
                 'hostname',
                 'enabled',
-                'check_is_running',
+                #'check_is_running',
+                'is_running',
                 'force_run',
                 'force_stop',
                 'view_logs_button',
@@ -138,6 +141,7 @@ class JobAdmin(admin.ModelAdmin):
                 'monitor_url',
                 'monitor_error_template',
                 'monitor_description',
+                'monitor_records',
             )
         }),
         ('E-mail subscriptions', {
@@ -158,6 +162,13 @@ class JobAdmin(admin.ModelAdmin):
     inlines = (
        JobDependencyInline,
     )
+    
+    def get_readonly_fields(self, request, obj=None):
+        fields = list(self.readonly_fields)
+        # Allow manual clearing of is_running if the cron job has become stuck.
+        if obj.is_fresh():
+            fields.append('is_running')
+        return fields
     
     def last_run_with_link(self, obj=None):
         if not obj or not obj.id:
@@ -494,6 +505,7 @@ class MonitorAdmin(admin.ModelAdmin):
     list_display = (
         'name_str',
         'status',
+        'monitor_records',
         'get_timeuntil',
         'enabled',
         'action_buttons',
@@ -503,6 +515,7 @@ class MonitorAdmin(admin.ModelAdmin):
     )
     readonly_fields = (
         'name_str',
+        'monitor_records',
         'action_buttons',
         'status',
         'get_timeuntil',

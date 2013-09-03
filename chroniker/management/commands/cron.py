@@ -89,7 +89,12 @@ class Command(BaseCommand):
             # Check PID file to prevent conflicts with prior executions.
             if settings.CHRONIKER_USE_PID:
                 pid = str(os.getpid())
-                if os.path.isfile(pid_fn):
+                any_running = Job.objects.all_running().count()
+                if not any_running:
+                    # If no jobs are running, then even if the PID file exists,
+                    # it must be stale, so ignore it.
+                    pass
+                elif os.path.isfile(pid_fn):
                     try:
                         old_pid = int(open(pid_fn, 'r').read())
                         if pid_exists(old_pid):
