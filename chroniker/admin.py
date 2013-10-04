@@ -166,7 +166,7 @@ class JobAdmin(admin.ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
         fields = list(self.readonly_fields)
         # Allow manual clearing of is_running if the cron job has become stuck.
-        if obj.is_fresh():
+        if obj and obj.is_fresh():
             fields.append('is_running')
         return fields
     
