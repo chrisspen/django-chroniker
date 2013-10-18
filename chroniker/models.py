@@ -21,7 +21,6 @@ import settings as _settings
 
 import django
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
 from django.core.mail import send_mail
 from django.core.management import call_command
@@ -386,7 +385,7 @@ class Job(models.Model):
         editable=False)
     
     subscribers = models.ManyToManyField(
-        User,
+        settings.AUTH_USER_MODEL,
         related_name='subscribed_jobs',
         blank=True,
         limit_choices_to={'is_staff':True})
