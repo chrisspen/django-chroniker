@@ -415,7 +415,7 @@ class Job(models.Model):
         help_text=_("If checked and running then this job will be stopped."))
     
     hostname = models.CharField(
-        max_length=255,
+        max_length=700,
         blank=True,
         null=True,
         help_text=_('If given, ensures the job is only run on the server ' + \
@@ -423,6 +423,13 @@ class Job(models.Model):
             'will cause the job to be run on the first server that ' + \
             'processes pending jobs.<br/> ' + \
             'The current hostname is <b>%s</b>.') % socket.gethostname())
+    
+    current_hostname = models.CharField(
+        max_length=700,
+        blank=True,
+        null=True,
+        editable=False,
+        help_text=_('The name of the host currently running the job.'))
     
     total_parts_complete = models.PositiveIntegerField(
         default=0,
