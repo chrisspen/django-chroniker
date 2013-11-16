@@ -147,18 +147,23 @@ class JobManager(models.Manager):
                 #skipped_job_ids.add(job.id)
                 continue
             
+            failed_dep = None
             for dep in deps:
                 if dep.dependee.id in skipped_job_ids:
                     continue
-                elif dep.wait_for_completion and dep.dependee.is_due():
+                #elif dep.wait_for_completion and dep.dependee.is_due():
+                elif not dep.criteria_met():
                     valid = False
+                    failed_dep = dep
                     break
                 
             if not valid:
-                print 'Skipping job %i (%s) which is dependent on a due job.' % (job.id, job)
+                print 'Skipping job %i (%s) which is dependent on a due job %i (%s).' \
+                    % (job.id, job, failed_dep.dependee.id, failed_dep.dependee)
                 skipped_job_ids.add(job.id)
                 continue
             
+            #TODO:remove? redundant?
             if not job.dependencies_met():
                 print 'Skipping job %i (%s) which has unmet dependencies.' % (job.id, job)
                 skipped_job_ids.add(job.id)
@@ -255,9 +260,15 @@ class JobDependency(models.Model):
     Represents a scheduling dependency between two jobs.
     """
     
-    dependent = models.ForeignKey('Job', related_name='dependencies')
+    dependent = models.ForeignKey(
+        'Job',
+        related_name='dependencies',
+        help_text='The thing that cannot run until another job completes.')
     
-    dependee = models.ForeignKey('Job', related_name='dependents')
+    dependee = models.ForeignKey(
+        'Job',
+        related_name='dependents',
+        help_text='The thing that has other jobs waiting on it to complete.')
     
     wait_for_completion = models.BooleanField(
         default=True,
