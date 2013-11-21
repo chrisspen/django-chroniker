@@ -104,6 +104,7 @@ class JobManager(models.Manager):
             Q(hostname='') | \
             Q(hostname=socket.gethostname()))
         q = q.filter(enabled=True)
+        q = q.filter(is_running=False)
         if job is not None:
             if isinstance(job, int):
                 job = job.id
@@ -428,11 +429,12 @@ class Job(models.Model):
         max_length=700,
         blank=True,
         null=True,
+        verbose_name='target hostname',
         help_text=_('If given, ensures the job is only run on the server ' + \
             'with the equivalent host name.<br/>Not setting any hostname ' + \
             'will cause the job to be run on the first server that ' + \
             'processes pending jobs.<br/> ' + \
-            'The current hostname is <b>%s</b>.') % socket.gethostname())
+            'e.g. The hostname of this server is <b>%s</b>.') % socket.gethostname())
     
     current_hostname = models.CharField(
         max_length=700,
@@ -593,6 +595,9 @@ class Job(models.Model):
         #old = None
         #if self.id:
         #    old = Job.objects.get(id=self.id)
+        
+        if not self.is_running:
+            self.current_hostname = None
         
         super(Job, self).save(*args, **kwargs)
         
@@ -829,6 +834,7 @@ class Job(models.Model):
                 job = Job.objects.get(id=self.id)
                 job.is_running = True
                 job.last_run_start_timestamp = timezone.now()
+                job.current_hostname = socket.gethostname()
                 job.total_parts = 0
                 job.total_parts_complete = 0
                 if heartbeat:

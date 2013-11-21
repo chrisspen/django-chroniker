@@ -79,10 +79,11 @@ class JobAdmin(admin.ModelAdmin):
         'last_run_with_link',
         'get_timeuntil',
         'get_frequency',
+        'job_type',
         'enabled',
         'check_is_complete',
         'is_fresh',
-        'is_monitor',
+        #'is_monitor',
         'last_run_successful',
         'progress_percent_str',
         'estimated_completion_datetime_str',
@@ -90,6 +91,15 @@ class JobAdmin(admin.ModelAdmin):
         'stop_button',
         'view_logs_button',
     )
+    
+    def job_type(self, obj=''):
+        if not obj:
+            return ''
+        if obj.is_monitor:
+            return 'monitor'
+        return 'job'
+    job_type.short_description = 'type'
+    
     readonly_fields = (
         #'check_is_running',
         'check_is_complete',
@@ -104,6 +114,8 @@ class JobAdmin(admin.ModelAdmin):
         'progress_percent_str',
         'estimated_completion_datetime_str',
         'monitor_records',
+        'current_hostname',
+        'job_type',
     )
     list_display_links = ('name', )
     list_filter = (
@@ -121,6 +133,7 @@ class JobAdmin(admin.ModelAdmin):
                 'command',
                 'args',
                 'hostname',
+                'current_hostname',
                 'enabled',
                 #'check_is_running',
                 'is_running',
@@ -128,8 +141,8 @@ class JobAdmin(admin.ModelAdmin):
                 'force_stop',
                 'view_logs_button',
                 'last_run_successful',
-                'last_heartbeat',
                 'is_fresh',
+                'last_heartbeat',
                 'last_run_start_timestamp',
                 'last_run',
                 'total_parts',
@@ -157,7 +170,11 @@ class JobAdmin(admin.ModelAdmin):
             'fields': ('frequency', 'next_run', 'params',)
         }),
     )
-    search_fields = ('name', )
+    search_fields = (
+        'name',
+        'hostname',
+        'current_hostname',
+    )
     
     inlines = (
        JobDependencyInline,

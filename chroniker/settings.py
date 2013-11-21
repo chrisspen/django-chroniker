@@ -49,10 +49,11 @@ settings.CHRONIKER_PID_FN = getattr(
 
 # If true, uses a PID file to ensure the cron management command only runs
 # one at a time.
+# TODO: unnecessary? deprecate?
 settings.CHRONIKER_USE_PID = getattr(
     settings,
     'CHRONIKER_USE_PID',
-    True)
+    False)
 
 settings.CHRONIKER_SELECT_FOR_UPDATE = getattr(
     settings,

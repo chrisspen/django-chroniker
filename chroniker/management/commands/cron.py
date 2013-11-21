@@ -78,15 +78,26 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         pid_fn = settings.CHRONIKER_PID_FN
         clear_pid = False
+        
+        # Find specific job ids to run, if any.
         jobs = [
             int(_.strip())
             for _ in options.get('jobs', '').strip().split(',')
             if _.strip().isdigit()
         ]
+        
         try:
             update_heartbeat = int(options['update_heartbeat'])
             
+            # TODO: auto-kill inactive long-running cron processes whose
+            # threads have stalled and not exited properly?
+            # Check for 0 cpu usage.
+            #ps -p <pid> -o %cpu
+            
             # Check PID file to prevent conflicts with prior executions.
+            # TODO: is this still necessary? deprecate? As long as jobs run by
+            # JobProcess don't wait for other jobs, multiple instances of cron
+            # should be able to run simeltaneously without issue.
             if settings.CHRONIKER_USE_PID:
                 pid = str(os.getpid())
                 any_running = Job.objects.all_running().count()
@@ -116,29 +127,23 @@ class Command(BaseCommand):
                 if jobs:
                     q = q.filter(id__in=jobs)
             else:
-                #q = Job.objects.due()
                 q = Job.objects.due_with_met_dependencies(jobs=jobs)
             for job in q:
-    #            if job.check_is_running():
-    #                # Don't run if already running.
-    #                continue
-    #            elif not job.dependencies_met():
-    #                # Don't run if dependencies aren't met.
-    #                continue
-                # Only run the Job if it isn't already running
+                # Only run the Job if it isn't already running.
                 proc = JobProcess(job, update_heartbeat=update_heartbeat, name=str(job))
                 proc.start()
                 procs.append(proc)
             
             print "%d Jobs are due" % len(procs)
             
-            # Keep looping until all jobs are done
+            # Wait for all job processes to complete.
             while procs:
                 for proc in list(procs):
                     if not proc.is_alive():
                         print 'Process %s ended.' % (proc,)
                         procs.remove(proc)
                 time.sleep(.1)
+                
         finally:
             if settings.CHRONIKER_USE_PID and os.path.isfile(pid_fn) \
             and clear_pid:
