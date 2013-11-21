@@ -3,7 +3,7 @@ from datetime import datetime
 
 from django import forms
 from django.conf import settings
-from django.conf.urls.defaults import patterns, url
+from django.conf.urls import patterns, url
 from django.contrib import admin
 from django.core.management import get_commands
 from django.core.urlresolvers import reverse, NoReverseMatch
