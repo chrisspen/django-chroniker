@@ -3,6 +3,7 @@ import datetime
 from south.db import db
 from south.v2 import SchemaMigration
 from django.db import models
+from django.utils import timezone
 
 class Migration(SchemaMigration):
 
@@ -89,7 +90,7 @@ class Migration(SchemaMigration):
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'job': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'logs'", 'to': "orm['chroniker.Job']"}),
             'run_end_datetime': ('django.db.models.fields.DateTimeField', [], {'db_index': 'True', 'null': 'True', 'blank': 'True'}),
-            'run_start_datetime': ('django.db.models.fields.DateTimeField', [], {'default': 'datetime.datetime.now', 'db_index': 'True'}),
+            'run_start_datetime': ('django.db.models.fields.DateTimeField', [], {'default': 'timezone.now', 'db_index': 'True'}),
             'stderr': ('django.db.models.fields.TextField', [], {'blank': 'True'}),
             'stdout': ('django.db.models.fields.TextField', [], {'blank': 'True'}),
             'success': ('django.db.models.fields.BooleanField', [], {'default': 'True', 'db_index': 'True'})

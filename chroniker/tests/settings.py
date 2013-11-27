@@ -20,3 +20,5 @@ INSTALLED_APPS = [
 MEDIA_ROOT = os.path.join(PROJECT_DIR, 'media')
 SOUTH_TESTS_MIGRATE = False
 USE_TZ = True
+
+AUTH_USER_MODEL = 'auth.User'

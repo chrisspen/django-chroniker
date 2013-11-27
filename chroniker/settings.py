@@ -70,3 +70,18 @@ settings.CHRONIKER_CHECK_LOCK_FILE = getattr(
     settings,
     'CHRONIKER_CHECK_LOCK_FILE',
     False)
+
+# The number of minutes a job can go without updating its database record
+# before it's considered stale.
+settings.CHRONIKER_STALE_MINUTES = getattr(
+    settings,
+    'CHRONIKER_STALE_MINUTES',
+    5)
+
+# If true, and a job becomes stale, it will be automatically marked
+# as not running, with a failed status and log entry noting that the
+# job unexpectedly crashed.
+settings.CHRONIKER_AUTO_END_STALE_JOBS = getattr(
+    settings,
+    'CHRONIKER_AUTO_END_STALE_JOBS',
+    False)

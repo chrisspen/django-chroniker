@@ -12,7 +12,7 @@ from django.conf import settings
 
 from multiprocessing import Process
 
-from chroniker.models import Job
+from chroniker.models import Job, order_by_dependencies
 from chroniker import constants as c
 
 def pid_exists(pid):
@@ -54,7 +54,9 @@ class JobProcess(Process):
         print 'Closing connection.'
         connection.close()
         print 'Connection closed.'
-        self.job.run(update_heartbeat=self.update_heartbeat)
+        self.job.run(
+            update_heartbeat=self.update_heartbeat,
+            check_running=False)
 
 class Command(BaseCommand):
     help = 'Runs all jobs that are due.'
@@ -78,6 +80,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         pid_fn = settings.CHRONIKER_PID_FN
         clear_pid = False
+        
+        if settings.CHRONIKER_AUTO_END_STALE_JOBS:
+            Job.objects.end_all_stale()
         
         # Find specific job ids to run, if any.
         jobs = [
@@ -128,8 +133,16 @@ class Command(BaseCommand):
                     q = q.filter(id__in=jobs)
             else:
                 q = Job.objects.due_with_met_dependencies(jobs=jobs)
+                
+            q = sorted(q, cmp=order_by_dependencies)
             for job in q:
-                # Only run the Job if it isn't already running.
+                
+                # Immediately mark the job as running so the next jobs can
+                # update their dependency check.
+                job.is_running = True
+                job.save()
+                
+                # Launch job.
                 proc = JobProcess(job, update_heartbeat=update_heartbeat, name=str(job))
                 proc.start()
                 procs.append(proc)

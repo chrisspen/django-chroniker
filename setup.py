@@ -2,6 +2,7 @@
 from setuptools import setup, find_packages, Command
 
 import os
+import sys
 import urllib
 
 import chroniker
@@ -18,25 +19,32 @@ def get_reqs(reqs=["Django>=1.4.0", "python-dateutil"]):
 
 class TestCommand(Command):
     description = "Runs unittests."
-    user_options = []
+    user_options = [
+        ('name=', None,
+         'Name of the specific test to run.'),
+        ('virtual-env-dir=', None,
+         'The location of the virtual environment to use.'),
+    ]
     def initialize_options(self):
-        pass
+        self.name = None
+        self.virtual_env_dir = './.env'
     def finalize_options(self):
         pass
     def run(self):
-        args = dict(
-            virtual_env_dir = './.env',
-        )
-        if not os.path.isdir(args['virtual_env_dir']):
+        args = dict(virtual_env_dir=self.virtual_env_dir)
+        if not os.path.isdir(self.virtual_env_dir):
             os.system('virtualenv %(virtual_env_dir)s' % args)
             for package in get_reqs():
                 args['package'] = package
                 cmd = '. %(virtual_env_dir)s/bin/activate; pip install -U %(package)s; deactivate' % args
-                print cmd
+                #print cmd
                 os.system(cmd)
-        os.system('. ./.env/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings tests; deactivate')
-        #os.system('. ./.env/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings tests tests.JobTestCase.testCronCommand; deactivate')
-        #os.system('. ./.env/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings tests tests.JobTestCase.testJobRun; deactivate')
+        if self.name:
+            cmd = '. ./.env/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings tests.JobTestCase.%s; deactivate' % self.name
+        else:
+            cmd = '. ./.env/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings tests; deactivate'
+        #print cmd
+        os.system(cmd)
         
 setup(
     name = "django-chroniker",

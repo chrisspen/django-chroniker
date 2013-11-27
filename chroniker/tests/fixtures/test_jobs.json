@@ -3,7 +3,7 @@
         "pk": 1, 
         "model": "chroniker.job", 
         "fields": {
-            "next_run": "2012-11-18 12:00:00", 
+            "next_run": "2012-11-18 12:00:00+00:00", 
             "email_success_to_subscribers": false, 
             "email_errors_to_subscribers": false, 
             "frequency": "MINUTELY", 
@@ -33,7 +33,7 @@
         "pk": 2, 
         "model": "chroniker.job", 
         "fields": {
-            "next_run": "2012-11-18 12:00:00", 
+            "next_run": "2012-11-18 12:00:00+00:00", 
             "email_success_to_subscribers": false, 
             "email_errors_to_subscribers": false, 
             "frequency": "MINUTELY", 
@@ -74,7 +74,7 @@
         "pk": 3, 
         "model": "chroniker.job", 
         "fields": {
-            "next_run": "2012-11-18 12:00:00", 
+            "next_run": "2012-11-18 12:00:00+00:00", 
             "email_success_to_subscribers": false, 
             "email_errors_to_subscribers": false, 
             "frequency": "MINUTELY", 
@@ -115,7 +115,7 @@
         "pk": 4, 
         "model": "chroniker.job", 
         "fields": {
-            "next_run": "2012-11-18 12:00:00", 
+            "next_run": "2012-11-18 12:00:00+00:00", 
             "email_success_to_subscribers": false, 
             "email_errors_to_subscribers": false, 
             "frequency": "MINUTELY", 

@@ -41,6 +41,25 @@ logger = logging.getLogger('chroniker.models')
 _state = {} # {thread_ident:job_id}
 _state_heartbeat = {} # {thread_ident:heartbeat thread object}
 
+def order_by_dependencies(j1, j2):
+    """
+    Compares jobs so that jobs that are depended upon by another
+    process are ordered first.
+    """
+    # Return negative if x<y, zero if x==y, positive if x>y.
+    # If j1 depends on the completion of j2 then order j2 first.
+    if j1.dependencies.filter(dependee=j2).count():
+        ret = 1
+    elif j1.dependents.filter(dependent=j2).count():
+        ret = -1
+    elif j2.dependencies.filter(dependee=j1).count():
+        ret = -1
+    elif j2.dependents.filter(dependent=j1).count():
+        ret = 1
+    else:
+        ret = 0
+    return ret
+
 def get_current_job():
     """
     Retrieves the job associated with the current thread.
@@ -78,108 +97,6 @@ def set_current_heartbeat(obj):
     thread_ident = thread.get_ident()
     if thread_ident not in _state_heartbeat:
         _state_heartbeat[thread_ident] = obj
-
-class JobManager(models.Manager):
-    
-    def due(self, job=None):
-        """
-        Returns a ``QuerySet`` of all jobs waiting to be run.  NOTE: this may
-        return ``Job``s that are still currently running; it is your
-        responsibility to call ``Job.check_is_running()`` to determine whether
-        or not the ``Job`` actually needs to be run.
-        """
-        
-        # Lock the Job record if possible with the backend.
-        # https://docs.djangoproject.com/en/dev/ref/models/querysets/#select-for-update
-        # Note, select_for_update() may not be supported, such as with MySQL.
-        # Those backends will need to use an explicit backend-specific locking
-        # mechanism.
-        if settings.CHRONIKER_SELECT_FOR_UPDATE:
-            q = self.select_for_update(nowait=False)
-        else:
-            q = self.all()
-        q = q.filter(Q(next_run__lte=timezone.now()) | Q(force_run=True))
-        q = q.filter(
-            Q(hostname__isnull=True) | \
-            Q(hostname='') | \
-            Q(hostname=socket.gethostname()))
-        q = q.filter(enabled=True)
-        q = q.filter(is_running=False)
-        if job is not None:
-            if isinstance(job, int):
-                job = job.id
-            q = q.filter(id=job.id)
-        return q
-
-    def due_with_met_dependencies(self, jobs=[]):
-        """
-        Iterates over the results of due(), ignoring jobs
-        that are dependent on another job that is also due.
-        """
-        
-#        def cmp_deps(j1, j2):
-#            a = j1.dependencies.filter(dependee=j2).count()
-#            b = j2.dependencies.filter(dependee=j1).count()
-#            if a and not b:
-#                return +1
-#            elif not a and b:
-#                return -1
-#            return 0
-#        
-#        return sorted(self.due(), cmp=cmp_deps)
-        
-        # Fixes the "Lost connection to MySQL server during query" error when
-        # called from cron command?
-        connection.close()
-        
-        skipped_job_ids = set()
-        for job in self.due():
-            if jobs and job.id not in jobs:
-                print 'Skipping job %i (%s) because jobs are limited to %s.' % (job.id, job, ', '.join(map(str, jobs)))
-                skipped_job_ids.add(job.id)
-                continue
-            
-            deps = job.dependencies.all()
-            valid = True
-            
-            if job.check_is_running():
-                print 'Skipping job %i (%s) which is already running.' % (job.id, job)
-                #skipped_job_ids.add(job.id)
-                continue
-            
-            failed_dep = None
-            for dep in deps:
-                if dep.dependee.id in skipped_job_ids:
-                    continue
-                #elif dep.wait_for_completion and dep.dependee.is_due():
-                elif not dep.criteria_met():
-                    valid = False
-                    failed_dep = dep
-                    break
-                
-            if not valid:
-                print 'Skipping job %i (%s) which is dependent on a due job %i (%s).' \
-                    % (job.id, job, failed_dep.dependee.id, failed_dep.dependee)
-                skipped_job_ids.add(job.id)
-                continue
-            
-            #TODO:remove? redundant?
-            if not job.dependencies_met():
-                print 'Skipping job %i (%s) which has unmet dependencies.' % (job.id, job)
-                skipped_job_ids.add(job.id)
-                continue
-            
-            yield job
-
-    def stale(self):
-        q = self.filter(is_running=True)
-        q = q.filter(
-            Q(last_heartbeat__isnull=True) | 
-            Q(last_heartbeat__lt=timezone.now() - timedelta(minutes=5)))
-        return q
-    
-    def all_running(self):
-        return self.filter(is_running=True)
 
 class JobHeartbeatThread(threading.Thread):
     """
@@ -319,11 +236,134 @@ class JobDependency(models.Model):
         unique_together = (
             ('dependent', 'dependee'),
         )
+        
+    def __unicode__(self):
+        return unicode(self.dependent) + ' -> ' + unicode(self.dependee)
+
+class JobManager(models.Manager):
+    
+    def due(self, job=None):
+        """
+        Returns a ``QuerySet`` of all jobs waiting to be run.  NOTE: this may
+        return ``Job``s that are still currently running; it is your
+        responsibility to call ``Job.check_is_running()`` to determine whether
+        or not the ``Job`` actually needs to be run.
+        """
+        
+        # Lock the Job record if possible with the backend.
+        # https://docs.djangoproject.com/en/dev/ref/models/querysets/#select-for-update
+        # Note, select_for_update() may not be supported, such as with MySQL.
+        # Those backends will need to use an explicit backend-specific locking
+        # mechanism.
+        if settings.CHRONIKER_SELECT_FOR_UPDATE:
+            q = self.select_for_update(nowait=False)
+        else:
+            q = self.all()
+        q = q.filter(Q(next_run__lte=timezone.now()) | Q(force_run=True))
+        q = q.filter(
+            Q(hostname__isnull=True) | \
+            Q(hostname='') | \
+            Q(hostname=socket.gethostname()))
+        q = q.filter(enabled=True)
+        q = q.filter(is_running=False)
+        if job is not None:
+            if isinstance(job, int):
+                job = job.id
+            q = q.filter(id=job.id)
+        return q
+
+    def due_with_met_dependencies(self, jobs=[]):
+        """
+        Iterates over the results of due(), ignoring jobs
+        that are dependent on another job that is also due.
+        """
+        
+#        def cmp_deps(j1, j2):
+#            a = j1.dependencies.filter(dependee=j2).count()
+#            b = j2.dependencies.filter(dependee=j1).count()
+#            if a and not b:
+#                return +1
+#            elif not a and b:
+#                return -1
+#            return 0
+#        
+#        return sorted(self.due(), cmp=cmp_deps)
+        
+        # Fixes the "Lost connection to MySQL server during query" error when
+        # called from cron command?
+        connection.close()
+        
+        skipped_job_ids = set()
+        for job in self.due():
+            if jobs and job.id not in jobs:
+                print 'Skipping job %i (%s) because jobs are limited to %s.' % (job.id, job, ', '.join(map(str, jobs)))
+                skipped_job_ids.add(job.id)
+                continue
+            
+            deps = job.dependencies.all()
+            valid = True
+            
+            if job.check_is_running():
+                print 'Skipping job %i (%s) which is already running.' % (job.id, job)
+                #skipped_job_ids.add(job.id)
+                continue
+            
+            failed_dep = None
+            for dep in deps:
+                if dep.dependee.id in skipped_job_ids:
+                    continue
+                #elif dep.wait_for_completion and dep.dependee.is_due():
+                elif not dep.criteria_met():
+                    valid = False
+                    failed_dep = dep
+                    break
+                
+            if not valid:
+                print 'Skipping job %i (%s) which is dependent on a due job %i (%s).' \
+                    % (job.id, job, failed_dep.dependee.id, failed_dep.dependee)
+                skipped_job_ids.add(job.id)
+                continue
+            
+            #TODO:remove? redundant?
+            if not job.dependencies_met():
+                print 'Skipping job %i (%s) which has unmet dependencies.' % (job.id, job)
+                skipped_job_ids.add(job.id)
+                continue
+            
+            yield job
+
+    def stale(self):
+        q = self.filter(is_running=True)
+        q = q.filter(
+            Q(last_heartbeat__isnull=True) | 
+            Q(last_heartbeat__lt=timezone.now() - timedelta(minutes=settings.CHRONIKER_STALE_MINUTES)))
+        return q
+    
+    def all_running(self):
+        return self.filter(is_running=True)
+    
+    def end_all_stale(self):
+        q = self.stale()
+        for job in q.iterator():
+            job.is_running = False
+            job.last_run_successful = False
+            job.save()
+            
+            Log.objects.create(
+                job = job,
+                run_start_datetime = job.last_run_start_timestamp or timezone.now(),
+                run_end_datetime = timezone.now(),
+                stdout = '',
+                stderr = 'Job ended unexpectedly!',
+                success = False,
+            )
 
 class Job(models.Model):
     """
     A recurring ``django-admin`` command to be run.
     """
+    
+    objects = JobManager()
     
     name = models.CharField(
         _("name"),
@@ -488,8 +528,6 @@ class Job(models.Model):
         help_text='The maximum number of most recent log entries to keep.' + \
             '<br/>A value of 0 keeps all log entries.')
     
-    objects = JobManager()
-    
     class Meta:
         ordering = (
             'name',
@@ -499,7 +537,7 @@ class Job(models.Model):
     def __unicode__(self):
         if not self.enabled:
             return _(u"%(id)s - %(name)s - disabled") % {'name': self.name, 'id':self.id}
-        return u"%s - %s" % (self.name, self.timeuntil)
+        return u"%i - %s - %s" % (self.id, self.name, self.timeuntil)
     
     @property
     def monitor_url_rendered(self):
@@ -592,17 +630,10 @@ class Job(models.Model):
                         self.rrule.after(timezone.make_naive(next_run, tz)),
                         tz)
         
-        #old = None
-        #if self.id:
-        #    old = Job.objects.get(id=self.id)
-        
         if not self.is_running:
             self.current_hostname = None
         
         super(Job, self).save(*args, **kwargs)
-        
-        #if old:
-        #    print 'is_running_changed:', old.is_running != self.is_running, old.is_running, '->', self.is_running
         
         # Delete expired logs.
         if self.maximum_log_entries:
@@ -621,9 +652,11 @@ class Job(models.Model):
         return True
 
     def is_fresh(self):
+        lookback_minutes = timedelta(minutes=settings.CHRONIKER_STALE_MINUTES)
+        threshold = timezone.now() - lookback_minutes
         return not self.is_running or (
             self.is_running and self.last_heartbeat
-            and self.last_heartbeat >= timezone.now() - timedelta(minutes=5)
+            and self.last_heartbeat >= threshold
         )
     is_fresh.boolean = True
 
@@ -774,7 +807,7 @@ class Job(models.Model):
         q = type(self).objects.due(self)
         return bool(q.count())
     
-    def run(self, *args, **kwargs):
+    def run(self, check_running=True, *args, **kwargs):
         """
         Runs this ``Job``.  A ``Log`` will be created if there is any output
         from either stdout or stderr.
@@ -786,7 +819,7 @@ class Job(models.Model):
                 # Note, this will cause the job to be re-checked
                 # the next time cron runs.
                 print 'Job "%s" has unmet dependencies. Aborting run.' % (self.name,)
-            elif self.check_is_running():
+            elif check_running and self.check_is_running():
                 print 'Job "%s" already running. Aborting run.' % (self.name,)
             elif not self.is_due():
                 print 'Job "%s" not due. Aborting run.' % (self.name,)
@@ -1043,6 +1076,12 @@ class Log(models.Model):
     
     def __unicode__(self):
         return u"%s - %s" % (self.job.name, self.run_start_datetime)
+    
+    def save(self, *args, **kwargs):
+        if self.run_start_datetime and self.run_end_datetime:
+            time_diff = (self.run_start_datetime - self.run_end_datetime)
+            self.duration_seconds = time_diff.seconds
+        super(Log, self).save(*args, **kwargs)
     
     def duration_str(self):
         from datetime import datetime, timedelta
