@@ -24,7 +24,7 @@ from django.conf import settings
 from django.contrib.sites.models import Site
 from django.core.mail import send_mail
 from django.core.management import call_command
-from django.db import models, connection
+from django.db import models, connection, transaction
 from django.db.models import Q
 from django.template import loader, Context, Template
 from django.utils import timezone
@@ -242,7 +242,7 @@ class JobDependency(models.Model):
 
 class JobManager(models.Manager):
     
-    def due(self, job=None):
+    def due(self, job=None, check_running=True):
         """
         Returns a ``QuerySet`` of all jobs waiting to be run.  NOTE: this may
         return ``Job``s that are still currently running; it is your
@@ -265,7 +265,8 @@ class JobManager(models.Manager):
             Q(hostname='') | \
             Q(hostname=socket.gethostname()))
         q = q.filter(enabled=True)
-        q = q.filter(is_running=False)
+        if check_running:
+            q = q.filter(is_running=False)
         if job is not None:
             if isinstance(job, int):
                 job = job.id
@@ -342,21 +343,31 @@ class JobManager(models.Manager):
     def all_running(self):
         return self.filter(is_running=True)
     
+    @transaction.commit_manually
     def end_all_stale(self):
-        q = self.stale()
-        for job in q.iterator():
-            job.is_running = False
-            job.last_run_successful = False
-            job.save()
-            
-            Log.objects.create(
-                job = job,
-                run_start_datetime = job.last_run_start_timestamp or timezone.now(),
-                run_end_datetime = timezone.now(),
-                stdout = '',
-                stderr = 'Job ended unexpectedly!',
-                success = False,
-            )
+        try:
+            q = self.stale()
+            total = q.count()
+            print '%i total stale jobs.' % (total,)
+            for job in q.iterator():
+                print 'Marking stale job <%s> as stopped...' % (job,)
+                job.is_running = False
+                job.last_run_successful = False
+                job.save()
+                transaction.commit()
+                
+                Log.objects.create(
+                    job = job,
+                    run_start_datetime = job.last_run_start_timestamp or timezone.now(),
+                    run_end_datetime = timezone.now(),
+                    stdout = '',
+                    stderr = 'Job ended unexpectedly!',
+                    success = False,
+                )
+        except:
+            transaction.rollback()
+        else:
+            transaction.commit()
 
 class Job(models.Model):
     """
@@ -780,7 +791,7 @@ class Job(models.Model):
                 args.append(arg)
         return (args, options)
     
-    def is_due(self):
+    def is_due(self, *args, **kwargs):
         """
         >>> job = Job(next_run=timezone.now())
         >>> job.is_due()
@@ -804,7 +815,7 @@ class Job(models.Model):
 #            and self.check_is_running() == False
 #        )
 #        return (reqs or self.force_run)
-        q = type(self).objects.due(self)
+        q = type(self).objects.due(self, *args, **kwargs)
         return bool(q.count())
     
     def run(self, check_running=True, *args, **kwargs):
@@ -813,6 +824,11 @@ class Job(models.Model):
         from either stdout or stderr.
         
         Returns ``True`` if the ``Job`` ran, ``False`` otherwise.
+        
+        The parameter check_running is sometimes given as False when
+        the job was just started and we want to do a last minute check for
+        dueness and don't want our current run status to give an incorrect
+        reading.
         """
         if self.enabled:
             if not self.dependencies_met():
@@ -821,7 +837,7 @@ class Job(models.Model):
                 print 'Job "%s" has unmet dependencies. Aborting run.' % (self.name,)
             elif check_running and self.check_is_running():
                 print 'Job "%s" already running. Aborting run.' % (self.name,)
-            elif not self.is_due():
+            elif not self.is_due(check_running=check_running):
                 print 'Job "%s" not due. Aborting run.' % (self.name,)
             else:
                 #call_command('run_job', str(self.pk)) # Calls handle_run().

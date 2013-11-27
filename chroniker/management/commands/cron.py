@@ -57,6 +57,8 @@ class JobProcess(Process):
         self.job.run(
             update_heartbeat=self.update_heartbeat,
             check_running=False)
+        #TODO:mark job as not running if still marked?
+        #TODO:normalize job termination and cleanup outside of handle_run()?
 
 class Command(BaseCommand):
     help = 'Runs all jobs that are due.'
@@ -80,9 +82,6 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         pid_fn = settings.CHRONIKER_PID_FN
         clear_pid = False
-        
-        if settings.CHRONIKER_AUTO_END_STALE_JOBS:
-            Job.objects.end_all_stale()
         
         # Find specific job ids to run, if any.
         jobs = [
@@ -134,6 +133,9 @@ class Command(BaseCommand):
             else:
                 q = Job.objects.due_with_met_dependencies(jobs=jobs)
                 
+            if settings.CHRONIKER_AUTO_END_STALE_JOBS:
+                Job.objects.end_all_stale()
+                
             q = sorted(q, cmp=order_by_dependencies)
             for job in q:
                 
@@ -145,7 +147,7 @@ class Command(BaseCommand):
                 # We work around this by forcing Django to use separate
                 # connections for each process by explicitly closing the
                 # current connection.
-                connection.close() 
+                connection.close()
                 
                 # Immediately mark the job as running so the next jobs can
                 # update their dependency check.
