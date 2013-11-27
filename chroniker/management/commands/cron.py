@@ -137,6 +137,16 @@ class Command(BaseCommand):
             q = sorted(q, cmp=order_by_dependencies)
             for job in q:
                 
+                # This is necessary, otherwise we get the exception
+                # DatabaseError: SSL error: sslv3 alert bad record mac
+                # even through we're not using SSL...
+                # This is probably caused by the lack of good support for
+                # threading/multiprocessing in Django's ORM.
+                # We work around this by forcing Django to use separate
+                # connections for each process by explicitly closing the
+                # current connection.
+                connection.close() 
+                
                 # Immediately mark the job as running so the next jobs can
                 # update their dependency check.
                 job.is_running = True
