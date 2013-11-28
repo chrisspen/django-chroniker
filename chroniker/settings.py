@@ -84,4 +84,4 @@ settings.CHRONIKER_STALE_MINUTES = getattr(
 settings.CHRONIKER_AUTO_END_STALE_JOBS = getattr(
     settings,
     'CHRONIKER_AUTO_END_STALE_JOBS',
-    False)
+    True)
