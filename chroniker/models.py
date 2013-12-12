@@ -32,6 +32,7 @@ from django.utils.encoding import smart_str
 from django.utils.safestring import mark_safe
 from django.utils.timesince import timeuntil
 from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
+from django.contrib.sites.models import get_current_site
 
 import chroniker.constants as const
 import chroniker.utils
@@ -1138,6 +1139,23 @@ class Log(models.Model):
             body = Template(self.job.monitor_error_template).render(c)
         else:
             body = "Ouput:\n%s\nError output:\n%s" % (self.stdout, self.stderr)
+        
+        #site = get_current_site()
+        site = Site.objects.get_current()
+        base_url = None
+        if hasattr(settings, 'BASE_SECURE_URL'):
+            base_url = settings.BASE_SECURE_URL
+        elif hasattr(settings, 'BASE_URL'):
+            base_url = settings.BASE_URL
+        elif site:
+            if domain.startswith('http'):
+                base_url = site.domain
+            else:
+                base_url = 'http://' + site.domain
+        
+        if base_url:
+            admin_link = settings.BASE_SECURE_URL + chroniker.utils.get_admin_change_url(self.job)
+            body = 'To manage this job please visit: ' + admin_link + '\n\n' + body
         
         send_mail(
             from_email = '"%s" <%s>' % (
