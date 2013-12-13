@@ -15,3 +15,13 @@ class Sleeper(BaseCommand):
         
         end_time = time.time()
         print "Job ran for %f seconds" % (end_time-start_time)
+
+class InfiniteWaiter(BaseCommand):
+    args = ''
+    help = 'A simple command that waits indefinitely.'
+    
+    def handle(self, *args, **options):
+        while 1:
+            time.sleep(1)
+            print 'Waiting...'
+            

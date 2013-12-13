@@ -352,6 +352,23 @@ class JobManager(models.Manager):
             print '%i total stale jobs.' % (total,)
             for job in q.iterator():
                 print 'Marking stale job <%s> as stopped...' % (job,)
+                
+                # If we know the PID and it's running locally, and the process
+                # appears inactive, then attempt to forcibly kill the job.
+                if job.current_pid and job.current_hostname \
+                and job.current_hostname == socket.gethostname():
+                    if chroniker.utils.pid_exists(job.current_pid):
+                        cpu_usage = chroniker.utils.get_cpu_usage(job.current_pid)
+                        if cpu_usage:
+                            print 'Process with PID %s is still consuming CPU so keeping alive for now.' % (job.current_pid,)
+                        else:
+                            print 'Killing process %s...' % (job.current_pid,)
+                            chroniker.utils.kill_process(job.current_pid)
+                    else:
+                        print 'Process with PID %s is not running.' % (job.current_pid,)
+                else:
+                    print 'Process with PID %s is not elligible for killing.' % (job.current_pid,)
+                
                 job.is_running = False
                 job.last_run_successful = False
                 job.save()
@@ -362,7 +379,7 @@ class JobManager(models.Manager):
                     run_start_datetime = job.last_run_start_timestamp or timezone.now(),
                     run_end_datetime = timezone.now(),
                     stdout = '',
-                    stderr = 'Job ended unexpectedly!',
+                    stderr = 'Job became stale and was marked as terminated.',
                     success = False,
                 )
         except:
@@ -494,6 +511,14 @@ class Job(models.Model):
         null=True,
         editable=False,
         help_text=_('The name of the host currently running the job.'))
+    
+    current_pid = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        editable=False,
+        db_index=True,
+        help_text=_('The ID of the process currently running the job.'))
     
     total_parts_complete = models.PositiveIntegerField(
         default=0,
@@ -644,6 +669,7 @@ class Job(models.Model):
         
         if not self.is_running:
             self.current_hostname = None
+            self.current_pid = None
         
         super(Job, self).save(*args, **kwargs)
         
@@ -885,6 +911,7 @@ class Job(models.Model):
                 job.is_running = True
                 job.last_run_start_timestamp = timezone.now()
                 job.current_hostname = socket.gethostname()
+                job.current_pid = str(os.getpid())
                 job.total_parts = 0
                 job.total_parts_complete = 0
                 if heartbeat:

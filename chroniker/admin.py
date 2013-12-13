@@ -115,6 +115,7 @@ class JobAdmin(admin.ModelAdmin):
         'estimated_completion_datetime_str',
         'monitor_records',
         'current_hostname',
+        'current_pid',
         'job_type',
     )
     list_display_links = ('name', )
@@ -134,6 +135,7 @@ class JobAdmin(admin.ModelAdmin):
                 'args',
                 'hostname',
                 'current_hostname',
+                'current_pid',
                 'enabled',
                 #'check_is_running',
                 'is_running',
@@ -174,6 +176,7 @@ class JobAdmin(admin.ModelAdmin):
         'name',
         'hostname',
         'current_hostname',
+        'current_pid',
     )
     
     inlines = (
@@ -242,7 +245,7 @@ class JobAdmin(admin.ModelAdmin):
         if not obj or not obj.id:
             return ''
         url = '%d/run/?inline=1' % obj.id
-        return '<a href="%s"><input type="button" value="Run" /></a>' % url
+        return '<a href="%s" class="button">Run</a>' % url
     run_button.allow_tags = True
     run_button.short_description = 'Run'
     
@@ -253,8 +256,7 @@ class JobAdmin(admin.ModelAdmin):
         vars = dict(url=url, disabled='')
         if not obj.is_running:
             vars['disabled'] = 'disabled'
-        s = ('<a href="%(url)s"><input type="button" %(disabled)s ' + \
-            'value="Stop" /></a>') % vars
+        s = ('<a href="%(url)s" class="button" %(disabled)s>Stop</a>') % vars
         return s
     stop_button.allow_tags = True
     stop_button.short_description = 'Stop'
@@ -264,8 +266,7 @@ class JobAdmin(admin.ModelAdmin):
             return ''
         q = obj.logs.all()
         url = get_admin_changelist_url(Log)
-        return ('<a href="%s?job=%d" target="_blank">'
-            '<input type="button" value="View %i" /></a>') % \
+        return ('<a href="%s?job=%d" target="_blank" class="button">View %i</a>') % \
             (url, obj.id, q.count())
     view_logs_button.allow_tags = True
     view_logs_button.short_description = 'Logs'
@@ -576,8 +577,8 @@ class MonitorAdmin(admin.ModelAdmin):
     def action_buttons(self, obj):
         buttons = []
         url = '%d/run/?inline=1' % obj.id
-        buttons.append('<a href="%s"><input type="button" value="Check now" /></a>' % url)
-        buttons.append('<a href="/admin/chroniker/job/%i/" target="_blank"><input type="button" value="Edit" /></a>' % (obj.id,))
+        buttons.append('<a href="%s" class="button">Check now</a>' % url)
+        buttons.append('<a href="/admin/chroniker/job/%i/" target="_blank" class="button">Edit</a>' % (obj.id,))
         return ' '.join(buttons)
     action_buttons.allow_tags = True
     action_buttons.short_description = 'Actions'

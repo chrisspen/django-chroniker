@@ -14,17 +14,7 @@ from multiprocessing import Process
 
 from chroniker.models import Job, order_by_dependencies
 from chroniker import constants as c
-
-def pid_exists(pid):
-    """Check whether pid exists in the current process table."""
-    if pid < 0:
-        return False
-    try:
-        os.kill(pid, 0)
-    except OSError, e:
-        return e.errno == errno.EPERM
-    else:
-        return True
+from chroniker.utils import pid_exists
 
 class JobProcess(Process):
     """
@@ -60,6 +50,90 @@ class JobProcess(Process):
         #TODO:mark job as not running if still marked?
         #TODO:normalize job termination and cleanup outside of handle_run()?
 
+def run_cron(jobs=None, update_heartbeat=True, force_run=False):
+    try:
+        
+        # TODO: auto-kill inactive long-running cron processes whose
+        # threads have stalled and not exited properly?
+        # Check for 0 cpu usage.
+        #ps -p <pid> -o %cpu
+        
+        # Check PID file to prevent conflicts with prior executions.
+        # TODO: is this still necessary? deprecate? As long as jobs run by
+        # JobProcess don't wait for other jobs, multiple instances of cron
+        # should be able to run simeltaneously without issue.
+        if settings.CHRONIKER_USE_PID:
+            pid = str(os.getpid())
+            any_running = Job.objects.all_running().count()
+            if not any_running:
+                # If no jobs are running, then even if the PID file exists,
+                # it must be stale, so ignore it.
+                pass
+            elif os.path.isfile(pid_fn):
+                try:
+                    old_pid = int(open(pid_fn, 'r').read())
+                    if pid_exists(old_pid):
+                        print '%s already exists, exiting' % pid_fn
+                        sys.exit()
+                    else:
+                        print ('%s already exists, but contains stale '
+                            'PID, continuing') % pid_fn
+                except ValueError:
+                    pass
+                except TypeError:
+                    pass
+            file(pid_fn, 'w').write(pid)
+            clear_pid = True
+        
+        procs = []
+        if force_run:
+            q = Job.objects.all()
+            if jobs:
+                q = q.filter(id__in=jobs)
+        else:
+            q = Job.objects.due_with_met_dependencies(jobs=jobs)
+            
+        if settings.CHRONIKER_AUTO_END_STALE_JOBS:
+            Job.objects.end_all_stale()
+            
+        q = sorted(q, cmp=order_by_dependencies)
+        for job in q:
+            
+            # This is necessary, otherwise we get the exception
+            # DatabaseError: SSL error: sslv3 alert bad record mac
+            # even through we're not using SSL...
+            # This is probably caused by the lack of good support for
+            # threading/multiprocessing in Django's ORM.
+            # We work around this by forcing Django to use separate
+            # connections for each process by explicitly closing the
+            # current connection.
+            connection.close()
+            
+            # Immediately mark the job as running so the next jobs can
+            # update their dependency check.
+            job.is_running = True
+            job.save()
+            
+            # Launch job.
+            proc = JobProcess(job, update_heartbeat=update_heartbeat, name=str(job))
+            proc.start()
+            procs.append(proc)
+        
+        print "%d Jobs are due" % len(procs)
+        
+        # Wait for all job processes to complete.
+        while procs:
+            for proc in list(procs):
+                if not proc.is_alive():
+                    print 'Process %s ended.' % (proc,)
+                    procs.remove(proc)
+            time.sleep(.1)
+            
+    finally:
+        if settings.CHRONIKER_USE_PID and os.path.isfile(pid_fn) \
+        and clear_pid:
+            os.unlink(pid_fn)
+            
 class Command(BaseCommand):
     help = 'Runs all jobs that are due.'
     option_list = BaseCommand.option_list + (
@@ -89,88 +163,7 @@ class Command(BaseCommand):
             for _ in options.get('jobs', '').strip().split(',')
             if _.strip().isdigit()
         ]
+        update_heartbeat = int(options['update_heartbeat'])
+        force_run = options['force_run']
+        run_cron(jobs, update_heartbeat=update_heartbeat, force_run=force_run)
         
-        try:
-            update_heartbeat = int(options['update_heartbeat'])
-            
-            # TODO: auto-kill inactive long-running cron processes whose
-            # threads have stalled and not exited properly?
-            # Check for 0 cpu usage.
-            #ps -p <pid> -o %cpu
-            
-            # Check PID file to prevent conflicts with prior executions.
-            # TODO: is this still necessary? deprecate? As long as jobs run by
-            # JobProcess don't wait for other jobs, multiple instances of cron
-            # should be able to run simeltaneously without issue.
-            if settings.CHRONIKER_USE_PID:
-                pid = str(os.getpid())
-                any_running = Job.objects.all_running().count()
-                if not any_running:
-                    # If no jobs are running, then even if the PID file exists,
-                    # it must be stale, so ignore it.
-                    pass
-                elif os.path.isfile(pid_fn):
-                    try:
-                        old_pid = int(open(pid_fn, 'r').read())
-                        if pid_exists(old_pid):
-                            print '%s already exists, exiting' % pid_fn
-                            sys.exit()
-                        else:
-                            print ('%s already exists, but contains stale '
-                                'PID, continuing') % pid_fn
-                    except ValueError:
-                        pass
-                    except TypeError:
-                        pass
-                file(pid_fn, 'w').write(pid)
-                clear_pid = True
-            
-            procs = []
-            if options['force_run']:
-                q = Job.objects.all()
-                if jobs:
-                    q = q.filter(id__in=jobs)
-            else:
-                q = Job.objects.due_with_met_dependencies(jobs=jobs)
-                
-            if settings.CHRONIKER_AUTO_END_STALE_JOBS:
-                Job.objects.end_all_stale()
-                
-            q = sorted(q, cmp=order_by_dependencies)
-            for job in q:
-                
-                # This is necessary, otherwise we get the exception
-                # DatabaseError: SSL error: sslv3 alert bad record mac
-                # even through we're not using SSL...
-                # This is probably caused by the lack of good support for
-                # threading/multiprocessing in Django's ORM.
-                # We work around this by forcing Django to use separate
-                # connections for each process by explicitly closing the
-                # current connection.
-                connection.close()
-                
-                # Immediately mark the job as running so the next jobs can
-                # update their dependency check.
-                job.is_running = True
-                job.save()
-                
-                # Launch job.
-                proc = JobProcess(job, update_heartbeat=update_heartbeat, name=str(job))
-                proc.start()
-                procs.append(proc)
-            
-            print "%d Jobs are due" % len(procs)
-            
-            # Wait for all job processes to complete.
-            while procs:
-                for proc in list(procs):
-                    if not proc.is_alive():
-                        print 'Process %s ended.' % (proc,)
-                        procs.remove(proc)
-                time.sleep(.1)
-                
-        finally:
-            if settings.CHRONIKER_USE_PID and os.path.isfile(pid_fn) \
-            and clear_pid:
-                os.unlink(pid_fn)
-                

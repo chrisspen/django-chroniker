@@ -1,3 +1,6 @@
+import os
+import signal
+import subprocess
 import warnings
 from StringIO import StringIO
 
@@ -128,4 +131,61 @@ class LockingManager(models.Manager):
         #row = cursor.fetchone()
         #return row
         return cursor
-    
+
+def pid_exists(pid):
+    """
+    Returns true if the process associated with the given PID is still running.
+    Returns false otherwise.
+    """
+    pid = int(pid)
+    if pid < 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except OSError, e:
+        return e.errno == errno.EPERM
+    else:
+        return True
+
+def get_cpu_usage(pid):
+    """
+    Returns the CPU usage, as reported by `ps`, of the process associated with
+    the given PID.
+    """
+    cmd = ['ps', '-p', str(pid), '-o', '%cpu', '--no-headers']
+    output = subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()[0]
+    try:
+        return float(output.strip().split('\n')[0])
+    except ValueError:
+        return
+
+def kill_process(pid):
+    """
+    Kills the process associated with the given PID.
+    Returns true if the process was successfully killed.
+    Returns false otherwise.
+    """
+    pid = int(pid)
+    try:
+        
+        # Politely request that the process terminate.
+        os.kill(pid, signal.SIGTERM)
+        if not pid_exists(pid):
+            return True
+        
+        # Ask politely again, this time using a slightly
+        # different signal.
+        os.kill(pid, signal.SIGABRT)
+        if not pid_exists(pid):
+            return True
+        
+        # We've asked nicely and we've been ignored, so just murder it.
+        os.kill(pid, signal.SIGKILL)
+        if not pid_exists(pid):
+            return True
+        
+    except OSError:
+        # Something strange happened.
+        # Our user likely doesn't have permission to kill the process.
+        return False
+        

@@ -1,16 +1,32 @@
+import os
 import datetime
+from datetime import timedelta
 import time
+import socket
+import threading
+
+socket.gethostname = lambda: 'localhost'
 
 from django.core.management import _commands, call_command
 from django.test import TestCase
 from django.utils import timezone
 
 from chroniker.models import Job, Log, order_by_dependencies
-from chroniker.tests.commands import Sleeper
+from chroniker.tests.commands import Sleeper, InfiniteWaiter
+from chroniker.management.commands.cron import run_cron
 
 import warnings
 warnings.simplefilter('error', RuntimeWarning)
 
+from multiprocessing import Process
+
+class JobProcess(Process):
+    
+    def run(self):
+        while 1:
+            #print 'Waiting (pid=%i)...' % (os.getpid(),)
+            time.sleep(1)
+            
 #try:
 #    from django.utils import unittest
 #except:
@@ -24,12 +40,13 @@ class JobTestCase(TestCase):
         # Install the test command; this little trick installs the command
         # so that we can refer to it by name
         _commands['test_sleeper'] = Sleeper()
+        _commands['test_waiter'] = InfiniteWaiter()
     
     def testJobRun(self):
         """
         Test that the jobs run properly.
         """
-        self.assertEqual(Job.objects.all().count(), 4)
+        self.assertEqual(Job.objects.filter(enabled=True).count(), 4)
         
         for job in Job.objects.due():
             time_expected = float(job.args)
@@ -110,7 +127,7 @@ class JobTestCase(TestCase):
         self.assertEqual(j2.dependencies.filter(dependee=j1).count(), 1)
         self.assertEqual(j2.dependencies.filter(dependee=j3).count(), 1)
         
-        jobs = sorted(Job.objects.all(), cmp=order_by_dependencies)
+        jobs = sorted(Job.objects.filter(enabled=True), cmp=order_by_dependencies)
 #        for job in jobs:
 #            print job, [_.dependee for _ in job.dependencies.all()]
         self.assertEqual(jobs, [j1, j4, j3, j2])
@@ -174,4 +191,37 @@ class JobTestCase(TestCase):
         job = Job.objects.get(id=1)
         self.assertEqual(job.is_running, False)
         self.assertEqual(job.last_run_successful, False)
+
+        # TODO:Ideally this would use run_cron(),
+        # but attempting to access Django models inside a thread/process
+        # when inside a unittest currently throw "no such table" errors because
+        # they're not using the in-memory sqlite db...
+        job = Job.objects.get(id=5)
+        job.enabled = True
+        job.is_running = True
+        job.last_heartbeat = timezone.now() - timedelta(days=30)
+        job.save()
         
+        self.assertEqual(job.is_fresh(), False)
+
+        # Simulate the job's stalled running process.
+        proc = JobProcess()
+        proc.daemon = True
+        proc.start()
+        
+        while not proc.is_alive():
+            time.sleep()
+        
+        self.assertTrue(proc.pid)
+        job.current_hostname = socket.gethostname()
+        job.current_pid = proc.pid
+        job.save()
+        self.assertEqual(job.is_fresh(), False)
+        
+        Job.objects.end_all_stale()
+        
+        while 1:
+            time.sleep(1)
+            if not proc.is_alive():
+                break
+        #        
