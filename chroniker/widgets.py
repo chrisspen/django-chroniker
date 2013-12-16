@@ -5,9 +5,19 @@ from django.contrib.admin.sites import site
 from django.contrib.admin.widgets import ManyToManyRawIdWidget, ForeignKeyRawIdWidget
 from django.core.urlresolvers import reverse
 from django.forms.widgets import Select, TextInput, flatatt
-from django.utils.encoding import StrAndUnicode, force_unicode, smart_unicode
+from django.utils.encoding import force_unicode, smart_unicode
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
+
+try:
+    from django.utils.encoding import StrAndUnicode
+except ImportError:
+    from django.utils.encoding import python_2_unicode_compatible
+
+    @python_2_unicode_compatible
+    class StrAndUnicode:
+        def __str__(self):
+            return self.code
 
 from utils import get_admin_change_url, get_admin_changelist_url
 
