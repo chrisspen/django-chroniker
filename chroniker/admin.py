@@ -347,7 +347,7 @@ class JobAdmin(admin.ModelAdmin):
                 job.is_running = False
                 job.save()
         self.message_user(request, 'Cleared %i stalled jobs.' % (reset_count,))
-    clear_stalled.short_description = 'Marked the selected %(verbose_name_plural)s as not running'
+    clear_stalled.short_description = 'Mark the selected %(verbose_name_plural)s as not running'
         
     def toggle_enabled(self, request, queryset):
         for row in queryset:
