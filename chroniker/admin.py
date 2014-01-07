@@ -73,6 +73,7 @@ class JobAdmin(admin.ModelAdmin):
         'disable_jobs',
         'run_selected_jobs',
         'toggle_enabled',
+        'clear_stalled',
     )
     list_display = (
         'name',
@@ -338,6 +339,16 @@ class JobAdmin(admin.ModelAdmin):
         self.message_user(request, "%s successfully set to run." % message_bit)
     run_selected_jobs.short_description = "Force run selected jobs"
     
+    def clear_stalled(self, request, queryset):
+        reset_count = 0
+        for job in queryset:
+            if not job.is_fresh():
+                reset_count += 1
+                job.is_running = False
+                job.save()
+        self.message_user(request, 'Cleared %i stalled jobs.' % (reset_count,))
+    clear_stalled.short_description = 'Marked the selected %(verbose_name_plural)s as not running'
+        
     def toggle_enabled(self, request, queryset):
         for row in queryset:
             row.enabled = not row.enabled
