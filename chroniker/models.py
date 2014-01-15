@@ -164,13 +164,17 @@ class JobHeartbeatThread(threading.Thread):
         self.lock_file.close()
         
     def update_progress(self, total_parts, total_parts_complete):
-        print 'Updating progress:', total_parts, total_parts_complete
+        #print 'Updating progress:', total_parts, total_parts_complete
         self.lock.acquire()
-        Job.objects.update()
-        job = Job.objects.get(id=self.job_id)
-        job.total_parts = total_parts
-        job.total_parts_complete = total_parts_complete
-        job.save()
+#        Job.objects.update()
+#        job = Job.objects.get(id=self.job_id)
+#        job.total_parts = total_parts
+#        job.total_parts_complete = total_parts_complete
+#        job.save()
+        Job.objects.filter(id=self.job_id).update(
+            total_parts = total_parts,
+            total_parts_complete = total_parts_complete,
+        )
         self.lock.release()
 
 class JobDependency(models.Model):
@@ -565,6 +569,16 @@ class Job(models.Model):
         help_text='The maximum number of most recent log entries to keep.' + \
             '<br/>A value of 0 keeps all log entries.')
     
+    log_stdout = models.BooleanField(
+        default=True,
+        help_text=_('''If checked, all characters printed to stdout will be
+            saved in a log record.'''))
+    
+    log_stderr = models.BooleanField(
+        default=True,
+        help_text=_('''If checked, all characters printed to stderr will be
+            saved in a log record.'''))
+    
     class Meta:
         ordering = (
             'name',
@@ -886,10 +900,15 @@ class Job(models.Model):
         lock = threading.Lock()
         run_start_datetime = timezone.now()
         last_run_successful = False
-        stdout = chroniker.utils.TeeFile(sys.stdout, auto_flush=True)
-        stderr = chroniker.utils.TeeFile(sys.stderr, auto_flush=True)
-        t0 = time.time()
         
+        stdout = sys.stdout
+        stderr = sys.stderr
+        if self.log_stdout:
+            stdout = chroniker.utils.TeeFile(sys.stdout, auto_flush=True)
+        if self.log_stderr:
+            stderr = chroniker.utils.TeeFile(sys.stderr, auto_flush=True)
+            
+        t0 = time.time()
         try:
     
             # Redirect output so that we can log it if there is any
@@ -1004,23 +1023,30 @@ class Job(models.Model):
             
             # Record run log.
             print 'Recording log...'
-            stdout = stdout.getvalue()
-            if isinstance(stdout, unicode):
-                stdout = stdout.encode('utf-8', 'replace')
-            else:
-                stdout = unicode(stdout, 'utf-8', 'replace')
-            stderr = stderr.getvalue()
-            if isinstance(stderr, unicode):
-                stderr = stderr.encode('utf-8', 'replace')
-            else:
-                stderr = unicode(stderr, 'utf-8', 'replace')
+            
+            stdout_str = ''
+            if self.log_stdout:
+                stdout_str = stdout.getvalue()
+                if isinstance(stdout_str, unicode):
+                    stdout_str = stdout_str.encode('utf-8', 'replace')
+                else:
+                    stdout_str = unicode(stdout_str, 'utf-8', 'replace')
+            
+            stderr_str = ''
+            if self.log_stderr:
+                stderr_str = stderr.getvalue()
+                if isinstance(stderr_str, unicode):
+                    stderr_str = stderr_str.encode('utf-8', 'replace')
+                else:
+                    stderr_str = unicode(stderr_str, 'utf-8', 'replace')
+                
             log = Log.objects.create(
                 job = self,
                 run_start_datetime = run_start_datetime,
                 run_end_datetime = timezone.now(),
                 duration_seconds = time.time() - t0,
-                stdout = stdout,
-                stderr = stderr,
+                stdout = stdout_str,
+                stderr = stderr_str,
                 success = last_run_successful,
             )
             
@@ -1084,7 +1110,8 @@ class Job(models.Model):
         if heartbeat:
             return heartbeat.update_progress(*args, **kwargs)
         else:
-            print 'Unable to update progress. No heartbeat found.'
+            #print 'Unable to update progress. No heartbeat found.'
+            pass
 
 class Log(models.Model):
     """

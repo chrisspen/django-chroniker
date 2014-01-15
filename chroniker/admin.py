@@ -164,6 +164,8 @@ class JobAdmin(admin.ModelAdmin):
             'classes': ('wide',),
             'fields': (
                 'subscribers',
+                'log_stdout',
+                'log_stderr',
                 'email_errors_to_subscribers',
                 'email_success_to_subscribers',
             )
