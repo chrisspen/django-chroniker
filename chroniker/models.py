@@ -672,10 +672,13 @@ class Job(models.Model):
                 logger.debug("Updating 'next_run")
                 next_run = self.next_run or timezone.now()
                 
-                #TODO:why can't rrule consistently handle timezone-aware datetimes?!?!?!
                 tz = timezone.get_default_timezone()
                 try:
                     self.next_run = self.rrule.after(timezone.make_aware(next_run, tz))
+                except ValueError, e:
+                    self.next_run = timezone.make_aware(
+                        self.rrule.after(timezone.make_naive(next_run, tz)),
+                        tz)
                 except TypeError, e:
                     self.next_run = timezone.make_aware(
                         self.rrule.after(timezone.make_naive(next_run, tz)),
@@ -907,8 +910,6 @@ class Job(models.Model):
             stdout = chroniker.utils.TeeFile(sys.stdout, auto_flush=True)
         if self.log_stderr:
             stderr = chroniker.utils.TeeFile(sys.stderr, auto_flush=True)
-            
-        t0 = time.time()
         try:
     
             # Redirect output so that we can log it if there is any
@@ -925,17 +926,26 @@ class Job(models.Model):
 
             try:
                 lock.acquire()
-                Job.objects.update()
-                job = Job.objects.get(id=self.id)
-                job.is_running = True
-                job.last_run_start_timestamp = timezone.now()
-                job.current_hostname = socket.gethostname()
-                job.current_pid = str(os.getpid())
-                job.total_parts = 0
-                job.total_parts_complete = 0
-                if heartbeat:
-                    job.lock_file = heartbeat.lock_file.name
-                job.save()
+#                Job.objects.update()
+#                job = Job.objects.get(id=self.id)
+#                job.is_running = True
+#                job.last_run_start_timestamp = timezone.now()
+#                job.current_hostname = socket.gethostname()
+#                job.current_pid = str(os.getpid())
+#                job.total_parts = 0
+#                job.total_parts_complete = 0
+#                if heartbeat:
+#                    job.lock_file = heartbeat.lock_file.name
+#                job.save()
+                Job.objects.filter(id=self.id).update(
+                    is_running = True,
+                    last_run_start_timestamp = timezone.now(),
+                    current_hostname = socket.gethostname(),
+                    current_pid = str(os.getpid()),
+                    total_parts = 0,
+                    total_parts_complete = 0,
+                    lock_file = heartbeat.lock_file.name if heartbeat and heartbeat.lock_file else '',
+                )
             except Exception, e:
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
@@ -948,7 +958,6 @@ class Job(models.Model):
             finally:
                 lock.release()
             
-            t0 = time.time()
             if heartbeat:
                 heartbeat.start()
             success = True
@@ -992,17 +1001,27 @@ class Job(models.Model):
             try:
                 lock.acquire()
                 Job.objects.update()
-                job = Job.objects.get(id=self.id)
-                job.is_running = False
-                job.lock_file = ""
-                job.last_run = run_start_datetime
-                job.force_run = False
-                job.next_run = next_run
-                job.last_run_successful = last_run_successful
-                # Ensure we report 100% progress if everything ran successfully.
-                if job.last_run_successful and job.total_parts is not None:
-                    job.total_parts_complete = job.total_parts
-                job.save()
+#                job = Job.objects.get(id=self.id)
+#                job.is_running = False
+#                job.lock_file = ""
+#                job.last_run = run_start_datetime
+#                job.force_run = False
+#                job.next_run = next_run
+#                job.last_run_successful = last_run_successful
+#                # Ensure we report 100% progress if everything ran successfully.
+#                if job.last_run_successful and job.total_parts is not None:
+#                    job.total_parts_complete = job.total_parts
+#                job.save()
+                job = Job.objects.only('id', 'total_parts', 'last_run_successful').get(id=self.id)
+                Job.objects.filter(id=self.id).update(
+                    is_running = False,
+                    lock_file = '',
+                    last_run = run_start_datetime,
+                    force_run = False,
+                    next_run = next_run,
+                    last_run_successful = last_run_successful,
+                    total_parts_complete = job.total_parts if job.last_run_successful and job.total_parts is not None else None,
+                )
             except Exception, e:
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
@@ -1039,12 +1058,14 @@ class Job(models.Model):
                     stderr_str = stderr_str.encode('utf-8', 'replace')
                 else:
                     stderr_str = unicode(stderr_str, 'utf-8', 'replace')
-                
+            
+            run_end_datetime = timezone.now()
+            duration_seconds = (run_end_datetime - run_start_datetime).seconds
             log = Log.objects.create(
                 job = self,
                 run_start_datetime = run_start_datetime,
-                run_end_datetime = timezone.now(),
-                duration_seconds = time.time() - t0,
+                run_end_datetime = run_end_datetime,
+                duration_seconds = duration_seconds,
                 stdout = stdout_str,
                 stderr = stderr_str,
                 success = last_run_successful,
@@ -1150,7 +1171,8 @@ class Log(models.Model):
     
     def save(self, *args, **kwargs):
         if self.run_start_datetime and self.run_end_datetime:
-            time_diff = (self.run_start_datetime - self.run_end_datetime)
+            assert self.run_start_datetime <= self.run_end_datetime, 'Job must start before it ends.'
+            time_diff = (self.run_end_datetime - self.run_start_datetime)
             self.duration_seconds = time_diff.seconds
         super(Log, self).save(*args, **kwargs)
     
