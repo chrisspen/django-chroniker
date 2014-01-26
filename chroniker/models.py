@@ -1020,7 +1020,7 @@ class Job(models.Model):
                     force_run = False,
                     next_run = next_run,
                     last_run_successful = last_run_successful,
-                    total_parts_complete = job.total_parts if job.last_run_successful and job.total_parts is not None else None,
+                    total_parts_complete = (job.last_run_successful and job.total_parts) or 0,
                 )
             except Exception, e:
                 # The command failed to run; log the exception

@@ -269,7 +269,7 @@ class JobAdmin(admin.ModelAdmin):
             return ''
         q = obj.logs.all()
         url = get_admin_changelist_url(Log)
-        return ('<a href="%s?job=%d" target="_blank" class="button">View %i</a>') % \
+        return ('<a href="%s?job=%d" target="_blank" class="button">View&nbsp;%i</a>') % \
             (url, obj.id, q.count())
     view_logs_button.allow_tags = True
     view_logs_button.short_description = 'Logs'
