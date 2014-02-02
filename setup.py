@@ -7,14 +7,14 @@ import urllib
 
 import chroniker
 
-def get_reqs(reqs=["Django>=1.4.0", "python-dateutil"]):
+def get_reqs(reqs=['Django>=1.4.0', 'python-dateutil', 'psutil']):
     # optparse is included with Python <= 2.7, but has been deprecated in favor
     # of argparse.  We try to import argparse and if we can't, then we'll add
     # it to the requirements
     try:
         import argparse
     except ImportError:
-        reqs.append("argparse>=1.1")
+        reqs.append('argparse>=1.1')
     return reqs
 
 class TestCommand(Command):

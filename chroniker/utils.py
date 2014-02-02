@@ -1,4 +1,6 @@
 import os
+import sys
+import time
 import signal
 import subprocess
 import warnings
@@ -8,7 +10,13 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.urlresolvers import reverse
 from django.db import models
 from django.db import connection
-    
+
+from multiprocessing import Process, current_process
+
+import psutil
+
+import constants as c
+
 def get_admin_change_url(obj):
     ct = ContentType.objects.get_for_model(obj)
     change_url_name = 'admin:%s_%s_change' % (ct.app_label, ct.model)
@@ -24,12 +32,14 @@ class TeeFile(StringIO):
     A helper class for allowing output to be stored in a StringIO instance
     while still be directed to a second file object, such as sys.stdout.
     """
-    def __init__(self, file, auto_flush=False):
+    def __init__(self, file, auto_flush=False, queue=None):
         #super(TeeFile, self).__init__()
         StringIO.__init__(self)
         self.file = file
         self.auto_flush = auto_flush
         self.length = 0
+        self.queue = queue
+        self.queue_buffer = []
 
     def write(self, s):
         try:
@@ -47,12 +57,18 @@ class TeeFile(StringIO):
         #super(TeeFile, self).write(s)
         StringIO.write(self, s)
         if self.auto_flush:
-            self.file.flush()
+            #self.file.flush()
+            self.flush()
+        if self.queue is not None:
+            self.queue_buffer.append(s)
         
     def flush(self):
         self.file.flush()
         #super(TeeFile, self).flush()
         StringIO.flush(self)
+        if self.queue is not None:
+            self.queue.put((current_process().pid, ''.join(self.queue_buffer)))
+            self.queue_buffer = []
 
 # Based on:
 # http://djangosnippets.org/snippets/833/
@@ -188,4 +204,146 @@ def kill_process(pid):
         # Something strange happened.
         # Our user likely doesn't have permission to kill the process.
         return False
+
+class TimedProcess(Process):
+    """
+    Helper to allow us to time a specific chunk of code and determine when
+    it has reached a timeout.
+    
+    Also, this conveniently allows us to kill the whole thing if it locks up
+    or takes too long, without requiring special coding in the target code.
+    """
+    
+    daemon = True
+    
+    def __init__(self, max_seconds, time_type=c.MAX_TIME, fout=None, check_freq=1, *args, **kwargs):
+        super(TimedProcess, self).__init__(*args, **kwargs)
+        self.fout = fout or sys.stdout
+        self.t0 = time.clock()
+        self.t0_objective = time.time()
+        self.max_seconds = float(max_seconds)
+        self.t1 = None
+        self.t1_objective = None
+        # The number of seconds the process waits between checks.
+        self.check_freq = check_freq
+        self.time_type = time_type
+        self._p = None
+        self._process_times = {} # {pid:user_seconds}
+        self._last_duration_seconds = None
+    
+    def terminate(self, signal=15, *args, **kwargs):
+        """
+        signal := 6=abrt, 9=kill, 15=term
+        """
+        if self.is_alive() and self._p:
+            # Explicitly kill children since the default terminate() doesn't
+            # seem to do this very reliably.
+            for child in self._p.get_children():
+                # Do one last time check.
+                self._process_times[child.pid] = child.get_cpu_times().user
+                os.system('kill -%i %i' % (signal, child.pid,))
+            # Sum final time.
+            self._process_times[self._p.pid] = self._p.get_cpu_times().user
+            self._last_duration_seconds = sum(self._process_times.itervalues())
+        os.system('kill -%i %i' % (signal, self._p.pid,))
+        #return super(TimedProcess, self).terminate(*args, **kwargs)
+    
+    def get_duration_seconds_wall(self):
+        if self.t1_objective is not None:
+            return self.t1_objective - self.t0_objective
+        return time.time() - self.t0_objective
+    
+    def get_duration_seconds_cpu(self):
+        if self.t1 is not None:
+            return self.t1 - self.t0
+        return time.clock() - self.t0
+    
+    def get_duration_seconds_cpu_recursive(self):
+        # Note, this calculation will consume much user
+        # CPU time itself than simply checking clock().
+        # Recommend using larger check_freq to minimize this.
+        # Note, we must store historical child times because child
+        # processes may die, causing them to no longer be included in
+        # future calculations, possibly corrupting the total time.
+        self._process_times[self._p.pid] = self._p.get_cpu_times().user
+        children = self._p.get_children(recursive=True)
+        for child in children:
+            self._process_times[child.pid] = child.get_cpu_times().user
+        #TODO:optimize by storing total sum and tracking incremental changes?
+        return sum(self._process_times.itervalues())
+    
+    def get_duration_seconds_max(self):
+        return max(
+            self.get_duration_seconds_wall(),
+            self.get_duration_seconds_cpu_recursive(),
+        )
+    
+    def get_duration_seconds(self):
+        """
+        Retrieve the number of seconds this process has been executing for.
         
+        If process was instantiated with objective=True, then the wall-clock
+        value is returned.
+        
+        Otherwise the user-time is returned.
+        If recursive=True is given, recursively finds all child-processed,
+        if any, and includes their user-time in the total calculation.
+        """
+        if self.is_alive():
+            if self.time_type == c.WALL_CLOCK_TIME:
+                return self.get_duration_seconds_wall()
+            elif self.time_type == c.CPU_TIME:
+                return self.get_duration_seconds_cpu()
+            elif self.time_type == c.RECURSIVE_CPU_TIME:
+                return self.get_duration_seconds_cpu_recursive()
+            elif self.time_type == c.MAX_TIME:
+                return self.get_duration_seconds_max()
+            else:
+                raise NotImplementedError
+        
+    @property
+    def is_expired(self):
+        if not self.max_seconds:
+            return False
+        duration_seconds = self.get_duration_seconds()
+#        print 'self.get_duration_seconds:',duration_seconds
+#        print 'self.max_seconds:',self.max_seconds
+        return duration_seconds >= self.max_seconds
+    
+    @property
+    def seconds_until_timeout(self):
+        return max(self.max_seconds - self.get_duration_seconds(), 0)
+    
+    def start(self, *args, **kwargs):
+        super(TimedProcess, self).start(*args, **kwargs)
+        self._p = psutil.Process(self.pid)
+    
+    def start_then_kill(self, verbose=True):
+        """
+        Starts and then kills the process if a timeout occurs.
+        
+        Returns true if a timeout occurred. False if otherwise.
+        """
+        self.start()
+        timeout = False
+        if verbose:
+            print>>self.fout
+            print>>self.fout
+        while 1:
+            time.sleep(1)
+            if verbose:
+                print>>self.fout, '\r\t%.0f seconds until timeout.' \
+                    % (self.seconds_until_timeout,),
+                self.fout.flush()
+            if not self.is_alive():
+                break
+            elif self.is_expired:
+                if verbose:
+                    print>>self.fout
+                    print>>self.fout, 'Attempting to terminate expired process %s...' % (self.pid,)
+                timeout = True
+                self.terminate()
+        self.t1 = time.clock()
+        self.t1_objective = time.time()
+        return timeout
+    

@@ -27,6 +27,11 @@ from chroniker.models import Job, Log, JobDependency, Monitor
 from chroniker.utils import get_admin_changelist_url
 from chroniker.widgets import ImproveRawIdFieldsFormTabularInline
 
+try:
+    from admin_steroids.queryset import ApproxCountQuerySet
+except ImportError:
+    ApproxCountQuerySet = None
+
 class HTMLWidget(forms.Widget):
     def __init__(self,rel=None, attrs=None):
         self.rel = rel
@@ -118,6 +123,7 @@ class JobAdmin(admin.ModelAdmin):
         'current_hostname',
         'current_pid',
         'job_type',
+        'is_due',
     )
     list_display_links = ('name', )
     list_filter = (
@@ -137,22 +143,44 @@ class JobAdmin(admin.ModelAdmin):
                 'hostname',
                 'current_hostname',
                 'current_pid',
-                'enabled',
-                #'check_is_running',
+            )
+        }),
+        ('Status', {
+            'classes': ('wide',),
+            'fields': (
                 'is_running',
-                'force_run',
-                'force_stop',
-                'view_logs_button',
+                'is_due',
+                'is_fresh', 
                 'last_run_successful',
-                'is_fresh',
-                'last_heartbeat',
-                'last_run_start_timestamp',
-                'last_run',
                 'total_parts',
                 'total_parts_complete',
                 'progress_percent_str',
                 'estimated_completion_datetime_str',
+                'last_heartbeat',
+                'last_run_start_timestamp',
+                'last_run',
+            )
+        }),
+        ('Flags', {
+            'classes': ('wide',),
+            'fields': (
+                'enabled',
+                'force_run',
+                'force_stop',
+            )
+        }),
+        ('Logging', {
+            'classes': ('wide',),
+            'fields': (
+                'view_logs_button',
+                'log_stdout',
+                'log_stderr',
                 'maximum_log_entries',
+            )
+        }),
+        ('Monitor', {
+            'classes': ('wide',),
+            'fields': (
                 'is_monitor',
                 'monitor_url',
                 'monitor_error_template',
@@ -164,15 +192,18 @@ class JobAdmin(admin.ModelAdmin):
             'classes': ('wide',),
             'fields': (
                 'subscribers',
-                'log_stdout',
-                'log_stderr',
                 'email_errors_to_subscribers',
                 'email_success_to_subscribers',
             )
         }),
         ('Frequency options', {
             'classes': ('wide',),
-            'fields': ('frequency', 'next_run', 'params',)
+            'fields': (
+                'frequency',
+                'next_run',
+                'params',
+                'timeout_seconds',
+            )
         }),
     )
     search_fields = (
@@ -186,11 +217,17 @@ class JobAdmin(admin.ModelAdmin):
        JobDependencyInline,
     )
     
+    def queryset(self, *args, **kwargs):
+        qs = super(JobAdmin, self).queryset(*args, **kwargs)
+        if ApproxCountQuerySet is not None:
+            qs = qs._clone(klass=ApproxCountQuerySet)
+        return qs
+    
     def get_readonly_fields(self, request, obj=None):
         fields = list(self.readonly_fields)
         # Allow manual clearing of is_running if the cron job has become stuck.
-        if obj and obj.is_fresh():
-            fields.append('is_running')
+#        if obj and obj.is_fresh():
+#            fields.append('is_running')
         return fields
     
     def last_run_with_link(self, obj=None):
@@ -349,7 +386,7 @@ class JobAdmin(admin.ModelAdmin):
                 job.is_running = False
                 job.save()
         self.message_user(request, 'Cleared %i stalled jobs.' % (reset_count,))
-    clear_stalled.short_description = 'Mark the selected %(verbose_name_plural)s as not running'
+    clear_stalled.short_description = 'Mark the selected stalled %(verbose_name_plural)s as not running'
         
     def toggle_enabled(self, request, queryset):
         for row in queryset:
@@ -411,6 +448,7 @@ class JobAdmin(admin.ModelAdmin):
         return super(JobAdmin, self).formfield_for_dbfield(db_field, **kwargs)
 
 class LogAdmin(admin.ModelAdmin):
+    
     list_display = (
         'job_name',
         'run_start_datetime',
@@ -418,15 +456,23 @@ class LogAdmin(admin.ModelAdmin):
         'duration_seconds',
         'duration_str',
         'job_success',
+        'on_time',
         #'stdout_sample',
         #'stderr_sample',
     )
+    
+    list_filter = (
+        'success',
+        'on_time',
+    )
+    
     search_fields = (
         'stdout',
         'stderr',
         'job__name',
         'job__command',
     )
+    
     readonly_fields = (
         'run_start_datetime',
         'run_end_datetime',
@@ -457,6 +503,20 @@ class LogAdmin(admin.ModelAdmin):
             )
         }),
     )
+    
+    def queryset(self, *args, **kwargs):
+        qs = super(LogAdmin, self).queryset(*args, **kwargs)
+        qs = qs.only(
+            'id',
+            'run_start_datetime',
+            'run_end_datetime',
+            'duration_seconds',
+            'success',
+            'on_time',
+        )
+        if ApproxCountQuerySet is not None:
+            qs = qs._clone(klass=ApproxCountQuerySet)
+        return qs
     
     def stdout_link(self, obj):
         url = reverse("admin:chroniker_log_change", args=(obj.id,)) + 'stdout/'
@@ -505,9 +565,10 @@ class LogAdmin(admin.ModelAdmin):
     job_name.short_description = _(u'Name')
 
     def job_success(self, obj):
-            return obj.success
+        return obj.success
     job_success.short_description = _(u'OK')
     job_success.boolean = True
+    job_success.admin_order_field = 'success'
     
     def has_add_permission(self, request):
         return False

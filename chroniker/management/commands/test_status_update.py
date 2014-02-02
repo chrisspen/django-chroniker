@@ -21,4 +21,5 @@ class Command(BaseCommand):
         seconds = int(options['seconds'])
         for i in xrange(seconds):
             Job.update_progress(total_parts=seconds, total_parts_complete=i)
+            print '%i of %i' % (i, seconds)
             time.sleep(1)

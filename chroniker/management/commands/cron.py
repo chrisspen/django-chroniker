@@ -3,52 +3,53 @@ import os
 import sys
 import time
 import errno
+import socket
+from functools import partial
 from optparse import make_option
+from collections import defaultdict
 
 from django.core.management.base import BaseCommand
 from django.db import connection
 import django
 from django.conf import settings
+from django.utils import timezone
 
-from multiprocessing import Process
+from multiprocessing import Process, Queue
 
-from chroniker.models import Job, order_by_dependencies
+import psutil
+
+from chroniker.models import Job, Log, order_by_dependencies
 from chroniker import constants as c
-from chroniker.utils import pid_exists
+from chroniker.utils import pid_exists, TimedProcess
 
-class JobProcess(Process):
-    """
-    Each ``Job`` gets run in it's own ``Process``.
-    """
-    daemon = True
+class JobProcess(TimedProcess):
     
-    def __init__(self, job, update_heartbeat=True, *args, **kwargs):
+    def __init__(self, job, *args, **kwargs):
+        super(JobProcess, self).__init__(*args, **kwargs)
         self.job = job
-        Process.__init__(self, *args, **kwargs)
-        
-        # Don't let this process hold up the parent.
-        self.daemon = True
-        self.update_heartbeat = update_heartbeat
-    
-    def run(self):
-        print "Running Job: %i - '%s' with args: %s" \
-            % (self.job.id, self.job, self.job.args)
-        # TODO:Fix? Remove multiprocess and just running all jobs serially?
-        # Multiprocessing does not play well with Django's PostgreSQL
-        # connection, as it seems Django's connection code is not thread-safe.
-        # It's a hacky solution, but the short-term fix seems to be to close
-        # the connection in this thread, forcing Django to open a new
-        # connection unique to this thread.
-        # Without this call to connection.close(), we'll get the error
-        # "Lost connection to MySQL server during query".
-        print 'Closing connection.'
-        connection.close()
-        print 'Connection closed.'
-        self.job.run(
-            update_heartbeat=self.update_heartbeat,
-            check_running=False)
-        #TODO:mark job as not running if still marked?
-        #TODO:normalize job termination and cleanup outside of handle_run()?
+
+def run_job(job, update_heartbeat=None, stdout_queue=None, stderr_queue=None, **kwargs):
+    print "Running Job: %i - '%s' with args: %s" \
+        % (job.id, job, job.args)
+    # TODO:Fix? Remove multiprocess and just running all jobs serially?
+    # Multiprocessing does not play well with Django's PostgreSQL
+    # connection, as it seems Django's connection code is not thread-safe.
+    # It's a hacky solution, but the short-term fix seems to be to close
+    # the connection in this thread, forcing Django to open a new
+    # connection unique to this thread.
+    # Without this call to connection.close(), we'll get the error
+    # "Lost connection to MySQL server during query".
+    print 'Closing connection.'
+    connection.close()
+    print 'Connection closed.'
+    job.run(
+        update_heartbeat=update_heartbeat,
+        check_running=False,
+        stdout_queue=stdout_queue,
+        stderr_queue=stderr_queue,
+    )
+    #TODO:mark job as not running if still marked?
+    #TODO:normalize job termination and cleanup outside of handle_run()?
 
 def run_cron(jobs=None, update_heartbeat=True, force_run=False):
     try:
@@ -57,6 +58,11 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False):
         # threads have stalled and not exited properly?
         # Check for 0 cpu usage.
         #ps -p <pid> -o %cpu
+        
+        stdout_map = defaultdict(list) # {prod_id:[]}
+        stderr_map = defaultdict(list) # {prod_id:[]}
+        stdout_queue = Queue()
+        stderr_queue = Queue()
         
         # Check PID file to prevent conflicts with prior executions.
         # TODO: is this still necessary? deprecate? As long as jobs run by
@@ -115,7 +121,16 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False):
             job.save()
             
             # Launch job.
-            proc = JobProcess(job, update_heartbeat=update_heartbeat, name=str(job))
+            #proc = JobProcess(job, update_heartbeat=update_heartbeat, name=str(job))
+            job_func = partial(run_job, job=job, update_heartbeat=update_heartbeat, name=str(job))
+            proc = JobProcess(
+                job=job,
+                max_seconds=job.timeout_seconds,
+                target=job_func,
+                kwargs=dict(
+                    stdout_queue=stdout_queue,
+                    stderr_queue=stderr_queue,
+                ))
             proc.start()
             procs.append(proc)
         
@@ -123,10 +138,47 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False):
         
         # Wait for all job processes to complete.
         while procs:
+            
+            while not stdout_queue.empty():
+                proc_id, proc_stdout = stdout_queue.get()
+                stdout_map[proc_id].append(proc_stdout)
+                
+            while not stderr_queue.empty():
+                proc_id, proc_stderr = stderr_queue.get()
+                stderr_map[proc_id].append(proc_stderr)
+                
             for proc in list(procs):
                 if not proc.is_alive():
                     print 'Process %s ended.' % (proc,)
                     procs.remove(proc)
+                elif proc.is_expired:
+                    print 'Process %s expired.' % (proc,)
+                    proc_id = proc.pid
+                    proc.terminate()
+                    run_end_datetime = timezone.now()
+                    procs.remove(proc)
+                    
+                    connection.close()
+                    Job.objects.update()
+                    run_start_datetime = Job.objects.get(id=proc.job.id).last_run_start_timestamp
+                    proc.job.is_running = False
+                    proc.job.force_run = False
+                    proc.job.force_stop = False
+                    proc.job.save()
+                    
+                    # Create log record since the job was killed before it had
+                    # a chance to do so.
+                    Log.objects.create(
+                        job=proc.job,
+                        run_start_datetime=run_start_datetime,
+                        run_end_datetime=run_end_datetime,
+                        success=False,
+                        on_time=False,
+                        hostname=socket.gethostname(),
+                        stdout=''.join(stdout_map[proc_id]),
+                        stderr=''.join(stderr_map[proc_id]+['Job exceeded timeout\n']),
+                    )
+                    
             time.sleep(.1)
             
     finally:

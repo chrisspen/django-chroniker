@@ -6,27 +6,42 @@ import os
 import subprocess
 import sys
 
+INVALID_SETTINGS_ERROR = "Error: You must either set the environmental "\
+    "variable DJANGO_SETTINGS_MODULE or pass it as "\
+    "an argument"
+
 logger = logging.getLogger('chroniker')
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=('Run cron jobs for a Django '
-                                                  'project using '
-                                                  'django-chroniker.'),
-                                     epilog=("NOTE: You must provide one of "
-                                             "the following: settings or "
-                                             "project_dir."))
-    parser.add_argument('-s', metavar='settings', type=str, nargs='?',
-                        dest="settings", help=('Django settings module.  You '
-                                               'must provide '))
-    parser.add_argument('-p', metavar='project_dir', type=str, nargs='?',
-                        dest="project_dir", help='Path to project directory')
-    parser.add_argument('-e', metavar='virtualenv', type=str, nargs='?',
-                        dest="virtualenv", help=('Path to virtual environment '
-                                                 '"activate_this.py" file'))
-    parser.add_argument('-q', action='store_true', dest="quite", default=False,
-                        help="Suppress output")
-    parser.add_argument('-l', action='store_true', dest="loud", default=False,
-                        help="Display more output")
+    parser = argparse.ArgumentParser(
+        description=('Run cron jobs for a Django '
+                      'project using '
+                      'django-chroniker.'),
+        epilog=("NOTE: You must provide one of "
+                 "the following: settings or "
+                 "project_dir."))
+    parser.add_argument(
+        '-s', metavar='settings', type=str, nargs='?',
+        dest="settings",
+        help=('Django settings module. You must provide.'))
+    parser.add_argument(
+        '-p', metavar='project_dir', type=str, nargs='?',
+        dest="project_dir", help='Path to project directory')
+    parser.add_argument(
+        '-e', metavar='virtualenv', type=str, nargs='?',
+        dest="virtualenv",
+        help=('Path to virtual environment "activate_this.py" file'))
+    parser.add_argument(
+        '-q', action='store_true', dest="quite", default=False,
+        help="Suppress output")
+    parser.add_argument(
+        '-l', action='store_true', dest="loud", default=False,
+        help="Display more output")
+    parser.add_argument(
+        '--jobs',
+        dest="jobs",
+        default='',
+        help='A comma-delimited list of job ids to limit executions to.')
     args = parser.parse_args()
     
     log_level = logging.INFO
@@ -39,8 +54,6 @@ if __name__ == "__main__":
     logging.basicConfig(stream=sys.stdout, format="[%(levelname)-8s] %(message)s")
     logger.setLevel(log_level)
 
-        
-    
     # If we're supposed to be running in a virtualenv, activate it
     if args.virtualenv:
         virtualenv = os.path.abspath(args.virtualenv)
@@ -62,22 +75,27 @@ if __name__ == "__main__":
     if not settings and not os.environ.has_key('DJANGO_SETTINGS_MODULE'):
         if not project_dir:
             # Well, we can't do anything...
-            logger.error("Error: You must either set the environmental "
-                         "variable DJANGO_SETTINGS_MODULE or pass it as "
-                         "an argument")
+            logger.error(INVALID_SETTINGS_ERROR)
             sys.exit(0)
         
         # We'll assume the settings file is in the project directory
         settings = "%s.settings" % os.path.basename(project_dir)
     
-    # Now assign the settings
-    os.environ['DJANGO_SETTINGS_MODULE'] = settings
+    # Now assign the settings if necessary.
+    if settings:
+        os.environ['DJANGO_SETTINGS_MODULE'] = settings
+        
+#    if not os.environ.has_key('DJANGO_SETTINGS_MODULE'):
+#        logger.error(INVALID_SETTINGS_ERROR)
+#        sys.exit(0)
+    
+    jobs = args.jobs#(args.jobs or '').split(',')
     
     logger.debug("Project dir: %s" % project_dir)
     logger.debug("Settings mod: %s" % settings)
     
     # We should be good to go now
-    from django.core.management import call_command, setup_environ
+    from django.core.management import call_command
     
     try:
         settings = __import__(os.environ['DJANGO_SETTINGS_MODULE'])
@@ -85,5 +103,4 @@ if __name__ == "__main__":
         sys.stderr.write("Error: Could not find Django settings\n")
         sys.exit(0)
     
-    #setup_environ(settings)
-    call_command('cron')
+    call_command('cron', jobs=jobs)

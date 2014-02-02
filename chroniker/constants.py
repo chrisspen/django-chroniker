@@ -29,3 +29,8 @@ Please review this monitor at {{ url }}
 
 {{ stderr }}
 '''
+
+WALL_CLOCK_TIME = 'wall-clock-time'
+CPU_TIME = 'cpu-time'
+RECURSIVE_CPU_TIME = 'recursive-cpu-time'
+MAX_TIME = 'max-time' # max(WALL_CLOCK_TIME, RECURSIVE_CPU_TIME)

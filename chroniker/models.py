@@ -382,6 +382,7 @@ class JobManager(models.Manager):
                     job = job,
                     run_start_datetime = job.last_run_start_timestamp or timezone.now(),
                     run_end_datetime = timezone.now(),
+                    hostname=socket.gethostname(),
                     stdout = '',
                     stderr = 'Job became stale and was marked as terminated.',
                     success = False,
@@ -431,7 +432,8 @@ class Job(models.Model):
     
     enabled = models.BooleanField(
         default=True,
-        help_text=_('If checked this job will run.'))
+        help_text=_('''If checked, this job will be run automatically according
+            to the frequency options.'''))
     
     next_run = models.DateTimeField(
         _("next run"),
@@ -492,11 +494,18 @@ class Job(models.Model):
     
     force_run = models.BooleanField(
         default=False,
-        help_text=_("If checked then this job will be run immediately."))
+        help_text=_("If checked, then this job will be run immediately."))
     
     force_stop = models.BooleanField(
         default=False,
-        help_text=_("If checked and running then this job will be stopped."))
+        help_text=_("If checked, and running then this job will be stopped."))
+    
+    timeout_seconds = models.PositiveIntegerField(
+        default=0,
+        blank=False,
+        null=False,
+        help_text=_('''When non-zero, the job will be forcibly killed if running
+            for more than this amount of time.'''))
     
     hostname = models.CharField(
         max_length=700,
@@ -562,7 +571,7 @@ class Job(models.Model):
         null=True,
         #verbose_name='records',
         editable=False,
-        help_text=_('The number of records that needs attention.'))
+        help_text=_('The number of records that need attention.'))
     
     maximum_log_entries = models.PositiveIntegerField(
         default=1000,
@@ -861,6 +870,7 @@ class Job(models.Model):
 #        return (reqs or self.force_run)
         q = type(self).objects.due(self, *args, **kwargs)
         return bool(q.count())
+    is_due.boolean = True
     
     def run(self, check_running=True, *args, **kwargs):
         """
@@ -891,7 +901,7 @@ class Job(models.Model):
             print 'Job disabled. Aborting run.'
         return False
     
-    def handle_run(self, update_heartbeat=True, *args, **kwargs):
+    def handle_run(self, update_heartbeat=True, stdout_queue=None, stderr_queue=None, *args, **kwargs):
         """
         This method implements the code to actually run a ``Job``.  This is
         meant to be run, primarily, by the `run_job` management command as a
@@ -907,9 +917,15 @@ class Job(models.Model):
         stdout = sys.stdout
         stderr = sys.stderr
         if self.log_stdout:
-            stdout = chroniker.utils.TeeFile(sys.stdout, auto_flush=True)
+            stdout = chroniker.utils.TeeFile(
+                sys.stdout,
+                auto_flush=True,
+                queue=stdout_queue)
         if self.log_stderr:
-            stderr = chroniker.utils.TeeFile(sys.stderr, auto_flush=True)
+            stderr = chroniker.utils.TeeFile(
+                sys.stderr,
+                auto_flush=True,
+                queue=stderr_queue)
         try:
     
             # Redirect output so that we can log it if there is any
@@ -1066,6 +1082,7 @@ class Job(models.Model):
                 run_start_datetime = run_start_datetime,
                 run_end_datetime = run_end_datetime,
                 duration_seconds = duration_seconds,
+                hostname=socket.gethostname(),
                 stdout = stdout_str,
                 stderr = stderr_str,
                 success = last_run_successful,
@@ -1138,31 +1155,53 @@ class Log(models.Model):
     """
     A record of stdout and stderr of a ``Job``.
     """
+    
     job = models.ForeignKey(Job, related_name='logs')
+    
     run_start_datetime = models.DateTimeField(
         editable=False,
         db_index=True,
         default=timezone.now,
         blank=False,
         null=False)
+    
     run_end_datetime = models.DateTimeField(
         editable=False,
         db_index=True,
         blank=True,
         null=True)
+    
     duration_seconds = models.PositiveIntegerField(
         editable=False,
         db_index=True,
         verbose_name='duration (total seconds)',
         blank=True,
         null=True)
+    
     stdout = models.TextField(blank=True)
+    
     stderr = models.TextField(blank=True)
+    
+    hostname = models.CharField(
+        max_length=700,
+        blank=True,
+        null=True,
+        editable=False,
+        help_text=_('The hostname this job was executed on.'))
+    
     success = models.BooleanField(
         default=True,
         db_index=True,
         editable=False)
         
+    on_time = models.BooleanField(
+        default=True,
+        db_index=True,
+        editable=False,
+        help_text=_('''If true, indicates job completed of its own accord.
+            If false, the job exceeded a timeout threshold and was forcibly
+            killed.'''))
+    
     class Meta:
         ordering = ('-run_start_datetime',)
     

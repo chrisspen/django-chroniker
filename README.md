@@ -4,14 +4,15 @@ Chroniker - Django Controlled Cron Jobs
 Overview
 --------
 
+Allows you to use cron to schedule Django management commands through
+Django's admin.
+
+Creating cron jobs for Django apps can be a pain, annoying and repetitive.
+With django-chroniker you simply create a single cron job to run every minute,
+point it at your site's directory and run `manage.py cron`.
+Then, you can create, update and delete jobs through Django's admin.
+
 This is a fork of Weston Nielson's [Chronograph](https://bitbucket.org/wnielson/django-chronograph/) project.
-
-Control django-admin commands via the web.
-
-Creating cron jobs for Django apps can be a pain, annoying and repetitive. With
-django-chroniker you simply create a single cron job to run every minute,
-point it at your site's directory and run manage.py cron. Then from the admin
-you can add jobs.
 
 Features
 --------
@@ -28,7 +29,12 @@ This package contains the following improvements over the parent Chronograph pro
 * Addition of a model for documenting inter-job dependencies as well as flags for controlling job behavior based on these dependencies. e.g. You can configure one job to not run until another job has successfully run, or run at a later date.
 * Improved support for coordinating job execution in a multi-server environment. e.g. You can configure a job to only run on a specific host or any host.
 
-Unlike some scheduling systems, Chroniker attempts to ensure that every job may have at most only one running instance at any given time. This greatly simplifies scheduling, but necessarily imposes some restrictions. If you need to schedule multiple instances of a task to run simultaneously, especially in real-time, consider using a system like [Celery](http://www.celeryproject.org/) instead.
+Unlike some scheduling systems, Chroniker attempts to ensure that every job may
+have at most only one running instance at any given time. This greatly
+simplifies scheduling, but necessarily imposes some restrictions. If you need
+to schedule multiple instances of a task to run simultaneously, especially in
+real-time, consider using a system like [Celery](http://www.celeryproject.org/)
+instead.
 
 Installation
 ------------
@@ -79,7 +85,9 @@ You can also specify a separate email user for Chroniker with:
 
     CHRONIKER_EMAIL_HOST_USER = 'someotherusername@otherdomain.com'
 
-When installing Chroniker in a production environment, you'll need to add a single cron job that calls bin/chroniker. You'll need to specify where this script is installed, where your Python virtual environment is located (if you're using one), and where your Django project is located. An example of this might be: 
+When installing Chroniker in a production environment, you'll need to add a single cron job that calls `bin/chroniker` or `python manage.py cron`.
+Within the call, you'll need to specify where this script is installed, where your Python virtual environment is located (if you're using one), and where your Django project is located.
+An example of this might be: 
 
     * * * * * /usr/local/myproject/bin/chroniker -e /usr/local/myproject/.env/bin/activate_this.py -p /usr/local/myproject
 
