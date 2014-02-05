@@ -129,6 +129,7 @@ class JobAdmin(admin.ModelAdmin):
     list_filter = (
         'frequency',
         'enabled',
+        'is_running',
         'hostname',
         'is_monitor',
     )
@@ -259,6 +260,7 @@ class JobAdmin(admin.ModelAdmin):
         return not obj.check_is_running()
     check_is_complete.short_description = _('is complete')
     check_is_complete.boolean = True
+    check_is_complete.admin_order_field = 'is_running'
     
     def get_timeuntil(self, obj=None):
         if not obj or not obj.id or not obj.next_run:
@@ -311,45 +313,36 @@ class JobAdmin(admin.ModelAdmin):
     view_logs_button.allow_tags = True
     view_logs_button.short_description = 'Logs'
     
-    def run_job_view(self, request, pk):
+    def run_job_view(self, request, job_id):
         """
         Runs the specified job.
         """
-        try:
-            job = Job.objects.get(pk=pk)
-        except Job.DoesNotExist:
-            raise Http404
-        # Rather than actually running the Job right now, we
-        # simply force the Job to be run by the next cron job
-        job.force_run = True
-        job.save()
+        Job.objects.filter(id=job_id).update(
+            force_run = True,
+            force_stop = False,
+        )
         self.message_user(
             request,
-            _('The job "%(job)s" has been scheduled to run.') \
-                % {'job': job})
+            _('Job %(job)s has been signalled to start running immediately.') \
+                % {'job': job_id})
         if 'inline' in request.GET:
             redirect = request.path + '../../'
         else:
             redirect = request.REQUEST.get('next', request.path + "../")
         return HttpResponseRedirect(redirect)
     
-    def stop_job_view(self, request, pk):
+    def stop_job_view(self, request, job_id):
         """
         Stop the specified job.
         """
-        try:
-            job = Job.objects.get(pk=pk)
-        except Job.DoesNotExist:
-            raise Http404
-        # Rather than actually running the Job right now, we
-        # simply force the Job to be run by the next cron job
-        job.force_run = False
-        job.force_stop = True
-        job.save()
+        Job.objects.filter(id=job_id).update(
+            force_run = False,
+            force_stop = True,
+        )
         self.message_user(
             request,
-            _('The job "%(job)s" is being signalled to stop.') \
-                % {'job': job})
+            _('Job %(job)s has been signalled to stop running immediately.') \
+                % {'job': job_id})
         if 'inline' in request.GET:
             redirect = request.path + '../../'
         else:
