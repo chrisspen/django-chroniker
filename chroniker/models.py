@@ -651,6 +651,8 @@ class Job(models.Model):
         if not self.last_run_start_timestamp:
             return
         td = timezone.now() - self.last_run_start_timestamp
+        if not progress_ratio:
+            return
         total_sec = td.seconds/progress_ratio
         remaining_sec = total_sec - td.seconds
         return remaining_sec
