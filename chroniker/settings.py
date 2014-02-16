@@ -62,7 +62,7 @@ settings.CHRONIKER_SELECT_FOR_UPDATE = getattr(
 
 # Set this to false for use on multiple hosts, since
 # the lock file will only be accessible on a single host.
-# The database will be used as effective lock.
+# The database will be used effectively as the lock.
 # Recommend setting CHRONIKER_SELECT_FOR_UPDATE = True.
 # Only set this to true if only a single host will ever read and write
 # to the Job table.

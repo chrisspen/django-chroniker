@@ -126,6 +126,7 @@ class JobHeartbeatThread(threading.Thread):
         """
         Do not call this directly; call ``start()`` instead.
         """
+        check_freq_secs = 5
         while not self.halt:
             #print 'Heartbeat check...'
             self.lock_file.seek(0)
@@ -135,21 +136,23 @@ class JobHeartbeatThread(threading.Thread):
             # Check job status and save heartbeat timestamp.
             self.lock.acquire()
             Job.objects.update()
-            job = Job.objects.get(id=self.job_id)
-            job.last_heartbeat = timezone.now()
+            job = Job.objects.only('id' 'force_stop').get(id=self.job_id)
             force_stop = job.force_stop
-            job.force_stop = False
-            job.force_run = False
-            job.save()
+            Job.objects.filter(id=self.job_id).update(
+                last_heartbeat = timezone.now(),
+                force_stop = False,
+                force_run = False,
+            )
             self.lock.release()
             
-            # If we noticed we're being forced to stop, then interrupt main.
+            # If we noticed we're being forced to stop, then interrupt
+            # the entire process.
             if force_stop:
                 self.halt = True
                 thread.interrupt_main()
                 return
             
-            time.sleep(10)
+            time.sleep(check_freq_secs)
             
         set_current_heartbeat(None)
     
@@ -159,18 +162,11 @@ class JobHeartbeatThread(threading.Thread):
         """
         self.halt = True
         while self.is_alive():
-            #print 'Waiting for heartbeat to stop...'
             time.sleep(.1)
         self.lock_file.close()
         
     def update_progress(self, total_parts, total_parts_complete):
-        #print 'Updating progress:', total_parts, total_parts_complete
         self.lock.acquire()
-#        Job.objects.update()
-#        job = Job.objects.get(id=self.job_id)
-#        job.total_parts = total_parts
-#        job.total_parts_complete = total_parts_complete
-#        job.save()
         Job.objects.filter(id=self.job_id).update(
             total_parts = total_parts,
             total_parts_complete = total_parts_complete,
