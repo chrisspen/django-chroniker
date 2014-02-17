@@ -394,9 +394,7 @@ class JobAdmin(admin.ModelAdmin):
     toggle_enabled.short_description = "Toggle enabled flag on selected jobs"
     
     def disable_jobs(self, request, queryset):
-        for row in queryset:
-            row.enabled = False
-            row.save()
+        queryset.update(enabled=False)
         rows_updated = queryset.count()
         if rows_updated == 1:
             message_bit = "1 job was toggled"
@@ -406,9 +404,7 @@ class JobAdmin(admin.ModelAdmin):
     disable_jobs.short_description = "Disable selected jobs"
     
     def enable_jobs(self, request, queryset):
-        for row in queryset:
-            row.enabled = True
-            row.save()
+        queryset.update(enabled=True)
         rows_updated = queryset.count()
         if rows_updated == 1:
             message_bit = "1 job was toggled"

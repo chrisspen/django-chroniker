@@ -136,7 +136,7 @@ class JobHeartbeatThread(threading.Thread):
             # Check job status and save heartbeat timestamp.
             self.lock.acquire()
             Job.objects.update()
-            job = Job.objects.only('id' 'force_stop').get(id=self.job_id)
+            job = Job.objects.only('id', 'force_stop').get(id=self.job_id)
             force_stop = job.force_stop
             Job.objects.filter(id=self.job_id).update(
                 last_heartbeat = timezone.now(),
