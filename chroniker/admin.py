@@ -446,6 +446,7 @@ class LogAdmin(admin.ModelAdmin):
         'duration_str',
         'job_success',
         'on_time',
+        'hostname',
         #'stdout_sample',
         #'stderr_sample',
     )
@@ -471,6 +472,7 @@ class LogAdmin(admin.ModelAdmin):
         'stdout_link',
         'stderr_link',
         'duration_str',
+        'hostname',
     )
     date_hierarchy = 'run_start_datetime'
     fieldsets = (
@@ -481,6 +483,7 @@ class LogAdmin(admin.ModelAdmin):
                 'run_end_datetime',
                 'duration_seconds',
                 'duration_str',
+                'hostname',
             )
         }),
         ('Output', {
