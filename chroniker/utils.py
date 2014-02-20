@@ -153,6 +153,7 @@ def pid_exists(pid):
     Returns true if the process associated with the given PID is still running.
     Returns false otherwise.
     """
+    import errno
     pid = int(pid)
     if pid < 0:
         return False

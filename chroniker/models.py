@@ -203,31 +203,33 @@ class JobDependency(models.Model):
         help_text='If checked, the dependent job will not run until ' + \
             'the dependee job has a next_run greater than its next_run.')
     
-    def criteria_met(self):
-        if self.wait_for_completion and self.dependee.is_running:
+    def criteria_met(self, running_ids=None):
+        if running_ids is None:
+            running_ids = set()
+        if self.wait_for_completion and (self.dependee.is_running or self.dependee.id in running_ids):
             # Don't run until our dependency completes.
-            print '"%s": Dependee "%s" is still running.' \
-                % (self.dependent.name, self.dependee.name,)
+#            print '"%s": Dependee "%s" is still running.' \
+#                % (self.dependent.name, self.dependee.name,)
             return False
         if self.wait_for_success and not self.dependee.last_run_successful:
             # Don't run until our dependency completes successfully.
-            print '"%s": Dependee "%s" failed its last run.' \
-                % (self.dependent.name, self.dependee.name,)
+#            print '"%s": Dependee "%s" failed its last run.' \
+#                % (self.dependent.name, self.dependee.name,)
             return False
         if self.wait_for_next_run:
             # Don't run until our dependency is scheduled until after
             # our next run.
             if not self.dependent.next_run:
-                print '"%s": Our next scheduled run has not been set.' \
-                    % (self.dependent.name,)
+#                print '"%s": Our next scheduled run has not been set.' \
+#                    % (self.dependent.name,)
                 return False
             if not self.dependee.next_run:
-                print '"%s": Dependee "%s" has not been scheduled to run.' \
-                    % (self.dependent.name, self.dependee.name,)
+#                print '"%s": Dependee "%s" has not been scheduled to run.' \
+#                    % (self.dependent.name, self.dependee.name,)
                 return False
             if self.dependee.next_run < self.dependent.next_run:
-                print '"%s": Dependee "%s" has not yet run before us.' \
-                    % (self.dependent.name, self.dependee.name,)
+#                print '"%s": Dependee "%s" has not yet run before us.' \
+#                    % (self.dependent.name, self.dependee.name,)
                 return False
         return True
     criteria_met.boolean = True
@@ -287,7 +289,7 @@ class JobManager(models.Manager):
         skipped_job_ids = set()
         for job in self.due():
             if jobs and job.id not in jobs:
-                print 'Skipping job %i (%s) because jobs are limited to %s.' % (job.id, job, ', '.join(map(str, jobs)))
+                #print 'Skipping job %i (%s) because jobs are limited to %s.' % (job.id, job, ', '.join(map(str, jobs)))
                 skipped_job_ids.add(job.id)
                 continue
             
@@ -295,8 +297,7 @@ class JobManager(models.Manager):
             valid = True
             
             if job.check_is_running():
-                print 'Skipping job %i (%s) which is already running.' % (job.id, job)
-                #skipped_job_ids.add(job.id)
+                #print 'Skipping job %i (%s) which is already running.' % (job.id, job)
                 continue
             
             failed_dep = None
@@ -310,14 +311,14 @@ class JobManager(models.Manager):
                     break
                 
             if not valid:
-                print 'Skipping job %i (%s) which is dependent on a due job %i (%s).' \
-                    % (job.id, job, failed_dep.dependee.id, failed_dep.dependee)
+                #print 'Skipping job %i (%s) which is dependent on a due job %i (%s).' \
+                #    % (job.id, job, failed_dep.dependee.id, failed_dep.dependee)
                 skipped_job_ids.add(job.id)
                 continue
             
             #TODO:remove? redundant?
             if not job.dependencies_met():
-                print 'Skipping job %i (%s) which has unmet dependencies.' % (job.id, job)
+                #print 'Skipping job %i (%s) which has unmet dependencies.' % (job.id, job)
                 skipped_job_ids.add(job.id)
                 continue
             
@@ -709,13 +710,13 @@ class Job(models.Model):
             for o in log_q[self.maximum_log_entries:]:
                 o.delete()
 
-    def dependencies_met(self):
+    def dependencies_met(self, running_ids=None):
         """
         Returns true if all dependency scheduling criteria have been met.
         Returns false otherwise.
         """
         for dep in self.dependencies.all():
-            if not dep.criteria_met():
+            if not dep.criteria_met(running_ids=running_ids):
                 return False
         return True
 
@@ -870,12 +871,12 @@ class Job(models.Model):
         return q.exists()
     is_due.boolean = True
     
-    def is_due_with_dependencies_met(self):
+    def is_due_with_dependencies_met(self, running_ids=None):
         """
         Return true if job is scheduled to run and all dependencies
         are satisified.
         """
-        return self.is_due() and self.dependencies_met()
+        return self.is_due() and self.dependencies_met(running_ids=running_ids)
     
     def run(self, check_running=True, *args, **kwargs):
         """

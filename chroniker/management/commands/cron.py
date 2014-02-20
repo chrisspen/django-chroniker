@@ -51,7 +51,7 @@ def run_job(job, update_heartbeat=None, stdout_queue=None, stderr_queue=None, **
     #TODO:mark job as not running if still marked?
     #TODO:normalize job termination and cleanup outside of handle_run()?
 
-def run_cron(jobs=None, update_heartbeat=True, force_run=False):
+def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
     try:
         
         # TODO: auto-kill inactive long-running cron processes whose
@@ -99,9 +99,10 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False):
         else:
             q = Job.objects.due_with_met_dependencies_ordered(jobs=jobs)
             
-        if settings.CHRONIKER_AUTO_END_STALE_JOBS:
+        if settings.CHRONIKER_AUTO_END_STALE_JOBS and not dryrun:
             Job.objects.end_all_stale()
-            
+        
+        running_ids = set()
         for job in q:
             
             # This is necessary, otherwise we get the exception
@@ -117,12 +118,16 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False):
             # to become unmet.
             Job.objects.update()
             job = Job.objects.get(id=job.id)
-            if not job.is_due_with_dependencies_met():
+            if not job.is_due_with_dependencies_met(running_ids=running_ids):
                 print 'Job %i %s is due but has unmet dependencies.' % (job.id, job)
                 continue
             
             # Immediately mark the job as running so the next jobs can
             # update their dependency check.
+            print 'Running job %i %s.' % (job.id, job)
+            running_ids.add(job.id)
+            if dryrun:
+                continue
             job.is_running = True
             Job.objects.filter(id=job.id).update(is_running=job.is_running)
             
@@ -140,53 +145,54 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False):
             proc.start()
             procs.append(proc)
         
-        print "%d Jobs are due." % len(procs)
-        
-        # Wait for all job processes to complete.
-        while procs:
+        if not dryrun:
+            print "%d Jobs are due." % len(procs)
             
-            while not stdout_queue.empty():
-                proc_id, proc_stdout = stdout_queue.get()
-                stdout_map[proc_id].append(proc_stdout)
+            # Wait for all job processes to complete.
+            while procs:
                 
-            while not stderr_queue.empty():
-                proc_id, proc_stderr = stderr_queue.get()
-                stderr_map[proc_id].append(proc_stderr)
+                while not stdout_queue.empty():
+                    proc_id, proc_stdout = stdout_queue.get()
+                    stdout_map[proc_id].append(proc_stdout)
+                    
+                while not stderr_queue.empty():
+                    proc_id, proc_stderr = stderr_queue.get()
+                    stderr_map[proc_id].append(proc_stderr)
+                    
+                for proc in list(procs):
+                    if not proc.is_alive():
+                        print 'Process %s ended.' % (proc,)
+                        procs.remove(proc)
+                    elif proc.is_expired:
+                        print 'Process %s expired.' % (proc,)
+                        proc_id = proc.pid
+                        proc.terminate()
+                        run_end_datetime = timezone.now()
+                        procs.remove(proc)
+                        
+                        connection.close()
+                        Job.objects.update()
+                        run_start_datetime = Job.objects.get(id=proc.job.id).last_run_start_timestamp
+                        proc.job.is_running = False
+                        proc.job.force_run = False
+                        proc.job.force_stop = False
+                        proc.job.save()
+                        
+                        # Create log record since the job was killed before it had
+                        # a chance to do so.
+                        Log.objects.create(
+                            job=proc.job,
+                            run_start_datetime=run_start_datetime,
+                            run_end_datetime=run_end_datetime,
+                            success=False,
+                            on_time=False,
+                            hostname=socket.gethostname(),
+                            stdout=''.join(stdout_map[proc_id]),
+                            stderr=''.join(stderr_map[proc_id]+['Job exceeded timeout\n']),
+                        )
+                        
+                time.sleep(.1)
                 
-            for proc in list(procs):
-                if not proc.is_alive():
-                    print 'Process %s ended.' % (proc,)
-                    procs.remove(proc)
-                elif proc.is_expired:
-                    print 'Process %s expired.' % (proc,)
-                    proc_id = proc.pid
-                    proc.terminate()
-                    run_end_datetime = timezone.now()
-                    procs.remove(proc)
-                    
-                    connection.close()
-                    Job.objects.update()
-                    run_start_datetime = Job.objects.get(id=proc.job.id).last_run_start_timestamp
-                    proc.job.is_running = False
-                    proc.job.force_run = False
-                    proc.job.force_stop = False
-                    proc.job.save()
-                    
-                    # Create log record since the job was killed before it had
-                    # a chance to do so.
-                    Log.objects.create(
-                        job=proc.job,
-                        run_start_datetime=run_start_datetime,
-                        run_end_datetime=run_end_datetime,
-                        success=False,
-                        on_time=False,
-                        hostname=socket.gethostname(),
-                        stdout=''.join(stdout_map[proc_id]),
-                        stderr=''.join(stderr_map[proc_id]+['Job exceeded timeout\n']),
-                    )
-                    
-            time.sleep(.1)
-            
     finally:
         if settings.CHRONIKER_USE_PID and os.path.isfile(pid_fn) \
         and clear_pid:
@@ -205,6 +211,10 @@ class Command(BaseCommand):
             action='store_true',
             default=False,
             help='If given, forces all jobs to run.'),
+        make_option('--dryrun',
+            action='store_true',
+            default=False,
+            help='If given, only displays jobs to be run.'),
         make_option('--jobs',
             dest='jobs',
             default='',
@@ -223,5 +233,10 @@ class Command(BaseCommand):
         ]
         update_heartbeat = int(options['update_heartbeat'])
         force_run = options['force_run']
-        run_cron(jobs, update_heartbeat=update_heartbeat, force_run=force_run)
+        run_cron(
+            jobs,
+            update_heartbeat=update_heartbeat,
+            force_run=force_run,
+            dryrun=options['dryrun'],
+        )
         
