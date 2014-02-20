@@ -97,28 +97,34 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False):
             if jobs:
                 q = q.filter(id__in=jobs)
         else:
-            q = Job.objects.due_with_met_dependencies(jobs=jobs)
+            q = Job.objects.due_with_met_dependencies_ordered(jobs=jobs)
             
         if settings.CHRONIKER_AUTO_END_STALE_JOBS:
             Job.objects.end_all_stale()
             
-        q = sorted(q, cmp=order_by_dependencies)
         for job in q:
             
             # This is necessary, otherwise we get the exception
             # DatabaseError: SSL error: sslv3 alert bad record mac
             # even through we're not using SSL...
-            # This is probably caused by the lack of good support for
-            # threading/multiprocessing in Django's ORM.
             # We work around this by forcing Django to use separate
             # connections for each process by explicitly closing the
             # current connection.
             connection.close()
             
+            # Re-check dependencies to incorporate any previous iterations
+            # that marked jobs as running, potentially causing dependencies
+            # to become unmet.
+            Job.objects.update()
+            job = Job.objects.get(id=job.id)
+            if not job.is_due_with_dependencies_met():
+                print 'Job %i %s is due but has unmet dependencies.' % (job.id, job)
+                continue
+            
             # Immediately mark the job as running so the next jobs can
             # update their dependency check.
             job.is_running = True
-            job.save()
+            Job.objects.filter(id=job.id).update(is_running=job.is_running)
             
             # Launch job.
             #proc = JobProcess(job, update_heartbeat=update_heartbeat, name=str(job))
@@ -134,7 +140,7 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False):
             proc.start()
             procs.append(proc)
         
-        print "%d Jobs are due" % len(procs)
+        print "%d Jobs are due." % len(procs)
         
         # Wait for all job processes to complete.
         while procs:

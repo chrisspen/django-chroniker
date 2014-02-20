@@ -280,17 +280,6 @@ class JobManager(models.Manager):
         that are dependent on another job that is also due.
         """
         
-#        def cmp_deps(j1, j2):
-#            a = j1.dependencies.filter(dependee=j2).count()
-#            b = j2.dependencies.filter(dependee=j1).count()
-#            if a and not b:
-#                return +1
-#            elif not a and b:
-#                return -1
-#            return 0
-#        
-#        return sorted(self.due(), cmp=cmp_deps)
-        
         # Fixes the "Lost connection to MySQL server during query" error when
         # called from cron command?
         connection.close()
@@ -334,6 +323,15 @@ class JobManager(models.Manager):
             
             yield job
 
+    def due_with_met_dependencies_ordered(self, jobs=[]):
+        """
+        Returns a list of jobs sorted by dependency, with dependents after
+        all their dependees.
+        """
+        lst = list(self.due_with_met_dependencies(jobs=jobs))
+        lst.sort(cmp=order_by_dependencies)
+        return lst
+
     def stale(self):
         q = self.filter(is_running=True)
         q = q.filter(
@@ -346,12 +344,17 @@ class JobManager(models.Manager):
     
     @transaction.commit_manually
     def end_all_stale(self):
+        """
+        Marks as complete but failed, and attempts to kill the process
+        if still running, any job that's failed to report its status within
+        the alotted threshold.
+        """
         try:
             q = self.stale()
             total = q.count()
             print '%i total stale jobs.' % (total,)
             for job in q.iterator():
-                print 'Marking stale job <%s> as stopped...' % (job,)
+                print 'Checking stale job %i <%s>...' % (job.id, job,)
                 
                 # If we know the PID and it's running locally, and the process
                 # appears inactive, then attempt to forcibly kill the job.
@@ -361,6 +364,7 @@ class JobManager(models.Manager):
                         cpu_usage = chroniker.utils.get_cpu_usage(job.current_pid)
                         if cpu_usage:
                             print 'Process with PID %s is still consuming CPU so keeping alive for now.' % (job.current_pid,)
+                            continue
                         else:
                             print 'Killing process %s...' % (job.current_pid,)
                             chroniker.utils.kill_process(job.current_pid)
@@ -378,13 +382,15 @@ class JobManager(models.Manager):
                     job = job,
                     run_start_datetime = job.last_run_start_timestamp or timezone.now(),
                     run_end_datetime = timezone.now(),
-                    hostname=socket.gethostname(),
+                    hostname = socket.gethostname(),
                     stdout = '',
                     stderr = 'Job became stale and was marked as terminated.',
                     success = False,
                 )
+                transaction.commit()
         except:
             transaction.rollback()
+            raise
         else:
             transaction.commit()
 
@@ -842,7 +848,7 @@ class Job(models.Model):
                 args.append(arg)
         return (args, options)
     
-    def is_due(self, *args, **kwargs):
+    def is_due(self, **kwargs):
         """
         >>> job = Job(next_run=timezone.now())
         >>> job.is_due()
@@ -860,15 +866,16 @@ class Job(models.Model):
         >>> job.is_due()
         False
         """
-#        reqs =  (
-#            self.next_run <= timezone.now()
-#            and self.enabled
-#            and self.check_is_running() == False
-#        )
-#        return (reqs or self.force_run)
-        q = type(self).objects.due(self, *args, **kwargs)
-        return bool(q.count())
+        q = type(self).objects.due(job=self, **kwargs)
+        return q.exists()
     is_due.boolean = True
+    
+    def is_due_with_dependencies_met(self):
+        """
+        Return true if job is scheduled to run and all dependencies
+        are satisified.
+        """
+        return self.is_due() and self.dependencies_met()
     
     def run(self, check_running=True, *args, **kwargs):
         """

@@ -105,12 +105,23 @@ class JobTestCase(TestCase):
     def testDependencies(self):
         """
         Confirm inter-job dependencies are detected.
+        
+        2 dependent on 1
+        2 dependent on 3
+        3 dependent on 4
         """
         
         j1 = Job.objects.get(id=1)
         j2 = Job.objects.get(id=2)
         j3 = Job.objects.get(id=3)
         j4 = Job.objects.get(id=4)
+        j5 = Job.objects.get(id=5)
+        
+        self.assertEqual(j1.is_due(), True)
+        self.assertEqual(j2.is_due(), True)
+        self.assertEqual(j3.is_due(), True)
+        self.assertEqual(j4.is_due(), True)
+        self.assertEqual(j5.is_due(), False)
         
 #        print j1.dependents.all()
         self.assertEqual(set(_.dependent for _ in j1.dependents.all()), set([j2]))
@@ -132,15 +143,16 @@ class JobTestCase(TestCase):
 #            print job, [_.dependee for _ in job.dependencies.all()]
         self.assertEqual(jobs, [j1, j4, j3, j2])
         
-        due = list(Job.objects.due_with_met_dependencies())
+        # Ensure all dependent jobs come after their dependee job.
+        due = Job.objects.due_with_met_dependencies_ordered()
         #print 'due:', due
         self.assertEqual(
             due,
             [
-                Job.objects.get(args="1"),
-                Job.objects.get(args="10"),
-                Job.objects.get(args="2"),
-                Job.objects.get(args="5"),
+                Job.objects.get(id=1),
+                Job.objects.get(id=4),
+                Job.objects.get(id=3),# depends on 4
+                Job.objects.get(id=2),# depends on 1 and 3
             ])
         
         # Note, possible bug? call_command() causes all models
@@ -224,4 +236,4 @@ class JobTestCase(TestCase):
             time.sleep(1)
             if not proc.is_alive():
                 break
-        #        
+    
