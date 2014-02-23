@@ -64,6 +64,9 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
         stdout_queue = Queue()
         stderr_queue = Queue()
         
+        if settings.CHRONIKER_AUTO_END_STALE_JOBS and not dryrun:
+            Job.objects.end_all_stale()
+            
         # Check PID file to prevent conflicts with prior executions.
         # TODO: is this still necessary? deprecate? As long as jobs run by
         # JobProcess don't wait for other jobs, multiple instances of cron
@@ -98,9 +101,6 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
                 q = q.filter(id__in=jobs)
         else:
             q = Job.objects.due_with_met_dependencies_ordered(jobs=jobs)
-            
-        if settings.CHRONIKER_AUTO_END_STALE_JOBS and not dryrun:
-            Job.objects.end_all_stale()
         
         running_ids = set()
         for job in q:
