@@ -362,13 +362,14 @@ class JobManager(models.Manager):
                 if job.current_pid and job.current_hostname \
                 and job.current_hostname == socket.gethostname():
                     if chroniker.utils.pid_exists(job.current_pid):
-                        cpu_usage = chroniker.utils.get_cpu_usage(job.current_pid)
-                        if cpu_usage:
-                            print 'Process with PID %s is still consuming CPU so keeping alive for now.' % (job.current_pid,)
-                            continue
-                        else:
-                            print 'Killing process %s...' % (job.current_pid,)
-                            chroniker.utils.kill_process(job.current_pid)
+#                        cpu_usage = chroniker.utils.get_cpu_usage(job.current_pid)
+#                        if cpu_usage:
+#                            print 'Process with PID %s is still consuming CPU so keeping alive for now.' % (job.current_pid,)
+#                            continue
+#                        else:
+                        print 'Killing process %s...' % (job.current_pid,)
+                        chroniker.utils.kill_process(job.current_pid)
+                        #TODO:record log entry
                     else:
                         print 'Process with PID %s is not running.' % (job.current_pid,)
                 else:
