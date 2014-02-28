@@ -55,10 +55,23 @@ settings.CHRONIKER_USE_PID = getattr(
     'CHRONIKER_USE_PID',
     False)
 
+# Setting this to True causes each process to acquire a lock on the job
+# table while looking for the next job to run.
+# This ensures no race-conditions where two proceses happen to both
+# choose the same jobs before the other can mark them as running.
+# WARNING: In cases where buggy management commands don't properly
+# close or end their transaction, setting this to True will result
+# in `manage.py cron` blocking indefinitely while it waits for the previous
+# process to free the lock. If this is being run by the system cron once
+# a minute, then these processes will build up until all database connections
+# and memory are exhausted.
+# Only set this to True if you really need this functionality and
+# are certain transactions are properly maintained in all of your scheduled
+# commands.
 settings.CHRONIKER_SELECT_FOR_UPDATE = getattr(
     settings,
     'CHRONIKER_SELECT_FOR_UPDATE',
-    True)
+    False)
 
 # Set this to false for use on multiple hosts, since
 # the lock file will only be accessible on a single host.

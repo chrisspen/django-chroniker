@@ -86,7 +86,6 @@ class JobAdmin(admin.ModelAdmin):
         'get_timeuntil',
         'get_frequency',
         'job_type',
-        'hostname',
         'enabled',
         'check_is_complete',
         'is_fresh',
