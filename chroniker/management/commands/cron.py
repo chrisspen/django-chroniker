@@ -29,7 +29,7 @@ class JobProcess(TimedProcess):
         self.job = job
 
 def run_job(job, update_heartbeat=None, stdout_queue=None, stderr_queue=None, **kwargs):
-    print "Running Job: %i - '%s' with args: %s" \
+    print u"Running Job: %i - '%s' with args: %s" \
         % (job.id, job, job.args)
     # TODO:Fix? Remove multiprocess and just running all jobs serially?
     # Multiprocessing does not play well with Django's PostgreSQL
