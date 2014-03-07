@@ -20,9 +20,9 @@ import psutil
 
 from chroniker.models import Job, Log, order_by_dependencies
 from chroniker import constants as c
-from chroniker.utils import pid_exists, TimedProcess
+from chroniker import utils
 
-class JobProcess(TimedProcess):
+class JobProcess(utils.TimedProcess):
     
     def __init__(self, job, *args, **kwargs):
         super(JobProcess, self).__init__(*args, **kwargs)
@@ -81,7 +81,7 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
             elif os.path.isfile(pid_fn):
                 try:
                     old_pid = int(open(pid_fn, 'r').read())
-                    if pid_exists(old_pid):
+                    if utils.pid_exists(old_pid):
                         print '%s already exists, exiting' % pid_fn
                         sys.exit()
                     else:
@@ -138,6 +138,7 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
                 job=job,
                 max_seconds=job.timeout_seconds,
                 target=job_func,
+                name=str(job),
                 kwargs=dict(
                     stdout_queue=stdout_queue,
                     stderr_queue=stderr_queue,
@@ -160,6 +161,15 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
                     stderr_map[proc_id].append(proc_stderr)
                     
                 for proc in list(procs):
+                    
+                    # Auto kill processes that haven't terminated but yet
+                    # register no cpu usage.
+                    cpu = proc.get_cpu_usage_recursive()
+                    print 'cpu:',proc,cpu
+#                    if not cpu:
+#                        utils.kill_process(proc.pid)
+#                        time.sleep(1)
+                    
                     if not proc.is_alive():
                         print 'Process %s ended.' % (proc,)
                         procs.remove(proc)
@@ -191,8 +201,9 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
                             stderr=''.join(stderr_map[proc_id]+['Job exceeded timeout\n']),
                         )
                         
-                time.sleep(.1)
-                
+                time.sleep(1)
+            print '!'*80
+            print 'All jobs complete!'
     finally:
         if settings.CHRONIKER_USE_PID and os.path.isfile(pid_fn) \
         and clear_pid:

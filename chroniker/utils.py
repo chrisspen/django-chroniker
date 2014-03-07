@@ -163,17 +163,18 @@ def pid_exists(pid):
     else:
         return True
 
-def get_cpu_usage(pid):
+def get_cpu_usage(pid, interval=1):
     """
     Returns the CPU usage, as reported by `ps`, of the process associated with
     the given PID.
     """
-    cmd = ['ps', '-p', str(pid), '-o', '%cpu', '--no-headers']
-    output = subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()[0]
-    try:
-        return float(output.strip().split('\n')[0])
-    except ValueError:
-        return
+#    cmd = ['ps', '-p', str(pid), '-o', '%cpu', '--no-headers']
+#    output = subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()[0]
+#    try:
+#        return float(output.strip().split('\n')[0])
+#    except ValueError:
+#        return
+    return psutil.Process(pid).get_cpu_times(interval=interval)
 
 def kill_process(pid):
     """
@@ -184,19 +185,23 @@ def kill_process(pid):
     pid = int(pid)
     try:
         
-        # Politely request that the process terminate.
-        os.kill(pid, signal.SIGTERM)
+        # Try sending a keyboard interrupt.
+        os.kill(pid, signal.SIGINT) # 2
         if not pid_exists(pid):
             return True
         
-        # Ask politely again, this time using a slightly
-        # different signal.
-        os.kill(pid, signal.SIGABRT)
+        # Ask politely again.
+        os.kill(pid, signal.SIGABRT) # 6
+        if not pid_exists(pid):
+            return True
+        
+        # Try once more.
+        os.kill(pid, signal.SIGTERM) # 15
         if not pid_exists(pid):
             return True
         
         # We've asked nicely and we've been ignored, so just murder it.
-        os.kill(pid, signal.SIGKILL)
+        os.kill(pid, signal.SIGKILL) # 9
         if not pid_exists(pid):
             return True
         
@@ -271,6 +276,13 @@ class TimedProcess(Process):
             self._process_times[child.pid] = child.get_cpu_times().user
         #TODO:optimize by storing total sum and tracking incremental changes?
         return sum(self._process_times.itervalues())
+    
+    def get_cpu_usage_recursive(self, interval=1):
+        usage = self._p.get_cpu_percent(interval=interval)
+        children = self._p.get_children(recursive=True)
+        for child in children:
+            usage += child.get_cpu_percent(interval=interval)
+        return usage
     
     def get_duration_seconds_max(self):
         return max(
