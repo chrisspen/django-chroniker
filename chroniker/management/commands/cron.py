@@ -7,6 +7,7 @@ import socket
 from functools import partial
 from optparse import make_option
 from collections import defaultdict
+import commands
 
 from django.core.management.base import BaseCommand
 from django.db import connection
@@ -21,6 +22,35 @@ import psutil
 from chroniker.models import Job, Log, order_by_dependencies
 from chroniker import constants as c
 from chroniker import utils
+
+def kill_stalled_processes(dryrun=True):
+    """
+    Due to a bug in the Django|Postgres backend, occassionally
+    the `manage.py cron` process will hang even through all processes
+    have been marked completed.
+    We compare all recorded PIDs against those still running,
+    and kill any associated with complete jobs.
+    """
+    pids = set(map(int, Job.objects\
+        .filter(is_running=False, current_pid__isnull=False)\
+        .exclude(current_pid='')\
+        .values_list('current_pid', flat=True)))
+    for pid in pids:
+        if utils.pid_exists(pid):# and not utils.get_cpu_usage(pid):
+            p = psutil.Process(pid)
+            cmd = ' '.join(p.cmdline)
+            if 'manage.py cron' in cmd:
+                jobs = Job.objects.filter(current_pid=pid)
+                job = None
+                if jobs:
+                    job = jobs[0]
+                print 'Killing process %s associated with %s.' % (pid, job)
+                if not dryrun:
+                    utils.kill_process(pid)
+            else:
+                'PID not cron.'
+        else:
+            print 'PID dead.'
 
 class JobProcess(utils.TimedProcess):
     
@@ -235,6 +265,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         pid_fn = settings.CHRONIKER_PID_FN
         clear_pid = False
+        
+        kill_stalled_processes(dryrun=False)
         
         # Find specific job ids to run, if any.
         jobs = [

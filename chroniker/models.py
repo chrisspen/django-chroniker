@@ -641,6 +641,36 @@ class Job(models.Model):
         return '%.0f%%' % (progress,)
     progress_percent_str.short_description = 'Progress'
     
+    def get_chained_jobs(self):
+        """
+        Returns a list of jobs that depend on this job.
+        Retrieves jobs recursively, stopping if it detects cycles.
+        """
+        priors = set([self.id])
+        pending = list(self.dependents.all().filter(dependent__enabled=True, wait_for_completion=True).values_list('dependent_id', flat=True))
+        chained = set()
+        while pending:
+            job_id = pending.pop(0)
+            if job_id in priors:
+                continue
+            priors.add(job_id)
+            job = Job.objects.only('id').get(id=job_id)
+            chained.add(job)
+            pending.extend(job.dependents.all().filter(dependent__enabled=True, wait_for_completion=True).values_list('dependent_id', flat=True))
+        return chained
+    
+    def get_run_length_estimate(self, samples=20):
+        """
+        Returns the average run length in seconds.
+        """
+        q = sorted(list(self.logs.all().values_list('duration_seconds', flat=True).order_by('-run_end_datetime')[:samples]))
+        if len(q) >= 3:
+            # Drop the upper and lower extremes.
+            q = q[1:-1]
+        if not q:
+            return
+        return int(round(sum(q)/float(len(q))))
+    
     @property
     def estimated_seconds_to_completion(self):
         """
