@@ -1,3 +1,4 @@
+import sys
 import time
 
 from django.core.management.base import BaseCommand
@@ -16,20 +17,24 @@ class Command(BaseCommand):
 #            dest='seconds',
 #            default=60,
 #            help='The number of total seconds to count up to.'),
+        make_option('--samples',
+            default=20,
+            help='The number of log samples to use when estimating mean job run time.'),
         )
     
     def handle(self, root_job_id, **options):
         root_job = Job.objects.get(id=int(root_job_id))
+        samples = int(options['samples'])
         #print root_job
         
         # Add all system task nodes.
         system = Node('system')
-        system.add(Node(root_job.id, duration=root_job.get_run_length_estimate()))
-        print '%s takes about %s seconds' % (root_job, root_job.get_run_length_estimate())
+        system.add(Node(root_job.id, duration=root_job.get_run_length_estimate(samples=samples)))
+        print '%s takes about %s seconds' % (root_job, root_job.get_run_length_estimate(samples=samples))
         chain = root_job.get_chained_jobs()
         for job in chain:
-            print '%s takes about %s seconds' % (job, job.get_run_length_estimate())
-            node = Node(job.id, duration=job.get_run_length_estimate())
+            print '%s takes about %s seconds' % (job, job.get_run_length_estimate(samples=samples))
+            node = Node(job.id, duration=job.get_run_length_estimate(samples=samples))
             node.description = job.name
             system.add(node)
         
@@ -48,6 +53,7 @@ class Command(BaseCommand):
         root_node = system.lookup_node(1)
         print 'root_node:',root_node,root_node.to_nodes,root_node.incoming_nodes
         system.add_exit()
+        sys.stdout.flush()
         
         #return
         print 'Updating values...'
