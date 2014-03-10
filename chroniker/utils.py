@@ -4,6 +4,7 @@ import time
 import signal
 import subprocess
 import warnings
+import errno
 from StringIO import StringIO
 
 from django.contrib.contenttypes.models import ContentType
