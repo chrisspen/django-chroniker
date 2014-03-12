@@ -165,13 +165,15 @@ class JobHeartbeatThread(threading.Thread):
             time.sleep(.1)
         self.lock_file.close()
         
-    def update_progress(self, total_parts, total_parts_complete):
-        self.lock.acquire()
+    def update_progress(self, total_parts, total_parts_complete, lock=True):
+        if lock:
+            self.lock.acquire()
         Job.objects.filter(id=self.job_id).update(
             total_parts = total_parts,
             total_parts_complete = total_parts_complete,
         )
-        self.lock.release()
+        if lock:
+            self.lock.release()
 
 class JobDependency(models.Model):
     """
