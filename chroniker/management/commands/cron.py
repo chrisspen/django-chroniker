@@ -59,8 +59,11 @@ class JobProcess(utils.TimedProcess):
         self.job = job
 
 def run_job(job, update_heartbeat=None, stdout_queue=None, stderr_queue=None, **kwargs):
-    print u"Running Job: %i - '%s' with args: %s" \
-        % (job.id, job, job.args)
+    
+    # TODO:causes UnicodeEncodeError: 'ascii' codec can't encode character u'\xa0' in position 59: ordinal not in range(128)
+    #print u"Running Job: %i - '%s' with args: %s" \
+    #    % (job.id, job, job.args)
+    
     # TODO:Fix? Remove multiprocess and just running all jobs serially?
     # Multiprocessing does not play well with Django's PostgreSQL
     # connection, as it seems Django's connection code is not thread-safe.
