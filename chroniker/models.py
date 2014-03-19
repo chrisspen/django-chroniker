@@ -118,6 +118,7 @@ class JobHeartbeatThread(threading.Thread):
         self.job_id = job_id
         self.lock = lock
         self.lock_file = tempfile.NamedTemporaryFile()
+        self.original_pid = os.getpid()
         set_current_job(job_id)
         set_current_heartbeat(self)
         threading.Thread.__init__(self, *args, **kwargs)
@@ -128,6 +129,14 @@ class JobHeartbeatThread(threading.Thread):
         """
         check_freq_secs = 5
         while not self.halt:
+            
+            # If the current PID doesn't match the one we started with
+            # then that means we were forked by a subprocess launched by the
+            # job. In this case, we're a clone, so immediately exit so we don't
+            # conflict with the thread in the original process.
+            if os.getpid() != self.original_pid:
+                return
+            
             #print 'Heartbeat check...'
             self.lock_file.seek(0)
             self.lock_file.write(str(time.time()))
@@ -953,6 +962,8 @@ class Job(models.Model):
         run_start_datetime = timezone.now()
         last_run_successful = False
         
+        original_pid = os.getpid()
+        
         stdout = sys.stdout
         stderr = sys.stderr
         if self.log_stdout:
@@ -1020,7 +1031,11 @@ class Job(models.Model):
                 logger.debug("Calling command '%s'" % self.command)
                 call_command(self.command, *args, **options)
                 logger.debug("Command '%s' completed" % self.command)
+                if original_pid != os.getpid():
+                    return
             except Exception, e:
+                if original_pid != os.getpid():
+                    return
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
                 c = Context({
@@ -1090,6 +1105,11 @@ class Job(models.Model):
                 lock.release()
                             
         finally:
+            
+            if original_pid != os.getpid():
+                # We're a clone of the parent job, so exit immediately
+                # so we don't conflict.
+                return
             
             # Redirect output back to default
             sys.stdout = ostdout
