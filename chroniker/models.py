@@ -33,6 +33,7 @@ from django.utils.safestring import mark_safe
 from django.utils.timesince import timeuntil
 from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
 from django.contrib.sites.models import get_current_site
+from django.core.exceptions import ValidationError
 
 import chroniker.constants as const
 import chroniker.utils
@@ -445,6 +446,13 @@ class Job(models.Model):
         blank=True,
         help_text=_("Space separated list; e.g: arg1 option1=True"))
     
+    raw_command = models.CharField(
+        _("raw command"),
+        max_length=1000,
+        blank=True,
+        null=True,
+        help_text=_("A raw shell command to run. This is mutually exclusive with `command`."))
+    
     enabled = models.BooleanField(
         default=True,
         help_text=_('''If checked, this job will be run automatically according
@@ -718,7 +726,36 @@ class Job(models.Model):
     estimated_completion_datetime_str.short_description = 'ETC'
     estimated_completion_datetime_str.help_text = 'Estimated time of completion'
     
+    def clean(self, *args, **kwargs):
+        cmd1 = (self.command or '').strip()
+        cmd2 = (self.raw_command or '').strip()
+        if cmd1 and cmd2:
+            raise ValidationError({
+                'command':[
+                    'Either specify command or raw command, but not both.',
+                ],
+                'raw_command':[
+                    'Either specify command or raw command, but not both.',
+                ]
+            })
+        elif not cmd1 and not cmd2:
+            raise ValidationError({
+                'command':[
+                    'Either command or raw command must be specified.',
+                ],
+                'raw_command':[
+                    'Either command or raw command must be specified.',
+                ]
+            })
+        super(Job, self).clean(*args, **kwargs)
+    
+    def full_clean(self, exclude=None, validate_unique=None, *args, **kwargs):
+        return self.clean(*args, **kwargs)
+    
     def save(self, *args, **kwargs):
+        
+        self.full_clean()
+        
         if self.enabled:
             if self.pk:
                 j = Job.objects.get(pk=self.pk)
@@ -920,7 +957,7 @@ class Job(models.Model):
         """
         return self.is_due() and self.dependencies_met(running_ids=running_ids)
     
-    def run(self, check_running=True, *args, **kwargs):
+    def run(self, check_running=True, force_run=False, *args, **kwargs):
         """
         Runs this ``Job``.  A ``Log`` will be created if there is any output
         from either stdout or stderr.
@@ -932,7 +969,11 @@ class Job(models.Model):
         dueness and don't want our current run status to give an incorrect
         reading.
         """
-        if self.enabled:
+        print 'force_run:',force_run
+        if force_run:
+            self.handle_run(*args, **kwargs)
+            return True
+        elif self.enabled:
             if not self.dependencies_met():
                 # Note, this will cause the job to be re-checked
                 # the next time cron runs.
@@ -1029,7 +1070,14 @@ class Job(models.Model):
             success = True
             try:
                 logger.debug("Calling command '%s'" % self.command)
-                call_command(self.command, *args, **options)
+                if self.raw_command:
+                    retcode = subprocess.call(
+                        self.raw_command,
+                        shell=True,
+                        stdout=sys.stdout,
+                        stderr=sys.stderr)
+                else:
+                    call_command(self.command, *args, **options)
                 logger.debug("Command '%s' completed" % self.command)
                 if original_pid != os.getpid():
                     return

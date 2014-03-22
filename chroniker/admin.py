@@ -142,6 +142,7 @@ class JobAdmin(admin.ModelAdmin):
                 'name',
                 'command',
                 'args',
+                'raw_command',
                 'hostname',
                 'current_hostname',
                 'current_pid',
@@ -430,7 +431,8 @@ class JobAdmin(admin.ModelAdmin):
                 commands = choices_dict.getlist(key)
                 commands.sort()
                 choices.append([key, [[c,c] for c in commands]])
-                
+            
+            choices.insert(0, ('', '--- None ---'))
             kwargs['widget'] = forms.widgets.Select(choices=choices)
             return db_field.formfield(**kwargs)
         

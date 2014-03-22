@@ -279,10 +279,17 @@ class TimedProcess(Process):
         return sum(self._process_times.itervalues())
     
     def get_cpu_usage_recursive(self, interval=1):
-        usage = self._p.get_cpu_percent(interval=interval)
-        children = self._p.get_children(recursive=True)
-        for child in children:
-            usage += child.get_cpu_percent(interval=interval)
+        usage = 0
+        try:
+            usage = self._p.get_cpu_percent(interval=interval)
+            children = self._p.get_children(recursive=True)
+            for child in children:
+                try:
+                    usage += child.get_cpu_percent(interval=interval)
+                except psutil._error.NoSuchProcess:
+                    pass
+        except psutil._error.NoSuchProcess:
+            pass
         return usage
     
     def get_duration_seconds_max(self):

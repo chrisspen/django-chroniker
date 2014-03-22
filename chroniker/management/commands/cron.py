@@ -58,7 +58,7 @@ class JobProcess(utils.TimedProcess):
         super(JobProcess, self).__init__(*args, **kwargs)
         self.job = job
 
-def run_job(job, update_heartbeat=None, stdout_queue=None, stderr_queue=None, **kwargs):
+def run_job(job, update_heartbeat=None, stdout_queue=None, stderr_queue=None, force_run=False, **kwargs):
     
     # TODO:causes UnicodeEncodeError: 'ascii' codec can't encode character u'\xa0' in position 59: ordinal not in range(128)
     #print u"Running Job: %i - '%s' with args: %s" \
@@ -80,6 +80,7 @@ def run_job(job, update_heartbeat=None, stdout_queue=None, stderr_queue=None, **
         check_running=False,
         stdout_queue=stdout_queue,
         stderr_queue=stderr_queue,
+        force_run=force_run,
     )
     #TODO:mark job as not running if still marked?
     #TODO:normalize job termination and cleanup outside of handle_run()?
@@ -151,7 +152,7 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
             # to become unmet.
             Job.objects.update()
             job = Job.objects.get(id=job.id)
-            if not job.is_due_with_dependencies_met(running_ids=running_ids):
+            if not force_run and not job.is_due_with_dependencies_met(running_ids=running_ids):
                 print 'Job %i %s is due but has unmet dependencies.' % (job.id, job)
                 continue
             
@@ -166,7 +167,13 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
             
             # Launch job.
             #proc = JobProcess(job, update_heartbeat=update_heartbeat, name=str(job))
-            job_func = partial(run_job, job=job, update_heartbeat=update_heartbeat, name=str(job))
+            job_func = partial(
+                run_job,
+                job=job,
+                force_run=force_run or job.force_run,
+                update_heartbeat=update_heartbeat,
+                name=str(job),
+            )
             proc = JobProcess(
                 job=job,
                 max_seconds=job.timeout_seconds,
@@ -197,8 +204,8 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
                     
                     # Auto kill processes that haven't terminated but yet
                     # register no cpu usage.
-                    cpu = proc.get_cpu_usage_recursive()
-                    print 'cpu:',proc,cpu
+                    #cpu = proc.get_cpu_usage_recursive()
+                    #print 'cpu:',proc,cpu
 #                    if not cpu:
 #                        utils.kill_process(proc.pid)
 #                        time.sleep(1)
