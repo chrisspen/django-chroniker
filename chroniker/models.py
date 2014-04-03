@@ -176,8 +176,22 @@ class JobHeartbeatThread(threading.Thread):
         self.lock_file.close()
         
     def update_progress(self, total_parts, total_parts_complete, lock=True):
+        """
+        JobHeartbeatThread
+        """
         if lock:
             self.lock.acquire()
+#        print '!'*80
+#        import thread
+#        thread_ident = thread.get_ident()
+#        print 'self1:',self
+#        print 'id1:',id(self)
+#        print 'thread1:',thread_ident
+#        print 'job_id1:',self.job_id
+#        print 'pid1:',os.getpid()
+#        print 'total_parts1:',total_parts
+#        print 'total_parts_complete1:',total_parts_complete
+#        print '!'*80
         Job.objects.filter(id=self.job_id).update(
             total_parts = total_parts,
             total_parts_complete = total_parts_complete,
@@ -706,8 +720,8 @@ class Job(models.Model):
         td = timezone.now() - self.last_run_start_timestamp
         if not progress_ratio:
             return
-        total_sec = td.seconds/progress_ratio
-        remaining_sec = total_sec - td.seconds
+        total_sec = td.total_seconds()/progress_ratio
+        remaining_sec = total_sec - td.total_seconds()
         return remaining_sec
     
     @property
@@ -1005,19 +1019,19 @@ class Job(models.Model):
         
         original_pid = os.getpid()
         
-        stdout = sys.stdout
-        stderr = sys.stderr
-        if self.log_stdout:
-            stdout = chroniker.utils.TeeFile(
-                sys.stdout,
-                auto_flush=True,
-                queue=stdout_queue)
-        if self.log_stderr:
-            stderr = chroniker.utils.TeeFile(
-                sys.stderr,
-                auto_flush=True,
-                queue=stderr_queue)
         try:
+            stdout = sys.stdout
+            stderr = sys.stderr
+            if self.log_stdout:
+                stdout = chroniker.utils.TeeFile(
+                    sys.stdout,
+                    auto_flush=True,
+                    queue=stdout_queue)
+            if self.log_stderr:
+                stderr = chroniker.utils.TeeFile(
+                    sys.stderr,
+                    auto_flush=True,
+                    queue=stderr_queue)
     
             # Redirect output so that we can log it if there is any
             ostdout = sys.stdout
@@ -1183,7 +1197,7 @@ class Job(models.Model):
                     stderr_str = unicode(stderr_str, 'utf-8', 'replace')
             
             run_end_datetime = timezone.now()
-            duration_seconds = (run_end_datetime - run_start_datetime).seconds
+            duration_seconds = (run_end_datetime - run_start_datetime).total_seconds()
             log = Log.objects.create(
                 job = self,
                 run_start_datetime = run_start_datetime,
@@ -1319,7 +1333,7 @@ class Log(models.Model):
         if self.run_start_datetime and self.run_end_datetime:
             assert self.run_start_datetime <= self.run_end_datetime, 'Job must start before it ends.'
             time_diff = (self.run_end_datetime - self.run_start_datetime)
-            self.duration_seconds = time_diff.seconds
+            self.duration_seconds = time_diff.total_seconds()
         super(Log, self).save(*args, **kwargs)
     
     def duration_str(self):

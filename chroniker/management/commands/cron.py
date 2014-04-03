@@ -38,7 +38,7 @@ def kill_stalled_processes(dryrun=True):
     for pid in pids:
         if utils.pid_exists(pid):# and not utils.get_cpu_usage(pid):
             p = psutil.Process(pid)
-            cmd = ' '.join(p.cmdline)
+            cmd = ' '.join(p.cmdline())
             if 'manage.py cron' in cmd:
                 jobs = Job.objects.filter(current_pid=pid)
                 job = None
