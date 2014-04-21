@@ -5,18 +5,31 @@ import signal
 import subprocess
 import warnings
 import errno
+
+from datetime import timedelta
 from StringIO import StringIO
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.urlresolvers import reverse
 from django.db import models
 from django.db import connection
+from django.utils import timezone
 
 from multiprocessing import Process, current_process
 
 import psutil
 
 import constants as c
+
+def get_etc(complete_parts, total_parts, start_datetime, current_datetime=None):
+    """
+    Estimates a job's time to completion.
+    """
+    current_datetime = current_datetime or timezone.now()
+    total_seconds = float((current_datetime - start_datetime).total_seconds())
+    complete_seconds = total_seconds/complete_parts*total_parts
+    etc = start_datetime + timedelta(seconds=complete_seconds)
+    return etc
 
 def get_admin_change_url(obj):
     ct = ContentType.objects.get_for_model(obj)
