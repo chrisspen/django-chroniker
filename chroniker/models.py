@@ -510,7 +510,6 @@ class Job(models.Model):
     
     subscribers = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
-        through='SubscribedJob',
         related_name='subscribed_jobs',
         blank=True,
         limit_choices_to={'is_staff':True})
