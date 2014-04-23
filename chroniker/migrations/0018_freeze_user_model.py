@@ -17,22 +17,21 @@ else:
 # so instead of using orm['auth.User'] we can use orm[user_orm_label]
 user_orm_label = '%s.%s' % (User._meta.app_label, User._meta.object_name)
 user_model_label = '%s.%s' % (User._meta.app_label, User._meta.module_name)
-
+user_column_name = '%s_id' % User._meta.module_name
 
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
-        # We don't need to do anything in migrations
-        # itself because the table names have been
-        # made constant. But we do need to freeze the models.
         # Based on the solution at:
         # http://kevindias.com/writing/django-custom-user-models-south-and-reusable-apps/
-        pass
+        # Update: We will need to update the table column too
+        # as the 'through' workaround will require changes in admin fieldsets too
+        # However renaming won't cause any changes to existing deployments
+        db.rename_column('chroniker_job_subscribers', 'user_id', user_column_name)
 
 
     def backwards(self, orm):
-        # Nothings needs to be done.
-        pass
+        db.rename_column('chroniker_job_subscribers', user_column_name, 'user_id')
 
     models = {
         u'chroniker.job': {
