@@ -510,7 +510,6 @@ class Job(models.Model):
     
     subscribers = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
-        through='SubscribedJob',
         related_name='subscribed_jobs',
         blank=True,
         limit_choices_to={'is_staff':True})
@@ -1442,19 +1441,6 @@ class Log(models.Model):
         if time_ago:
             q = q.filter(run_start_datetime__lte = time_ago)
         q.delete()
-
-
-class SubscribedJob(models.Model):
-    """
-    A Many-To-Many field table to link Subcribers to Jobs
-    """
-    user = models.ForeignKey(settings.AUTH_USER_MODEL,
-                             db_column='user_id')
-    job = models.ForeignKey(Job)
-
-    class Meta:
-        db_table = 'chroniker_job_subscribers'
-
 
 class MonitorManager(models.Manager):
     

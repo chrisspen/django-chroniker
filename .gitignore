@@ -1,6 +1,7 @@
 .project
 .pydevproject
 .settings
+*.pyc
 build
 dist
 MANIFEST
