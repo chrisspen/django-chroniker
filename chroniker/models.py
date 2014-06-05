@@ -1443,16 +1443,16 @@ class Log(models.Model):
         q.delete()
 
 
-class SubscribedJob(models.Model):
-    """
-    A Many-To-Many field table to link Subcribers to Jobs
-    """
-    user = models.ForeignKey(settings.AUTH_USER_MODEL,
-                             db_column='user_id')
-    job = models.ForeignKey(Job)
-
-    class Meta:
-        db_table = 'chroniker_job_subscribers'
+#class SubscribedJob(models.Model):
+#    """
+#    A Many-To-Many field table to link Subcribers to Jobs
+#    """
+#    user = models.ForeignKey(settings.AUTH_USER_MODEL,
+#                             db_column='user_id')
+#    job = models.ForeignKey(Job)
+#
+#    class Meta:
+#        db_table = 'chroniker_job_subscribers'
 
 
 class MonitorManager(models.Manager):

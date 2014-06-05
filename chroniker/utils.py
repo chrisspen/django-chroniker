@@ -31,6 +31,27 @@ def get_etc(complete_parts, total_parts, start_datetime, current_datetime=None):
     etc = start_datetime + timedelta(seconds=complete_seconds)
     return etc
 
+#def calculate_eta(start_datetime, start_count, current_count, total_count):
+#    """
+#    Returns the datetime when the given process will likely complete, assuming
+#    a relatively linear projection of the current progress.
+#    """
+#    assert start_count >= 0, 'Invalid start_count: %s' % (start_count,)
+#    assert current_count >= 0, 'Invalid current_count: %s' % (current_count,)
+#    assert total_count >= 0, 'Invalid total_count: %s' % (total_count,)
+#    assert isinstance(start_datetime, datetime)
+#    if not total_count:
+#        return
+#    now_datetime = datetime.now()
+#    ran_parts = current_count - start_count
+#    ran_seconds = (now_datetime - start_datetime).total_seconds()
+#    remaining_parts = total_count - current_count - start_count
+#    if not ran_parts:
+#        return
+#    remaining_seconds = ran_seconds/float(ran_parts)*remaining_parts
+#    eta = now_datetime + timedelta(seconds=remaining_seconds)
+#    return eta
+
 def get_admin_change_url(obj):
     ct = ContentType.objects.get_for_model(obj)
     change_url_name = 'admin:%s_%s_change' % (ct.app_label, ct.model)
