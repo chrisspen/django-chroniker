@@ -131,6 +131,7 @@ class JobAdmin(admin.ModelAdmin):
         'frequency',
         'enabled',
         'is_running',
+        'last_run_successful',
         'hostname',
         'is_monitor',
     )

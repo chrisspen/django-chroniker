@@ -36,21 +36,24 @@ def kill_stalled_processes(dryrun=True):
         .exclude(current_pid='')\
         .values_list('current_pid', flat=True)))
     for pid in pids:
-        if utils.pid_exists(pid):# and not utils.get_cpu_usage(pid):
-            p = psutil.Process(pid)
-            cmd = ' '.join(p.cmdline())
-            if 'manage.py cron' in cmd:
-                jobs = Job.objects.filter(current_pid=pid)
-                job = None
-                if jobs:
-                    job = jobs[0]
-                print 'Killing process %s associated with %s.' % (pid, job)
-                if not dryrun:
-                    utils.kill_process(pid)
+        try:
+            if utils.pid_exists(pid):# and not utils.get_cpu_usage(pid):
+                p = psutil.Process(pid)
+                cmd = ' '.join(p.cmdline())
+                if 'manage.py cron' in cmd:
+                    jobs = Job.objects.filter(current_pid=pid)
+                    job = None
+                    if jobs:
+                        job = jobs[0]
+                    print 'Killing process %s associated with %s.' % (pid, job)
+                    if not dryrun:
+                        utils.kill_process(pid)
+                else:
+                    'PID not cron.'
             else:
-                'PID not cron.'
-        else:
-            print 'PID dead.'
+                print 'PID dead.'
+        except psutil.NoSuchProcess:
+            print 'PID does not exist.'
 
 class JobProcess(utils.TimedProcess):
     
