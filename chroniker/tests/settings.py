@@ -22,3 +22,5 @@ SOUTH_TESTS_MIGRATE = False
 USE_TZ = True
 
 AUTH_USER_MODEL = 'auth.User'
+
+SECRET_KEY = 'abc123'

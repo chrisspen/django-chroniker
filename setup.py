@@ -24,26 +24,46 @@ class TestCommand(Command):
          'Name of the specific test to run.'),
         ('virtual-env-dir=', None,
          'The location of the virtual environment to use.'),
+        ('pv=', None,
+         'The version of Python to use. e.g. 2.7 or 3'),
     ]
+    
     def initialize_options(self):
         self.name = None
-        self.virtual_env_dir = './.env'
+        self.virtual_env_dir = './.env%s'
+        self.pv = 2.7
+        
     def finalize_options(self):
         pass
-    def run(self):
-        args = dict(virtual_env_dir=self.virtual_env_dir)
-        if not os.path.isdir(self.virtual_env_dir):
-            os.system('virtualenv %(virtual_env_dir)s' % args)
+    
+    def build_virtualenv(self, pv):
+        #print('pv=',self.pv)
+        virtual_env_dir = self.virtual_env_dir % self.pv
+        kwargs = dict(virtual_env_dir=virtual_env_dir, pv=self.pv)
+        if not os.path.isdir(virtual_env_dir):
+            cmd = 'virtualenv -p /usr/bin/python{pv} {virtual_env_dir}'.format(**kwargs)
+            #print(cmd)
+            os.system(cmd)
+            
+            cmd = '. {virtual_env_dir}/bin/activate; easy_install -U distribute; deactivate'.format(**kwargs)
+            os.system(cmd)
+            
             for package in get_reqs():
-                args['package'] = package
-                cmd = '. %(virtual_env_dir)s/bin/activate; pip install -U %(package)s; deactivate' % args
-                #print cmd
+                kwargs['package'] = package
+                cmd = '. {virtual_env_dir}/bin/activate; pip install -U {package}; deactivate'.format(**kwargs)
+                #print(cmd)
                 os.system(cmd)
+    
+    def run(self):
+        self.build_virtualenv(self.pv)
+        kwargs = dict(pv=self.pv, name=self.name)
+            
         if self.name:
-            cmd = '. ./.env/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings tests.JobTestCase.%s; deactivate' % self.name
+            cmd = '. ./.env{pv}/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings chroniker.tests.tests.JobTestCase.{name}; deactivate'.format(**kwargs)
         else:
-            cmd = '. ./.env/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings tests; deactivate'
-        #print cmd
+            cmd = '. ./.env{pv}/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings chroniker.tests; deactivate'.format(**kwargs)
+            
+        print(cmd)
         os.system(cmd)
 
 setup(

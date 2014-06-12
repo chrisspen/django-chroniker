@@ -6,3 +6,6 @@ dist
 MANIFEST
 django_chroniker.egg-info
 /.env
+/.env2.7
+/.env3
+/=*
