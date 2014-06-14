@@ -10,14 +10,25 @@ import traceback
 
 from datetime import datetime, timedelta
 from dateutil import rrule
-from StringIO import StringIO
+
+try:
+    from io import StringIO
+except ImportError:
+    from cStringIO import StringIO
+
 import threading
 try:
-    import thread
+    try:
+        import _thread as thread
+    except ImportError:
+        import _dummy_thread as thread
 except ImportError:
-    import dummy_thread as thread
+    try:
+        import thread
+    except ImportError:
+        import dummy_thread as thread
 
-import settings as _settings
+from . import settings as _settings
 
 import django
 from django.conf import settings
@@ -84,9 +95,9 @@ def set_current_job(job):
     """
     try:
         job_id = int(job)
-    except ValueError, e:
+    except ValueError:
         job_id = job.id
-    except TypeError, e:
+    except TypeError:
         job_id = job.id
     thread_ident = thread.get_ident()
     if thread_ident not in _state:
@@ -379,9 +390,9 @@ class JobManager(models.Manager):
         try:
             q = self.stale()
             total = q.count()
-            print '%i total stale jobs.' % (total,)
+            print('{} total stale jobs.'.format(total))
             for job in q.iterator():
-                print 'Checking stale job %i <%s>...' % (job.id, job,)
+                print('Checking stale job {} <>...'.format(job.id, job))
                 
                 # If we know the PID and it's running locally, and the process
                 # appears inactive, then attempt to forcibly kill the job.
@@ -393,13 +404,13 @@ class JobManager(models.Manager):
 #                            print 'Process with PID %s is still consuming CPU so keeping alive for now.' % (job.current_pid,)
 #                            continue
 #                        else:
-                        print 'Killing process %s...' % (job.current_pid,)
+                        print('Killing process {}...'.format(job.current_pid))
                         chroniker.utils.kill_process(job.current_pid)
                         #TODO:record log entry
                     else:
-                        print 'Process with PID %s is not running.' % (job.current_pid,)
+                        print('Process with PID {} is not running.'.format(job.current_pid))
                 else:
-                    print 'Process with PID %s is not elligible for killing.' % (job.current_pid,)
+                    print('Process with PID {} is not elligible for killing.'.format(job.current_pid))
                 
                 job.is_running = False
                 job.last_run_successful = False
@@ -782,11 +793,11 @@ class Job(models.Model):
                 tz = timezone.get_default_timezone()
                 try:
                     self.next_run = self.rrule.after(timezone.make_aware(next_run, tz))
-                except ValueError, e:
+                except ValueError:
                     self.next_run = timezone.make_aware(
                         self.rrule.after(timezone.make_naive(next_run, tz)),
                         tz)
-                except TypeError, e:
+                except TypeError:
                     self.next_run = timezone.make_aware(
                         self.rrule.after(timezone.make_naive(next_run, tz)),
                         tz)
@@ -983,7 +994,7 @@ class Job(models.Model):
         dueness and don't want our current run status to give an incorrect
         reading.
         """
-        print 'force_run:',force_run
+        print('force_run:', force_run)
         if force_run:
             self.handle_run(*args, **kwargs)
             return True
@@ -991,17 +1002,17 @@ class Job(models.Model):
             if not self.dependencies_met():
                 # Note, this will cause the job to be re-checked
                 # the next time cron runs.
-                print 'Job "%s" has unmet dependencies. Aborting run.' % (self.name,)
+                print('Job "{}" has unmet dependencies. Aborting run.'.format(self.name))
             elif check_running and self.check_is_running():
-                print 'Job "%s" already running. Aborting run.' % (self.name,)
+                print('Job "{}" already running. Aborting run.'.format(self.name))
             elif not self.is_due(check_running=check_running):
-                print 'Job "%s" not due. Aborting run.' % (self.name,)
+                print('Job "{}" not due. Aborting run.'.format(self.name))
             else:
                 #call_command('run_job', str(self.pk)) # Calls handle_run().
                 self.handle_run(*args, **kwargs)
                 return True
         else:
-            print 'Job disabled. Aborting run.'
+            print('Job disabled. Aborting run.')
         return False
     
     def handle_run(self, update_heartbeat=True, stdout_queue=None, stderr_queue=None, *args, **kwargs):
@@ -1011,7 +1022,7 @@ class Job(models.Model):
         subprocess, which can be invoked by calling this ``Job``\'s ``run``
         method.
         """
-        print 'Handling run...'
+        print('Handling run...')
         
         lock = threading.Lock()
         run_start_datetime = timezone.now()
@@ -1067,7 +1078,7 @@ class Job(models.Model):
                     total_parts_complete = 0,
                     lock_file = heartbeat.lock_file.name if heartbeat and heartbeat.lock_file else '',
                 )
-            except Exception, e:
+            except Exception as e:
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
                 c = Context({
@@ -1095,7 +1106,7 @@ class Job(models.Model):
                 logger.debug("Command '%s' completed" % self.command)
                 if original_pid != os.getpid():
                     return
-            except Exception, e:
+            except Exception as e:
                 if original_pid != os.getpid():
                     return
                 # The command failed to run; log the exception
@@ -1118,12 +1129,12 @@ class Job(models.Model):
             #next_run = self.next_run.replace(tzinfo=None)
             next_run = self.next_run
             if not self.force_run:
-                print "Determining 'next_run' for job %d..." % (self.id,)
+                print("Determining 'next_run' for job {}...".format(self.id))
                 if next_run < timezone.now():
                     next_run = timezone.now()
                 _next_run = next_run
                 next_run = self.rrule.after(next_run)
-                print _next_run, next_run
+                print(_next_run, next_run)
                 assert next_run != _next_run, \
                     'RRule failed to increment next run datetime.'
             #next_run = next_run.replace(tzinfo=timezone.get_current_timezone()) 
@@ -1154,7 +1165,7 @@ class Job(models.Model):
                     last_run_successful = last_run_successful,
                     total_parts_complete = (job.last_run_successful and job.total_parts) or 0,
                 )
-            except Exception, e:
+            except Exception as e:
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
                 c = Context({
@@ -1178,7 +1189,7 @@ class Job(models.Model):
             sys.stderr = ostderr
             
             # Record run log.
-            print 'Recording log...'
+            print('Recording log...')
             
             stdout_str = ''
             if self.log_stdout:
@@ -1217,7 +1228,7 @@ class Job(models.Model):
                 else:
                     if self.email_errors_to_subscribers:
                         log.email_subscribers()
-            except Exception, e:
+            except Exception as e:
                 print>>sys.stderr, e
             
             # If an exception occurs above, ensure we unmark is_running.
@@ -1231,7 +1242,7 @@ class Job(models.Model):
                 job.save()
             lock.release()
             
-            print 'Job done.'
+            print('Job done.')
     
     def check_is_running(self):
         """
