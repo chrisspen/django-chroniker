@@ -36,6 +36,6 @@ class Command(BaseCommand):
             return
         
         # Run the job and wait for it to finish
-        print 'Attempting to run job %i...' % (job.id,)
+        print('Attempting to run job %i...' % (job.id,))
         job.handle_run(update_heartbeat=int(options['update_heartbeat']))
         
