@@ -4,6 +4,7 @@ from datetime import timedelta
 import time
 import socket
 import threading
+from functools import cmp_to_key
 
 socket.gethostname = lambda: 'localhost'
 
@@ -26,11 +27,6 @@ class JobProcess(Process):
         while 1:
             #print 'Waiting (pid=%i)...' % (os.getpid(),)
             time.sleep(1)
-            
-#try:
-#    from django.utils import unittest
-#except:
-#    import unittest
 
 class JobTestCase(TestCase):
     
@@ -67,7 +63,9 @@ class JobTestCase(TestCase):
         """
         
         # Pick the longest running Job
-        job = sorted(Job.objects.due().filter(command="test_sleeper"), key=lambda j: -int(j.args))[0]
+        job = sorted(
+            Job.objects.due().filter(command="test_sleeper"),
+            key=lambda j: -int(j.args))[0]
         
         # The "args" property simply describes the number of seconds the Job
         # should take to run
@@ -86,7 +84,9 @@ class JobTestCase(TestCase):
         Test that the ``cron_clean`` command runs properly.
         """
         # Pick the shortest running Job
-        job = sorted(Job.objects.due().filter(command="test_sleeper"), key=lambda j: int(j.args))[0]
+        job = sorted(
+            Job.objects.due().filter(command="test_sleeper"),
+            key=lambda j: int(j.args))[0]
         
         # Run the job 5 times
         for i in range(5):
@@ -124,21 +124,33 @@ class JobTestCase(TestCase):
         self.assertEqual(j5.is_due(), False)
         
 #        print j1.dependents.all()
-        self.assertEqual(set(_.dependent for _ in j1.dependents.all()), set([j2]))
-        self.assertEqual(j1.dependents.filter(dependent=j2).count(), 1)
+        self.assertEqual(
+            set(_.dependent for _ in j1.dependents.all()),
+            set([j2]))
+        self.assertEqual(
+            j1.dependents.filter(dependent=j2).count(),
+            1)
         
 #        print j1.dependencies.all()
-        self.assertEqual(set(_.dependee for _ in j1.dependencies.all()), set([]))
+        self.assertEqual(
+            set(_.dependee for _ in j1.dependencies.all()),
+            set([]))
         
 #        print j2.dependents.all()
-        self.assertEqual(set(_.dependent for _ in j2.dependents.all()), set([]))
+        self.assertEqual(
+            set(_.dependent for _ in j2.dependents.all()),
+            set([]))
         
 #        print j2.dependencies.all()
-        self.assertEqual(set(_.dependee for _ in j2.dependencies.all()), set([j1, j3]))
+        self.assertEqual(
+            set(_.dependee for _ in j2.dependencies.all()),
+            set([j1, j3]))
         self.assertEqual(j2.dependencies.filter(dependee=j1).count(), 1)
         self.assertEqual(j2.dependencies.filter(dependee=j3).count(), 1)
         
-        jobs = sorted(Job.objects.filter(enabled=True), cmp=order_by_dependencies)
+        jobs = sorted(
+            Job.objects.filter(enabled=True),
+            key=cmp_to_key(order_by_dependencies))
 #        for job in jobs:
 #            print job, [_.dependee for _ in job.dependencies.all()]
         self.assertEqual(jobs, [j1, j4, j3, j2])

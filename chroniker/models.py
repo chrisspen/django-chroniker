@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import logging
 import os
 import re
@@ -8,8 +10,12 @@ import tempfile
 import time
 import traceback
 
+from functools import cmp_to_key
 from datetime import datetime, timedelta
 from dateutil import rrule
+
+import six
+from six import u
 
 try:
     from io import StringIO
@@ -367,7 +373,7 @@ class JobManager(models.Manager):
         all their dependees.
         """
         lst = list(self.due_with_met_dependencies(jobs=jobs))
-        lst.sort(cmp=order_by_dependencies)
+        lst.sort(key=cmp_to_key(order_by_dependencies))
         return lst
 
     def stale(self):
@@ -644,8 +650,8 @@ class Job(models.Model):
     
     def __unicode__(self):
         if not self.enabled:
-            return _(u"%(id)s - %(name)s - disabled") % {'name': self.name, 'id':self.id}
-        return u"%i - %s - %s" % (self.id, self.name, self.timeuntil)
+            return u("%(id)s - %(name)s - disabled" % {'name': self.name, 'id':self.id})
+        return u("%i - %s - %s" % (self.id, self.name, self.timeuntil))
     
     @property
     def monitor_url_rendered(self):
@@ -841,7 +847,7 @@ class Job(models.Model):
         
         >>> job = Job(next_run=timezone.now())
         >>> job.get_timeuntil().translate('en')
-        u'due'
+        'due'
         """
         if not self.enabled:
             return _('never (disabled)')
@@ -1194,18 +1200,18 @@ class Job(models.Model):
             stdout_str = ''
             if self.log_stdout:
                 stdout_str = stdout.getvalue()
-                if isinstance(stdout_str, unicode):
+                if isinstance(stdout_str, six.text_type):
                     stdout_str = stdout_str.encode('utf-8', 'replace')
                 else:
-                    stdout_str = unicode(stdout_str, 'utf-8', 'replace')
+                    stdout_str = six.text_type(stdout_str, 'utf-8', 'replace')
             
             stderr_str = ''
             if self.log_stderr:
                 stderr_str = stderr.getvalue()
-                if isinstance(stderr_str, unicode):
+                if isinstance(stderr_str, six.text_type):
                     stderr_str = stderr_str.encode('utf-8', 'replace')
                 else:
-                    stderr_str = unicode(stderr_str, 'utf-8', 'replace')
+                    stderr_str = six.text_type(stderr_str, 'utf-8', 'replace')
             
             run_end_datetime = timezone.now()
             duration_seconds = (run_end_datetime - run_start_datetime).total_seconds()
@@ -1338,7 +1344,7 @@ class Log(models.Model):
         ordering = ('-run_start_datetime',)
     
     def __unicode__(self):
-        return u"%s - %s" % (self.job.name, self.run_start_datetime)
+        return u("%s - %s" % (self.job.name, self.run_start_datetime))
     
     def save(self, *args, **kwargs):
         if self.run_start_datetime and self.run_end_datetime:

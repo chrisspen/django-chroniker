@@ -1,0 +1,9 @@
+wnielson (Weston Nielson): Original author of the parent django-chronograph project.
+
+chrisspen (Chris Spencer): Owner and maintainer of django-chroniker.
+
+synotna (Antony Seedhouse): Various bug fixes and Python3 compatibility.
+
+phihos: Various bug fixes.
+
+raistlin7447: Fixed a timezone-awareness bug.

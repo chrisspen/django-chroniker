@@ -7,10 +7,16 @@ import urllib
 
 import chroniker
 
-def get_reqs(reqs=['Django>=1.4.0', 'python-dateutil>=2.2', 'psutil>=2.1.1']):
+def get_reqs():
     # optparse is included with Python <= 2.7, but has been deprecated in favor
     # of argparse.  We try to import argparse and if we can't, then we'll add
     # it to the requirements
+    reqs = [
+        'Django>=1.4.0',
+        'python-dateutil>=2.2',
+        'psutil>=2.1.1',
+        'six>=1.7.2',
+    ]
     try:
         import argparse
     except ImportError:
@@ -31,15 +37,15 @@ class TestCommand(Command):
     def initialize_options(self):
         self.name = None
         self.virtual_env_dir = './.env%s'
-        self.pv = 2.7
+        self.pv = 0
+        self.versions = [2.7, 3]
         
     def finalize_options(self):
         pass
     
     def build_virtualenv(self, pv):
-        #print('pv=',self.pv)
-        virtual_env_dir = self.virtual_env_dir % self.pv
-        kwargs = dict(virtual_env_dir=virtual_env_dir, pv=self.pv)
+        virtual_env_dir = self.virtual_env_dir % pv
+        kwargs = dict(virtual_env_dir=virtual_env_dir, pv=pv)
         if not os.path.isdir(virtual_env_dir):
             cmd = 'virtualenv -p /usr/bin/python{pv} {virtual_env_dir}'.format(**kwargs)
             #print(cmd)
@@ -55,16 +61,24 @@ class TestCommand(Command):
                 os.system(cmd)
     
     def run(self):
-        self.build_virtualenv(self.pv)
-        kwargs = dict(pv=self.pv, name=self.name)
+        versions = self.versions
+        if self.pv:
+            versions = [self.pv]
+        
+        for pv in versions:
             
-        if self.name:
-            cmd = '. ./.env{pv}/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings chroniker.tests.tests.JobTestCase.{name}; deactivate'.format(**kwargs)
-        else:
-            cmd = '. ./.env{pv}/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings chroniker.tests; deactivate'.format(**kwargs)
-            
-        print(cmd)
-        os.system(cmd)
+            self.build_virtualenv(pv)
+            kwargs = dict(pv=pv, name=self.name)
+                
+            if self.name:
+                cmd = '. ./.env{pv}/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings chroniker.tests.tests.JobTestCase.{name}; deactivate'.format(**kwargs)
+            else:
+                cmd = '. ./.env{pv}/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings chroniker.tests; deactivate'.format(**kwargs)
+                
+            print(cmd)
+            ret = os.system(cmd)
+            if ret:
+                return
 
 setup(
     name = "django-chroniker",
