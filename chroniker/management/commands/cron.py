@@ -7,7 +7,7 @@ import socket
 from functools import partial
 from optparse import make_option
 from collections import defaultdict
-import commands
+import subprocess
 
 from django.core.management.base import BaseCommand
 from django.db import connection
@@ -45,15 +45,15 @@ def kill_stalled_processes(dryrun=True):
                     job = None
                     if jobs:
                         job = jobs[0]
-                    print 'Killing process %s associated with %s.' % (pid, job)
+                    print('Killing process %s associated with %s.' % (pid, job))
                     if not dryrun:
                         utils.kill_process(pid)
                 else:
                     'PID not cron.'
             else:
-                print 'PID dead.'
+                print('PID dead.')
         except psutil.NoSuchProcess:
-            print 'PID does not exist.'
+            print('PID does not exist.')
 
 class JobProcess(utils.TimedProcess):
     
@@ -75,9 +75,9 @@ def run_job(job, update_heartbeat=None, stdout_queue=None, stderr_queue=None, fo
     # connection unique to this thread.
     # Without this call to connection.close(), we'll get the error
     # "Lost connection to MySQL server during query".
-    print 'Closing connection.'
+    print('Closing connection.')
     connection.close()
-    print 'Connection closed.'
+    print('Connection closed.')
     job.run(
         update_heartbeat=update_heartbeat,
         check_running=False,
@@ -119,11 +119,11 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
                 try:
                     old_pid = int(open(pid_fn, 'r').read())
                     if utils.pid_exists(old_pid):
-                        print '%s already exists, exiting' % pid_fn
+                        print('%s already exists, exiting' % pid_fn)
                         sys.exit()
                     else:
-                        print ('%s already exists, but contains stale '
-                            'PID, continuing') % pid_fn
+                        print(('%s already exists, but contains stale '
+                            'PID, continuing') % pid_fn)
                 except ValueError:
                     pass
                 except TypeError:
@@ -156,12 +156,12 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
             Job.objects.update()
             job = Job.objects.get(id=job.id)
             if not force_run and not job.is_due_with_dependencies_met(running_ids=running_ids):
-                print 'Job %i %s is due but has unmet dependencies.' % (job.id, job)
+                print('Job %i %s is due but has unmet dependencies.' % (job.id, job))
                 continue
             
             # Immediately mark the job as running so the next jobs can
             # update their dependency check.
-            print 'Running job %i %s.' % (job.id, job)
+            print('Running job %i %s.' % (job.id, job))
             running_ids.add(job.id)
             if dryrun:
                 continue
@@ -190,7 +190,7 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
             procs.append(proc)
         
         if not dryrun:
-            print "%d Jobs are due." % len(procs)
+            print("%d Jobs are due." % len(procs))
             
             # Wait for all job processes to complete.
             while procs:
@@ -214,10 +214,10 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
 #                        time.sleep(1)
                     
                     if not proc.is_alive():
-                        print 'Process %s ended.' % (proc,)
+                        print('Process %s ended.' % (proc,))
                         procs.remove(proc)
                     elif proc.is_expired:
-                        print 'Process %s expired.' % (proc,)
+                        print('Process %s expired.' % (proc,))
                         proc_id = proc.pid
                         proc.terminate()
                         run_end_datetime = timezone.now()
@@ -245,8 +245,8 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
                         )
                         
                 time.sleep(1)
-            print '!'*80
-            print 'All jobs complete!'
+            print('!'*80)
+            print('All jobs complete!')
     finally:
         if settings.CHRONIKER_USE_PID and os.path.isfile(pid_fn) \
         and clear_pid:

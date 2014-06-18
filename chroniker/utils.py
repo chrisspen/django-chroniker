@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 import os
 import sys
 import time
@@ -7,7 +8,11 @@ import warnings
 import errno
 
 from datetime import timedelta
-from StringIO import StringIO
+#from StringIO import StringIO
+try:
+    from io import StringIO
+except ImportError:
+    from cStringIO import StringIO
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.urlresolvers import reverse
@@ -19,7 +24,7 @@ from multiprocessing import Process, current_process
 
 import psutil
 
-import constants as c
+from . import constants as c
 
 def get_etc(complete_parts, total_parts, start_datetime, current_datetime=None):
     """
@@ -193,7 +198,7 @@ def pid_exists(pid):
         return False
     try:
         os.kill(pid, 0)
-    except OSError, e:
+    except OSError as e:
         return e.errno == errno.EPERM
     else:
         return True
