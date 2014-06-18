@@ -99,12 +99,15 @@ setup(
     description = "Easily control cron jobs via Django's admin.",
     license = "BSD",
     url = "https://github.com/chrisspen/django-chroniker",
+    #https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers = [
         'Environment :: Web Environment',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.0',
         'Framework :: Django',
     ],
     zip_safe = False,
