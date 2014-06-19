@@ -649,10 +649,20 @@ class Job(models.Model):
         )
     
     def __unicode__(self):
-        if not self.enabled:
-            return u("%(id)s - %(name)s - disabled" % {'name': self.name, 'id':self.id})
-        return u("%i - %s - %s" % (self.id, self.name, self.timeuntil))
+        if self.enabled:
+            ret = "%i - %s - %s" % (self.id, self.name, self.timeuntil)
+        else:
+            ret = "%(id)s - %(name)s - disabled" % {'name': self.name, 'id':self.id}
+        if not isinstance(ret, six.text_type):
+            ret = u(ret)
+        return ret
     
+    def __str__(self):
+        if six.PY3:
+            return self.__unicode__()
+        else:
+            return self.__unicode__().encode('utf8')
+            
     @property
     def monitor_url_rendered(self):
         if not self.is_monitor or not self.monitor_url:
@@ -1344,8 +1354,17 @@ class Log(models.Model):
         ordering = ('-run_start_datetime',)
     
     def __unicode__(self):
-        return u("%s - %s" % (self.job.name, self.run_start_datetime))
-    
+        ret = "%s - %s" % (self.job.name, self.run_start_datetime)
+        if not isinstance(ret, six.text_type):
+            ret = u(ret)
+        return ret
+        
+    def __str__(self):
+        if six.PY3:
+            return self.__unicode__()
+        else:
+            return self.__unicode__().encode('utf8')
+        
     def save(self, *args, **kwargs):
         if self.run_start_datetime and self.run_end_datetime:
             assert self.run_start_datetime <= self.run_end_datetime, 'Job must start before it ends.'

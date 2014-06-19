@@ -8,6 +8,8 @@ from functools import cmp_to_key
 
 socket.gethostname = lambda: 'localhost'
 
+import six
+
 from django.core.management import _commands, call_command
 from django.test import TestCase
 from django.utils import timezone
@@ -94,6 +96,10 @@ class JobTestCase(TestCase):
         
         # Ensure that we have 5 Log objects
         self.assertEqual(Log.objects.count(), 1)
+        
+        # Ensure we can convert a log instances to unicode.
+        s = six.text_type(Log.objects.all()[0])
+        self.assertTrue(s.startswith('Sleep '), s)
         
         # Now clean out the logs that are older than 0 minutes (all of them)
         #call_command('cron_clean', 'minutes', '0')
