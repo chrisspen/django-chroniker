@@ -10,7 +10,10 @@ from django.core.urlresolvers import reverse, NoReverseMatch
 from django.db import models
 from django.forms import TextInput
 from django.forms.util import flatatt
-from django.http import HttpResponseRedirect, Http404
+from django.shortcuts import render_to_response
+from django.template import RequestContext
+from django.utils.encoding import force_text
+from django.http import HttpResponseRedirect, Http404, HttpResponse
 from django.template.defaultfilters import linebreaks
 from django.utils import dateformat, timezone
 from django.utils.datastructures import MultiValueDict
@@ -221,6 +224,9 @@ class JobAdmin(admin.ModelAdmin):
        JobDependencyInline,
     )
     
+    class Media:
+        js = ("chroniker/js/dygraph-combined.js",)
+    
     def queryset(self, *args, **kwargs):
         qs = super(JobAdmin, self).queryset(*args, **kwargs)
         if ApproxCountQuerySet is not None:
@@ -352,6 +358,47 @@ class JobAdmin(admin.ModelAdmin):
             redirect = request.REQUEST.get('next', request.path + "../")
         return HttpResponseRedirect(redirect)
     
+    def view_duration_graph(self, request, object_id):
+        
+        model = self.model
+        opts = model._meta
+        #print 'app_label:',opts.app_label
+        object_id = int(object_id)
+        obj = self.get_object(request, object_id)
+        
+        q = obj.logs.all()
+        q = q.order_by('run_start_datetime')
+        q = q.only('duration_seconds', 'run_start_datetime')
+        
+        max_duration = q.aggregate(
+            models.Max('duration_seconds')
+        )['duration_seconds__max']
+        
+        errors = q.filter(success=False)
+        
+        media = self.media
+        
+        context = {
+            'title': _('Change %s') % force_text(opts.verbose_name),
+            #'adminform': adminForm,
+            'object_id': object_id,
+            'original': obj,
+            'is_popup': False,
+            'media': media,
+            #'inline_admin_formsets': inline_admin_formsets,
+            #'errors': helpers.AdminErrorList(form, formsets),
+            'app_label': opts.app_label,
+            'opts': opts,
+            #'preserved_filters': self.get_preserved_filters(request),
+            'q': q,
+            'errors': errors,
+            'max_duration': max_duration,
+        }
+        
+        return render_to_response('admin/chroniker/job/duration_graph.html',
+            context,
+            context_instance=RequestContext(request))
+    
     def get_urls(self):
         urls = super(JobAdmin, self).get_urls()
         my_urls = patterns('',
@@ -361,6 +408,9 @@ class JobAdmin(admin.ModelAdmin):
             url(r'^(.+)/stop/$',
                 self.admin_site.admin_view(self.stop_job_view),
                 name="chroniker_job_stop"),
+            url(r'^(.+)/graph/duration/$',
+                self.admin_site.admin_view(self.view_duration_graph),
+                name='chroniker_job_duration_graph'),
         )
         return my_urls + urls
     
@@ -527,7 +577,6 @@ class LogAdmin(admin.ModelAdmin):
     stderr_link.short_description = 'Stderr full'
     
     def view_full_stdout(self, request, log_id):
-        from django.http import HttpResponse
         log = Log.objects.get(id=log_id)
         resp = HttpResponse(
             log.stdout,
@@ -537,7 +586,6 @@ class LogAdmin(admin.ModelAdmin):
         return resp
     
     def view_full_stderr(self, request, log_id):
-        from django.http import HttpResponse
         log = Log.objects.get(id=log_id)
         resp = HttpResponse(
             log.stderr,

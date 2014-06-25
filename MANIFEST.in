@@ -1,1 +1,2 @@
 recursive-include chroniker/templates *
+recursive-include chroniker/static *

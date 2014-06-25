@@ -1,0 +1,48 @@
+{% extends 'admin/change_form.html' %}
+{% load i18n admin_urls admin_static admin_modify %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ app_label|capfirst|escape }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'change' object_id %}">{{ original|truncatewords:"18" }}</a>
+&rsaquo; {% trans 'Duration Graph' %}
+</div>
+{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block content %}
+<div id="graph_div" style="width: 100%; height: 400px;"></div>
+<script type="text/javascript">
+(function($){
+    $(document).ready(function (){
+        var errors = [{% for log in errors %}
+            [new Date("{{ log.run_start_datetime|date:'c' }}"), new Date("{{ log.run_end_datetime|date:'c' }}")]{% if not forloop.last %},{% endif %}{% endfor %}
+        ];
+        var g = new Dygraph(
+            document.getElementById("graph_div"),
+            [{% for log in q %}
+                [new Date("{{ log.run_start_datetime|date:'c' }}"), {{ log.duration_seconds }}]{% if not forloop.last %},{% endif %}{% endfor %}],
+            {
+                ylabel: 'Duration (seconds)',
+                title: 'Job Duration vs Time',
+                drawYAxis: false,
+                drawXGrid: false,
+                underlayCallback: function(canvas, area, g){
+                    for(var i=0; i<errors.length; i+=1){
+                        var bottom_left = g.toDomCoords(errors[i][0], 0);
+                        var top_right = g.toDomCoords(errors[i][1], {{max_duration}});
+                        var left = bottom_left[0];
+                        var right = top_right[0];
+                        canvas.fillStyle = "rgba(255, 0, 0, 0.5)";
+                        canvas.fillRect(left, area.y, right - left, area.h);
+                    }
+                }
+            }
+        );
+    });
+})(jQuery);
+</script>
+{% endblock %}

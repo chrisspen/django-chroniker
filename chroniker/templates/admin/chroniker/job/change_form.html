@@ -6,6 +6,7 @@
     <li><a href="history/" class="historylink">{% trans "History" %}</a></li>
     <li><a href="../../log/?job={{ object_id }}" class="historylink">{% trans "Logs" %}</a></li>
     <li><a href="{% get_run_job_url object_id %}" class="viewsitelink">{% trans "Run Job" %}</a></li>
+    <li><a href="{% url 'admin:chroniker_job_duration_graph' object_id %}" target="_blank" class="viewsitelink">{% trans "View Duration Graph" %}</a></li>
     {% if has_absolute_url %}
         <li><a href="../../../r/{{ content_type_id }}/{{ object_id }}/" class="viewsitelink">
             {% trans "View on site" %}</a>
