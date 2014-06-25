@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import sys
 from datetime import timedelta
 
@@ -7,6 +9,8 @@ from django.utils import timezone
 
 from optparse import make_option
 import importlib
+
+import six
 
 from chroniker.models import Job, Log, get_current_job
 
@@ -41,12 +45,12 @@ class Command(BaseCommand):
             elif len(imp_parts) == 3:
                 cmd = ('from %s import %s as %s' % imp_parts)
             else:
-                raise Exception, 'Invalid import: %s' % (imp,)
+                raise Exception('Invalid import: %s' % (imp,))
             if verbose:
-                print cmd
-            exec cmd
+                print(cmd)
+            six.exec_(cmd)
         if verbose:
-            print query
+            print(query)
         q = eval(query, globals(), locals())
         
         job = get_current_job()
@@ -55,7 +59,7 @@ class Command(BaseCommand):
             job.save()
         
         if q.count():
-            print>>sys.stderr, '%i records require attention.' % (q.count(),)
+            print('%i records require attention.' % (q.count(),), file=sys.stderr)
         else:
-            print>>sys.stdout, '%i records require attention.' % (q.count(),)
+            print('%i records require attention.' % (q.count(),), file=sys.stdout)
         

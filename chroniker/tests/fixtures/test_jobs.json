@@ -181,5 +181,35 @@
             "last_run_start_timestamp": null, 
             "command": "test_waiter"
         }
+    },
+    {
+        "pk": 6, 
+        "model": "chroniker.job", 
+        "fields": {
+            "next_run": "2012-11-18 12:00:00+00:00", 
+            "email_success_to_subscribers": false, 
+            "email_errors_to_subscribers": true, 
+            "frequency": "MINUTELY", 
+            "last_heartbeat": null, 
+            "monitor_url": "", 
+            "is_monitor": false, 
+            "hostname": "localhost", 
+            "last_run_successful": false, 
+            "total_parts_complete": 0, 
+            "force_run": false, 
+            "params": "interval:10", 
+            "force_stop": false, 
+            "lock_file": "", 
+            "args": "", 
+            "is_running": false, 
+            "subscribers": [
+            ], 
+            "name": "Sleep 1", 
+            "total_parts": 0, 
+            "enabled": true, 
+            "last_run": null, 
+            "last_run_start_timestamp": null, 
+            "command": "test_error"
+        }
     }
 ]

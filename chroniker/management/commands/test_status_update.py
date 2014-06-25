@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import time
 
 from django.core.management.base import BaseCommand
@@ -21,5 +23,5 @@ class Command(BaseCommand):
         seconds = int(options['seconds'])
         for i in xrange(seconds):
             Job.update_progress(total_parts=seconds, total_parts_complete=i)
-            print '%i of %i' % (i, seconds)
+            print('%i of %i' % (i, seconds))
             time.sleep(1)

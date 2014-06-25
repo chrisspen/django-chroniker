@@ -155,7 +155,6 @@ class JobHeartbeatThread(threading.Thread):
             if os.getpid() != self.original_pid:
                 return
             
-            #print 'Heartbeat check...'
             self.lock_file.seek(0)
             self.lock_file.write(str(time.time()))
             self.lock_file.flush()
@@ -198,17 +197,6 @@ class JobHeartbeatThread(threading.Thread):
         """
         if lock:
             self.lock.acquire()
-#        print '!'*80
-#        import thread
-#        thread_ident = thread.get_ident()
-#        print 'self1:',self
-#        print 'id1:',id(self)
-#        print 'thread1:',thread_ident
-#        print 'job_id1:',self.job_id
-#        print 'pid1:',os.getpid()
-#        print 'total_parts1:',total_parts
-#        print 'total_parts_complete1:',total_parts_complete
-#        print '!'*80
         Job.objects.filter(id=self.job_id).update(
             total_parts = total_parts,
             total_parts_complete = total_parts_complete,
@@ -251,28 +239,28 @@ class JobDependency(models.Model):
             running_ids = set()
         if self.wait_for_completion and (self.dependee.is_running or self.dependee.id in running_ids):
             # Don't run until our dependency completes.
-#            print '"%s": Dependee "%s" is still running.' \
-#                % (self.dependent.name, self.dependee.name,)
+#            print('"%s": Dependee "%s" is still running.' \
+#                % (self.dependent.name, self.dependee.name,))
             return False
         if self.wait_for_success and not self.dependee.last_run_successful:
             # Don't run until our dependency completes successfully.
-#            print '"%s": Dependee "%s" failed its last run.' \
-#                % (self.dependent.name, self.dependee.name,)
+#            print('"%s": Dependee "%s" failed its last run.' \
+#                % (self.dependent.name, self.dependee.name,))
             return False
         if self.wait_for_next_run:
             # Don't run until our dependency is scheduled until after
             # our next run.
             if not self.dependent.next_run:
-#                print '"%s": Our next scheduled run has not been set.' \
-#                    % (self.dependent.name,)
+#                print('"%s": Our next scheduled run has not been set.' \
+#                    % (self.dependent.name,))
                 return False
             if not self.dependee.next_run:
-#                print '"%s": Dependee "%s" has not been scheduled to run.' \
-#                    % (self.dependent.name, self.dependee.name,)
+#                print('"%s": Dependee "%s" has not been scheduled to run.' \
+#                    % (self.dependent.name, self.dependee.name,))
                 return False
             if self.dependee.next_run < self.dependent.next_run:
-#                print '"%s": Dependee "%s" has not yet run before us.' \
-#                    % (self.dependent.name, self.dependee.name,)
+#                print('"%s": Dependee "%s" has not yet run before us.' \
+#                    % (self.dependent.name, self.dependee.name,))
                 return False
         return True
     criteria_met.boolean = True
@@ -332,7 +320,7 @@ class JobManager(models.Manager):
         skipped_job_ids = set()
         for job in self.due():
             if jobs and job.id not in jobs:
-                #print 'Skipping job %i (%s) because jobs are limited to %s.' % (job.id, job, ', '.join(map(str, jobs)))
+                #print('Skipping job %i (%s) because jobs are limited to %s.' % (job.id, job, ', '.join(map(str, jobs))))
                 skipped_job_ids.add(job.id)
                 continue
             
@@ -340,7 +328,7 @@ class JobManager(models.Manager):
             valid = True
             
             if job.check_is_running():
-                #print 'Skipping job %i (%s) which is already running.' % (job.id, job)
+                #print('Skipping job %i (%s) which is already running.' % (job.id, job))
                 continue
             
             failed_dep = None
@@ -354,14 +342,14 @@ class JobManager(models.Manager):
                     break
                 
             if not valid:
-                #print 'Skipping job %i (%s) which is dependent on a due job %i (%s).' \
-                #    % (job.id, job, failed_dep.dependee.id, failed_dep.dependee)
+                #print('Skipping job %i (%s) which is dependent on a due job %i (%s).' \
+                #    % (job.id, job, failed_dep.dependee.id, failed_dep.dependee))
                 skipped_job_ids.add(job.id)
                 continue
             
             #TODO:remove? redundant?
             if not job.dependencies_met():
-                #print 'Skipping job %i (%s) which has unmet dependencies.' % (job.id, job)
+                #print('Skipping job %i (%s) which has unmet dependencies.' % (job.id, job))
                 skipped_job_ids.add(job.id)
                 continue
             
@@ -407,7 +395,7 @@ class JobManager(models.Manager):
                     if chroniker.utils.pid_exists(job.current_pid):
 #                        cpu_usage = chroniker.utils.get_cpu_usage(job.current_pid)
 #                        if cpu_usage:
-#                            print 'Process with PID %s is still consuming CPU so keeping alive for now.' % (job.current_pid,)
+#                            print('Process with PID %s is still consuming CPU so keeping alive for now.' % (job.current_pid,))
 #                            continue
 #                        else:
                         print('Killing process {}...'.format(job.current_pid))
@@ -888,12 +876,12 @@ class Job(models.Model):
         # Every minute
         >>> last_run = datetime(2011, 8, 4, 7, 19)
         >>> job = Job(frequency="MINUTELY", params="interval:1", last_run=last_run)
-        >>> print job.get_rrule().after(last_run)
+        >>> print(job.get_rrule().after(last_run))
         2011-08-04 07:20:00
         
         # Every 2 hours
         >>> job = Job(frequency="HOURLY", params="interval:2", last_run=last_run)
-        >>> print job.get_rrule().after(last_run)
+        >>> print(job.get_rrule().after(last_run))
         2011-08-04 09:19:00
         """
         frequency = eval('rrule.%s' % self.frequency)
@@ -1101,7 +1089,7 @@ class Job(models.Model):
                   'exception': unicode(e),
                   'traceback': ['\n'.join(traceback.format_exception(*sys.exc_info()))]
                 })
-                print>>sys.stderr, t.render(c)
+                print(t.render(c), file=sys.stderr)
                 success = False
             finally:
                 lock.release()
@@ -1118,6 +1106,7 @@ class Job(models.Model):
                         stdout=sys.stdout,
                         stderr=sys.stderr)
                 else:
+                    #print('self.command:',self.command, args, options)
                     call_command(self.command, *args, **options)
                 logger.debug("Command '%s' completed" % self.command)
                 if original_pid != os.getpid():
@@ -1131,7 +1120,7 @@ class Job(models.Model):
                   'exception': unicode(e),
                   'traceback': ['\n'.join(traceback.format_exception(*sys.exc_info()))]
                 })
-                print>>sys.stderr, t.render(c)
+                print(t.render(c), file=sys.stderr)
                 success = False
             
             # Stop the heartbeat
@@ -1188,7 +1177,7 @@ class Job(models.Model):
                   'exception': unicode(e),
                   'traceback': ['\n'.join(traceback.format_exception(*sys.exc_info()))]
                 })
-                print>>sys.stderr, t.render(c)
+                print(t.render(c), file=sys.stderr)
                 success = False
             finally:
                 lock.release()
@@ -1245,7 +1234,7 @@ class Job(models.Model):
                     if self.email_errors_to_subscribers:
                         log.email_subscribers()
             except Exception as e:
-                print>>sys.stderr, e
+                print(e, file=sys.stderr)
             
             # If an exception occurs above, ensure we unmark is_running.
             lock.acquire()
@@ -1296,7 +1285,7 @@ class Job(models.Model):
         if heartbeat:
             return heartbeat.update_progress(*args, **kwargs)
         else:
-            #print 'Unable to update progress. No heartbeat found.'
+            #print('Unable to update progress. No heartbeat found.')
             pass
 
 class Log(models.Model):
@@ -1412,18 +1401,16 @@ class Log(models.Model):
         else:
             body = "Ouput:\n%s\nError output:\n%s" % (self.stdout, self.stderr)
         
-        #site = get_current_site()
-        site = Site.objects.get_current()
         base_url = None
         if hasattr(settings, 'BASE_SECURE_URL'):
             base_url = settings.BASE_SECURE_URL
         elif hasattr(settings, 'BASE_URL'):
             base_url = settings.BASE_URL
-        elif site:
-            if domain.startswith('http'):
-                base_url = site.domain
+        elif current_site:
+            if current_site.domain.startswith('http'):
+                base_url = current_site.domain
             else:
-                base_url = 'http://' + site.domain
+                base_url = 'http://' + current_site.domain
         
         if base_url:
             admin_link = settings.BASE_SECURE_URL + chroniker.utils.get_admin_change_url(self.job)

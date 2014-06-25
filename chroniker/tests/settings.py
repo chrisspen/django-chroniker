@@ -8,9 +8,10 @@ DATABASES = {
 #        'TEST_NAME': '/tmp/chroniker.db',
     }
 }
-#ROOT_URLCONF = 'chroniker.urls'
+ROOT_URLCONF = 'chroniker.tests.urls'
 INSTALLED_APPS = [
     'django.contrib.auth',
+    'django.contrib.admin',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.sites',
@@ -24,3 +25,8 @@ USE_TZ = True
 AUTH_USER_MODEL = 'auth.User'
 
 SECRET_KEY = 'abc123'
+
+SITE_ID = 1
+
+BASE_SECURE_URL = 'https://localhost'
+BASE_URL = 'http://localhost'

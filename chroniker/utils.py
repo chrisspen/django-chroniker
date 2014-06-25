@@ -1,4 +1,6 @@
+from __future__ import print_function
 from __future__ import unicode_literals
+
 import os
 import sys
 import time
@@ -23,6 +25,9 @@ from django.utils import timezone
 from multiprocessing import Process, current_process
 
 import psutil
+
+import six
+from six import print_
 
 from . import constants as c
 
@@ -365,8 +370,6 @@ class TimedProcess(Process):
         if not self.max_seconds:
             return False
         duration_seconds = self.get_duration_seconds()
-#        print 'self.get_duration_seconds:',duration_seconds
-#        print 'self.max_seconds:',self.max_seconds
         return duration_seconds >= self.max_seconds
     
     @property
@@ -385,21 +388,17 @@ class TimedProcess(Process):
         """
         self.start()
         timeout = False
-        if verbose:
-            print>>self.fout
-            print>>self.fout
         while 1:
             time.sleep(1)
             if verbose:
-                print>>self.fout, '\r\t%.0f seconds until timeout.' \
-                    % (self.seconds_until_timeout,),
+                self.fout.write('\r\t%.0f seconds until timeout.' \
+                    % (self.seconds_until_timeout,))
                 self.fout.flush()
             if not self.is_alive():
                 break
             elif self.is_expired:
                 if verbose:
-                    print>>self.fout
-                    print>>self.fout, 'Attempting to terminate expired process %s...' % (self.pid,)
+                    six.print_('\nAttempting to terminate expired process %s...' % (self.pid,), file=self.fout)
                 timeout = True
                 self.terminate()
         self.t1 = time.clock()

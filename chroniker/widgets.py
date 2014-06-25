@@ -5,7 +5,13 @@ from django.contrib.admin.sites import site
 from django.contrib.admin.widgets import ManyToManyRawIdWidget, ForeignKeyRawIdWidget
 from django.core.urlresolvers import reverse
 from django.forms.widgets import Select, TextInput, flatatt
-from django.utils.encoding import force_unicode, smart_unicode
+try:
+    # force_unicode was deprecated in Django 1.5.
+    from django.utils.encoding import force_unicode as force_text
+    from django.utils.encoding import smart_unicode as smart_text
+except ImportError:
+    from django.utils.encoding import force_text
+    from django.utils.encoding import smart_text
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
 
@@ -19,7 +25,9 @@ except ImportError:
         def __str__(self):
             return self.code
 
-from utils import get_admin_change_url, get_admin_changelist_url
+import six
+
+from .utils import get_admin_change_url, get_admin_changelist_url
 
 class LinkedSelect(Select):
     def render(self, name, value, attrs=None, *args, **kwargs):
@@ -58,9 +66,9 @@ class ForeignKeyTextInput(TextInput):
         final_attrs = self.build_attrs(attrs, type=self.input_type, name=name)
         if value != '':
             # Only add the 'value' attribute if a value is non-empty.
-            final_attrs['value'] = force_unicode(self._format_value(value))
+            final_attrs['value'] = force_text(self._format_value(value))
         final_attrs['size'] = 10
-        t = Template(u"""
+        t = Template(six.u("""
 {% load staticfiles %}
 <input{{ attrs|safe }} />
 {% if instance %}
@@ -69,7 +77,7 @@ class ForeignKeyTextInput(TextInput):
     </a>
     <strong><a href="{{ url|safe }}" target="_blank">{{ instance|safe }}</a></strong>
 {% endif %}
-        """)
+        """))
         c = Context(dict(
             id=final_attrs['id'],
             attrs=flatatt(final_attrs),
@@ -102,15 +110,15 @@ class VerboseManyToManyRawIdWidget(ManyToManyRawIdWidget):
         for v in values:
             try:
                 obj = self.rel.to._default_manager.using(self.db).get(**{key: v})
-                x = smart_unicode(obj)
+                x = smart_text(obj)
                 change_url = reverse(
                     "admin:%s_%s_change" % (obj._meta.app_label, obj._meta.object_name.lower()),
                     args=(obj.pk,)
                 )
                 str_values += ['<strong><a href="%s" target="_blank">%s</a></strong>' % (change_url, escape(x))]
             except self.rel.to.DoesNotExist:
-                str_values += [u'???']
-        return u', '.join(str_values)
+                str_values += ['???']
+        return ', '.join(str_values)
 
 class ImproveRawIdFieldsForm(admin.ModelAdmin):
     def formfield_for_dbfield(self, db_field, **kwargs):

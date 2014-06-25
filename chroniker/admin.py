@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 from datetime import datetime
 
@@ -362,7 +363,6 @@ class JobAdmin(admin.ModelAdmin):
         
         model = self.model
         opts = model._meta
-        #print 'app_label:',opts.app_label
         object_id = int(object_id)
         obj = self.get_object(request, object_id)
         
@@ -606,11 +606,11 @@ class LogAdmin(admin.ModelAdmin):
     
     def job_name(self, obj):
       return obj.job.name
-    job_name.short_description = _(u'Name')
+    job_name.short_description = _('Name')
 
     def job_success(self, obj):
         return obj.success
-    job_success.short_description = _(u'OK')
+    job_success.short_description = _('OK')
     job_success.boolean = True
     job_success.admin_order_field = 'success'
     

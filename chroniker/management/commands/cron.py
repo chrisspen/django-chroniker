@@ -64,8 +64,8 @@ class JobProcess(utils.TimedProcess):
 def run_job(job, update_heartbeat=None, stdout_queue=None, stderr_queue=None, force_run=False, **kwargs):
     
     # TODO:causes UnicodeEncodeError: 'ascii' codec can't encode character u'\xa0' in position 59: ordinal not in range(128)
-    #print u"Running Job: %i - '%s' with args: %s" \
-    #    % (job.id, job, job.args)
+    #print(u"Running Job: %i - '%s' with args: %s" \
+    #    % (job.id, job, job.args))
     
     # TODO:Fix? Remove multiprocess and just running all jobs serially?
     # Multiprocessing does not play well with Django's PostgreSQL
@@ -208,7 +208,7 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
                     # Auto kill processes that haven't terminated but yet
                     # register no cpu usage.
                     #cpu = proc.get_cpu_usage_recursive()
-                    #print 'cpu:',proc,cpu
+                    #print('cpu:',proc,cpu)
 #                    if not cpu:
 #                        utils.kill_process(proc.pid)
 #                        time.sleep(1)

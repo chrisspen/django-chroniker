@@ -71,9 +71,9 @@ class TestCommand(Command):
             kwargs = dict(pv=pv, name=self.name)
                 
             if self.name:
-                cmd = '. ./.env{pv}/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings chroniker.tests.tests.JobTestCase.{name}; deactivate'.format(**kwargs)
+                cmd = '. ./.env{pv}/bin/activate; django-admin.py test --pythonpath=. --traceback --settings=chroniker.tests.settings chroniker.tests.tests.JobTestCase.{name}; deactivate'.format(**kwargs)
             else:
-                cmd = '. ./.env{pv}/bin/activate; django-admin.py test --pythonpath=. --settings=chroniker.tests.settings chroniker.tests; deactivate'.format(**kwargs)
+                cmd = '. ./.env{pv}/bin/activate; django-admin.py test --pythonpath=. --traceback --settings=chroniker.tests.settings chroniker.tests; deactivate'.format(**kwargs)
                 
             print(cmd)
             ret = os.system(cmd)

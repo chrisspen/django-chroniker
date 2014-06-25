@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os
 import datetime
 from datetime import timedelta
@@ -11,11 +13,13 @@ socket.gethostname = lambda: 'localhost'
 import six
 
 from django.core.management import _commands, call_command
+from django.core import mail
 from django.test import TestCase
 from django.utils import timezone
+from django.contrib.auth.models import User
 
 from chroniker.models import Job, Log, order_by_dependencies
-from chroniker.tests.commands import Sleeper, InfiniteWaiter
+from chroniker.tests.commands import Sleeper, InfiniteWaiter, ErrorThrower
 from chroniker.management.commands.cron import run_cron
 
 import warnings
@@ -27,7 +31,7 @@ class JobProcess(Process):
     
     def run(self):
         while 1:
-            #print 'Waiting (pid=%i)...' % (os.getpid(),)
+            #print('Waiting (pid=%i)...' % (os.getpid(),))
             time.sleep(1)
 
 class JobTestCase(TestCase):
@@ -39,15 +43,19 @@ class JobTestCase(TestCase):
         # so that we can refer to it by name
         _commands['test_sleeper'] = Sleeper()
         _commands['test_waiter'] = InfiniteWaiter()
+        _commands['test_error'] = ErrorThrower()
     
     def testJobRun(self):
         """
         Test that the jobs run properly.
         """
-        self.assertEqual(Job.objects.filter(enabled=True).count(), 4)
+        self.assertEqual(Job.objects.filter(enabled=True).count(), 5)
         
         for job in Job.objects.due():
-            time_expected = float(job.args)
+            try:
+                time_expected = float(job.args)
+            except ValueError:
+                continue
             
             time_start = time.time()
             #TODO:heartbeat thread can't access sqlite3 models?
@@ -122,6 +130,7 @@ class JobTestCase(TestCase):
         j3 = Job.objects.get(id=3)
         j4 = Job.objects.get(id=4)
         j5 = Job.objects.get(id=5)
+        j6 = Job.objects.get(id=6)
         
         self.assertEqual(j1.is_due(), True)
         self.assertEqual(j2.is_due(), True)
@@ -129,7 +138,6 @@ class JobTestCase(TestCase):
         self.assertEqual(j4.is_due(), True)
         self.assertEqual(j5.is_due(), False)
         
-#        print j1.dependents.all()
         self.assertEqual(
             set(_.dependent for _ in j1.dependents.all()),
             set([j2]))
@@ -137,17 +145,14 @@ class JobTestCase(TestCase):
             j1.dependents.filter(dependent=j2).count(),
             1)
         
-#        print j1.dependencies.all()
         self.assertEqual(
             set(_.dependee for _ in j1.dependencies.all()),
             set([]))
         
-#        print j2.dependents.all()
         self.assertEqual(
             set(_.dependent for _ in j2.dependents.all()),
             set([]))
         
-#        print j2.dependencies.all()
         self.assertEqual(
             set(_.dependee for _ in j2.dependencies.all()),
             set([j1, j3]))
@@ -158,15 +163,16 @@ class JobTestCase(TestCase):
             Job.objects.filter(enabled=True),
             key=cmp_to_key(order_by_dependencies))
 #        for job in jobs:
-#            print job, [_.dependee for _ in job.dependencies.all()]
-        self.assertEqual(jobs, [j1, j4, j3, j2])
+#            print(job, [_.dependee for _ in job.dependencies.all()])
+        self.assertEqual(jobs, [j1, j6, j4, j3, j2])
         
         # Ensure all dependent jobs come after their dependee job.
         due = Job.objects.due_with_met_dependencies_ordered()
-        #print 'due:', due
+        #print('due:', due)
         self.assertEqual(
             due,
             [
+                Job.objects.get(id=6),
                 Job.objects.get(id=1),
                 Job.objects.get(id=4),
                 Job.objects.get(id=3),# depends on 4
@@ -184,7 +190,7 @@ class JobTestCase(TestCase):
         
         #Job.objects.update()
         due = list(Job.objects.due_with_met_dependencies())
-        #print 'due:', due
+        #print('due:', due)
         self.assertEqual(
             due,
             [
@@ -195,7 +201,7 @@ class JobTestCase(TestCase):
             job.run(update_heartbeat=0)
             
         due = list(Job.objects.due_with_met_dependencies())
-        #print 'due:', due
+        #print('due:', due)
         self.assertEqual(
             due,
             [
@@ -255,3 +261,18 @@ class JobTestCase(TestCase):
             if not proc.is_alive():
                 break
     
+    def testJobFailure(self):
+        self.assertEqual(len(mail.outbox), 0)
+        user = User.objects.create(username='admin', email='admin@localhost')
+        job = Job.objects.get(id=6)
+        job.subscribers.add(user)
+        job.save()
+        self.assertEqual(job.email_errors_to_subscribers, True)
+        
+        # Run job.
+        job.run(update_heartbeat=0)
+        
+        # Confirm an error email was sent.
+        self.assertEqual(len(mail.outbox), 1)
+        #print(mail.outbox[0].body)
+        
