@@ -88,10 +88,12 @@ setup(
     package_data = {
         '': ['docs/*.txt', 'docs/*.py'],
         'chroniker': [
+            'static/*/*/*.*',
             'templates/*.*',
             'templates/*/*.*',
             'templates/*/*/*.*',
-            'fixtures/*'
+            'templates/*/*/*/*.*',
+            'fixtures/*',
         ],
     },
     author = "Chris Spencer",
