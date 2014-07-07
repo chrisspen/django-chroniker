@@ -17,6 +17,7 @@ from django.core import mail
 from django.test import TestCase
 from django.utils import timezone
 from django.contrib.auth.models import User
+from django.conf import settings
 
 from chroniker.models import Job, Log, order_by_dependencies
 from chroniker.tests.commands import Sleeper, InfiniteWaiter, ErrorThrower
@@ -275,4 +276,31 @@ class JobTestCase(TestCase):
         # Confirm an error email was sent.
         self.assertEqual(len(mail.outbox), 1)
         #print(mail.outbox[0].body)
+    
+    def testTimezone(self):
         
+        self.assertEqual(settings.USE_TZ, True)
+        j = Job()
+        j.command = "test_sleeper"
+        j.frequency = "MINUTELY"
+        j.enabled = True
+        j.params = "interval:10"
+        j.next_run = datetime.datetime(2014, 6, 27, 14, 31, 4)
+        j.save()
+        
+        # Test someone turning-on timezone awareness after job was created.
+        try:
+            settings.USE_TZ = False
+            j = Job()
+            j.command = "test_sleeper"
+            j.frequency = "MINUTELY"
+            j.enabled = True
+            j.save()
+            self.assertTrue(j.next_run)
+            settings.USE_TZ = True
+            j.params = "interval:10"
+            j.next_run = datetime.datetime(2014, 6, 27, 14, 31, 4)#, tzinfo=timezone.get_default_timezone())
+            j.save()
+        finally:
+            settings.USE_TZ = True
+            

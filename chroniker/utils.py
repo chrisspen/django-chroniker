@@ -21,6 +21,7 @@ from django.core.urlresolvers import reverse
 from django.db import models
 from django.db import connection
 from django.utils import timezone
+from django.conf import settings
 
 from multiprocessing import Process, current_process
 
@@ -405,3 +406,20 @@ class TimedProcess(Process):
         self.t1_objective = time.time()
         return timeout
     
+def make_naive(dt, tz):
+    if timezone.is_aware(dt):
+        return timezone.make_aware(dt, tz)
+    return dt
+
+def make_aware(dt, tz):
+    if settings.USE_TZ:
+        if timezone.is_aware(dt):
+            return dt
+        else:
+            return timezone.make_aware(dt, tz)
+    else:
+        if timezone.is_aware(dt):
+            return timezone.is_naive(dt)
+        else:
+            return dt
+            
