@@ -1096,6 +1096,10 @@ class Job(models.Model):
 #                if heartbeat:
 #                    job.lock_file = heartbeat.lock_file.name
 #                job.save()
+
+                # Fixes MySQL error "Commands out of sync"?
+                connection.close()
+
                 Job.objects.filter(id=self.id).update(
                     is_running = True,
                     last_run_start_timestamp = timezone.now(),
