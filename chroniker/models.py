@@ -660,7 +660,7 @@ class Job(models.Model):
             return
         from django.template import Context, Template
         from django.template.loader import render_to_string
-        t = Template('{% load chronograph_tags %}' + self.monitor_url)
+        t = Template('{% load chroniker_tags %}' + self.monitor_url)
         c = Context(dict(
             #date=timezone.now(),#.strftime('%Y-%m-%d'),
         ))
