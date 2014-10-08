@@ -408,8 +408,8 @@ class TimedProcess(Process):
     
 def make_naive(dt, tz):
     if timezone.is_aware(dt):
-        return timezone.make_aware(dt, tz)
-    return dt
+        return dt
+    return timezone.make_aware(dt, tz)
 
 def make_aware(dt, tz):
     if settings.USE_TZ:
