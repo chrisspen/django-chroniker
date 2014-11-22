@@ -107,7 +107,7 @@ class TeeFile(StringIO):
             self.flush()
         if self.queue is not None:
             self.queue_buffer.append(s)
-        
+
     def flush(self):
         self.file.flush()
         #super(TeeFile, self).flush()
@@ -121,46 +121,46 @@ class TeeFile(StringIO):
 # http://www.shiningpanda.com/blog/2012/08/08/mysql-table-lock-django/
 class LockingManager(models.Manager):
     """ Add lock/unlock functionality to manager.
-    
+
     Example::
-    
+
         class Job(models.Model):
-        
+
             manager = LockingManager()
-    
+
             counter = models.IntegerField(null=True, default=0)
-    
+
             @staticmethod
             def do_atomic_update(job_id)
                 ''' Updates job integer, keeping it below 5 '''
                 try:
                     # Ensure only one HTTP request can do this update at once.
                     Job.objects.lock()
-                    
+
                     job = Job.object.get(id=job_id)
                     # If we don't lock the tables two simultanous
                     # requests might both increase the counter
                     # going over 5
                     if job.counter < 5:
-                        job.counter += 1                                        
+                        job.counter += 1
                         job.save()
-                
+
                 finally:
                     Job.objects.unlock()
-     
-    
-    """    
+
+
+    """
 
     def lock(self):
-        """ Lock table. 
-        
+        """ Lock table.
+
         Locks the object model table so that atomic update is possible.
         Simulatenous database access request pend until the lock is unlock()'ed.
-        
+
         Note: If you need to lock multiple tables, you need to do lock them
         all in one SQL clause and this function is not enough. To avoid
         dead lock, all tables must be locked in the same order.
-        
+
         See http://dev.mysql.com/doc/refman/5.0/en/lock-tables.html
         """
         cursor = connection.cursor()
@@ -177,7 +177,7 @@ class LockingManager(models.Manager):
         #row = cursor.fetchone()
         #return row
         return cursor
-        
+
     def unlock(self):
         """ Unlock the table. """
         cursor = connection.cursor()
@@ -230,27 +230,27 @@ def kill_process(pid):
     """
     pid = int(pid)
     try:
-        
+
         # Try sending a keyboard interrupt.
         os.kill(pid, signal.SIGINT) # 2
         if not pid_exists(pid):
             return True
-        
+
         # Ask politely again.
         os.kill(pid, signal.SIGABRT) # 6
         if not pid_exists(pid):
             return True
-        
+
         # Try once more.
         os.kill(pid, signal.SIGTERM) # 15
         if not pid_exists(pid):
             return True
-        
+
         # We've asked nicely and we've been ignored, so just murder it.
         os.kill(pid, signal.SIGKILL) # 9
         if not pid_exists(pid):
             return True
-        
+
     except OSError:
         # Something strange happened.
         # Our user likely doesn't have permission to kill the process.
@@ -260,13 +260,13 @@ class TimedProcess(Process):
     """
     Helper to allow us to time a specific chunk of code and determine when
     it has reached a timeout.
-    
+
     Also, this conveniently allows us to kill the whole thing if it locks up
     or takes too long, without requiring special coding in the target code.
     """
-    
+
     daemon = True
-    
+
     def __init__(self, max_seconds, time_type=c.MAX_TIME, fout=None, check_freq=1, *args, **kwargs):
         super(TimedProcess, self).__init__(*args, **kwargs)
         self.fout = fout or sys.stdout
@@ -281,7 +281,7 @@ class TimedProcess(Process):
         self._p = None
         self._process_times = {} # {pid:user_seconds}
         self._last_duration_seconds = None
-    
+
     def terminate(self, signal=15, *args, **kwargs):
         """
         signal := 6=abrt, 9=kill, 15=term
@@ -298,17 +298,17 @@ class TimedProcess(Process):
             self._last_duration_seconds = sum(self._process_times.itervalues())
         os.system('kill -%i %i' % (signal, self._p.pid,))
         #return super(TimedProcess, self).terminate(*args, **kwargs)
-    
+
     def get_duration_seconds_wall(self):
         if self.t1_objective is not None:
             return self.t1_objective - self.t0_objective
         return time.time() - self.t0_objective
-    
+
     def get_duration_seconds_cpu(self):
         if self.t1 is not None:
             return self.t1 - self.t0
         return time.clock() - self.t0
-    
+
     def get_duration_seconds_cpu_recursive(self):
         # Note, this calculation will consume much user
         # CPU time itself than simply checking clock().
@@ -322,7 +322,7 @@ class TimedProcess(Process):
             self._process_times[child.pid] = child.get_cpu_times().user
         #TODO:optimize by storing total sum and tracking incremental changes?
         return sum(self._process_times.itervalues())
-    
+
     def get_cpu_usage_recursive(self, interval=1):
         usage = 0
         try:
@@ -336,20 +336,20 @@ class TimedProcess(Process):
         except psutil._error.NoSuchProcess:
             pass
         return usage
-    
+
     def get_duration_seconds_max(self):
         return max(
             self.get_duration_seconds_wall(),
             self.get_duration_seconds_cpu_recursive(),
         )
-    
+
     def get_duration_seconds(self):
         """
         Retrieve the number of seconds this process has been executing for.
-        
+
         If process was instantiated with objective=True, then the wall-clock
         value is returned.
-        
+
         Otherwise the user-time is returned.
         If recursive=True is given, recursively finds all child-processed,
         if any, and includes their user-time in the total calculation.
@@ -365,26 +365,26 @@ class TimedProcess(Process):
                 return self.get_duration_seconds_max()
             else:
                 raise NotImplementedError
-        
+
     @property
     def is_expired(self):
         if not self.max_seconds:
             return False
         duration_seconds = self.get_duration_seconds()
         return duration_seconds >= self.max_seconds
-    
+
     @property
     def seconds_until_timeout(self):
         return max(self.max_seconds - self.get_duration_seconds(), 0)
-    
+
     def start(self, *args, **kwargs):
         super(TimedProcess, self).start(*args, **kwargs)
         self._p = psutil.Process(self.pid)
-    
+
     def start_then_kill(self, verbose=True):
         """
         Starts and then kills the process if a timeout occurs.
-        
+
         Returns true if a timeout occurred. False if otherwise.
         """
         self.start()
@@ -405,10 +405,10 @@ class TimedProcess(Process):
         self.t1 = time.clock()
         self.t1_objective = time.time()
         return timeout
-    
+
 def make_naive(dt, tz):
     if timezone.is_aware(dt):
-        return timezone.make_aware(dt, tz)
+        return timezone.make_naive(dt, tz)
     return dt
 
 def make_aware(dt, tz):
@@ -419,7 +419,7 @@ def make_aware(dt, tz):
             return timezone.make_aware(dt, tz)
     else:
         if timezone.is_aware(dt):
-            return timezone.is_naive(dt)
+            return timezone.make_naive(dt)
         else:
             return dt
-            
+
