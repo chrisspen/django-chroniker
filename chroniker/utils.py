@@ -32,7 +32,7 @@ from six import print_
 
 from . import constants as c
 
-def get_etc(complete_parts, total_parts, start_datetime, current_datetime=None):
+def get_etc(complete_parts, total_parts, start_datetime, current_datetime=None, as_seconds=False):
     """
     Estimates a job's time to completion.
     """
@@ -40,7 +40,13 @@ def get_etc(complete_parts, total_parts, start_datetime, current_datetime=None):
     total_seconds = float((current_datetime - start_datetime).total_seconds())
     complete_seconds = total_seconds/complete_parts*total_parts
     etc = start_datetime + timedelta(seconds=complete_seconds)
+    if as_seconds:
+        return (etc - current_datetime).total_seconds
     return etc
+
+def get_remaining_seconds(*args, **kwargs):
+    kwargs['as_seconds'] = True
+    return get_etc(*args, **kwargs)
 
 #def calculate_eta(start_datetime, start_count, current_count, total_count):
 #    """

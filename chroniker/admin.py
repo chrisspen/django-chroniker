@@ -580,7 +580,7 @@ class LogAdmin(admin.ModelAdmin):
         log = Log.objects.get(id=log_id)
         resp = HttpResponse(
             log.stdout,
-            mimetype='application/x-download',
+            content_type='application/x-download',
         )
         resp['Content-Disposition'] = 'filename=log-%s-stdout.txt' % (log_id,)
         return resp
@@ -589,7 +589,7 @@ class LogAdmin(admin.ModelAdmin):
         log = Log.objects.get(id=log_id)
         resp = HttpResponse(
             log.stderr,
-            mimetype='application/x-download',
+            content_type='application/x-download',
         )
         resp['Content-Disposition'] = 'filename=log-%s-stderr.txt' % (log_id,)
         return resp
