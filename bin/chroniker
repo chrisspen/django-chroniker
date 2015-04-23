@@ -95,6 +95,8 @@ if __name__ == "__main__":
     logger.debug("Settings mod: %s" % settings)
     
     # We should be good to go now
+    import django
+    django.setup()
     from django.core.management import call_command
     
     try:
