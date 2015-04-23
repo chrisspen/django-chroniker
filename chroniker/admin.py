@@ -10,7 +10,7 @@ from django.core.management import get_commands
 from django.core.urlresolvers import reverse, NoReverseMatch
 from django.db import models
 from django.forms import TextInput
-from django.forms.util import flatatt
+from django.forms.utils import flatatt
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.utils.encoding import force_text
