@@ -12,7 +12,7 @@ socket.gethostname = lambda: 'localhost'
 
 import six
 
-from django.core.management import _commands, call_command
+from django.core.management import call_command
 from django.core import mail
 from django.test import TestCase
 from django.utils import timezone
@@ -40,11 +40,7 @@ class JobTestCase(TestCase):
     fixtures = ['test_jobs.json']
     
     def setUp(self):
-        # Install the test command; this little trick installs the command
-        # so that we can refer to it by name
-        _commands['test_sleeper'] = Sleeper()
-        _commands['test_waiter'] = InfiniteWaiter()
-        _commands['test_error'] = ErrorThrower()
+        pass
     
     def testJobRun(self):
         """
@@ -127,8 +123,8 @@ class JobTestCase(TestCase):
         """
         
         j1 = Job.objects.get(id=1)
-        j2 = Job.objects.get(id=2)
-        j3 = Job.objects.get(id=3)
+        j2 = Job.objects.get(id=2)# needs j1 and j3
+        j3 = Job.objects.get(id=3)# need j4
         j4 = Job.objects.get(id=4)
         j5 = Job.objects.get(id=5)
         j6 = Job.objects.get(id=6)
@@ -165,16 +161,17 @@ class JobTestCase(TestCase):
             key=cmp_to_key(order_by_dependencies))
 #        for job in jobs:
 #            print(job, [_.dependee for _ in job.dependencies.all()])
+        print('jobs:', jobs)
         self.assertEqual(jobs, [j1, j6, j4, j3, j2])
         
         # Ensure all dependent jobs come after their dependee job.
         due = Job.objects.due_with_met_dependencies_ordered()
-        #print('due:', due)
+        print('due:', due)
         self.assertEqual(
             due,
             [
-                Job.objects.get(id=6),
                 Job.objects.get(id=1),
+                Job.objects.get(id=6),
                 Job.objects.get(id=4),
                 Job.objects.get(id=3),# depends on 4
                 Job.objects.get(id=2),# depends on 1 and 3
@@ -189,9 +186,9 @@ class JobTestCase(TestCase):
         for job in due:
             job.run(update_heartbeat=0)
         
-        #Job.objects.update()
+        Job.objects.update()
         due = list(Job.objects.due_with_met_dependencies())
-        #print('due:', due)
+        print('due:', due)
         self.assertEqual(
             due,
             [
@@ -200,9 +197,10 @@ class JobTestCase(TestCase):
         
         for job in due:
             job.run(update_heartbeat=0)
-            
+        
+        Job.objects.update()
         due = list(Job.objects.due_with_met_dependencies())
-        #print('due:', due)
+        print('due:', due)
         self.assertEqual(
             due,
             [

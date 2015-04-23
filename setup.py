@@ -38,7 +38,7 @@ class TestCommand(Command):
         self.name = None
         self.virtual_env_dir = './.env%s'
         self.pv = 0
-        self.versions = [2.7, 3]
+        self.versions = [2.7, 3, 3.4]
         
     def finalize_options(self):
         pass
@@ -110,6 +110,7 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.0',
+        'Programming Language :: Python :: 3.4',
         'Framework :: Django',
     ],
     zip_safe = False,

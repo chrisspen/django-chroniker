@@ -17,6 +17,8 @@ from dateutil import rrule
 import six
 from six import u
 
+unicode = six.text_type
+
 try:
     from io import StringIO
 except ImportError:
@@ -52,6 +54,13 @@ from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
 from django.contrib.sites.models import get_current_site
 from django.core.exceptions import ValidationError
 
+try:
+    # < Django 1.8
+    commit_on_success = transaction.commit_on_success
+except AttributeError:
+    # >= Django 1.8
+    commit_on_success = transaction.atomic
+
 import chroniker.constants as const
 from chroniker import utils
 
@@ -76,7 +85,7 @@ def order_by_dependencies(j1, j2):
     elif j2.dependents.filter(dependent=j1).count():
         ret = 1
     else:
-        ret = 0
+        ret = j1.id < j2.id
     return ret
 
 def get_current_job():
@@ -374,58 +383,61 @@ class JobManager(models.Manager):
     def all_running(self):
         return self.filter(is_running=True)
     
-    @transaction.commit_manually
     def end_all_stale(self):
         """
         Marks as complete but failed, and attempts to kill the process
         if still running, any job that's failed to report its status within
         the alotted threshold.
         """
-        try:
-            q = self.stale()
-            total = q.count()
-            print('{} total stale jobs.'.format(total))
-            for job in q.iterator():
-                print('Checking stale job {} <>...'.format(job.id, job))
-                
-                # If we know the PID and it's running locally, and the process
-                # appears inactive, then attempt to forcibly kill the job.
-                if job.current_pid and job.current_hostname \
-                and job.current_hostname == socket.gethostname():
-                    if utils.pid_exists(job.current_pid):
+        
+        @commit_on_success
+        def process_job(job):
+            # If we know the PID and it's running locally, and the process
+            # appears inactive, then attempt to forcibly kill the job.
+            if job.current_pid and job.current_hostname \
+            and job.current_hostname == socket.gethostname():
+                if utils.pid_exists(job.current_pid):
 #                        cpu_usage = utils.get_cpu_usage(job.current_pid)
 #                        if cpu_usage:
 #                            print('Process with PID %s is still consuming CPU so keeping alive for now.' % (job.current_pid,))
 #                            continue
 #                        else:
-                        print('Killing process {}...'.format(job.current_pid))
-                        utils.kill_process(job.current_pid)
-                        #TODO:record log entry
-                    else:
-                        print('Process with PID {} is not running.'.format(job.current_pid))
+                    print('Killing process {}...'.format(job.current_pid))
+                    utils.kill_process(job.current_pid)
+                    #TODO:record log entry
                 else:
-                    print('Process with PID {} is not elligible for killing.'.format(job.current_pid))
-                
-                job.is_running = False
-                job.last_run_successful = False
-                job.save()
-                transaction.commit()
-                
-                Log.objects.create(
-                    job = job,
-                    run_start_datetime = job.last_run_start_timestamp or timezone.now(),
-                    run_end_datetime = timezone.now(),
-                    hostname = socket.gethostname(),
-                    stdout = '',
-                    stderr = 'Job became stale and was marked as terminated.',
-                    success = False,
-                )
-                transaction.commit()
-        except:
-            transaction.rollback()
-            raise
-        else:
-            transaction.commit()
+                    print('Process with PID {} is not running.'.format(job.current_pid))
+            else:
+                print('Process with PID {} is not elligible for killing.'.format(job.current_pid))
+            
+            job.is_running = False
+            job.last_run_successful = False
+            job.save()
+        
+        @commit_on_success
+        def create_log(job):
+            Log.objects.create(
+                job = job,
+                run_start_datetime = job.last_run_start_timestamp or timezone.now(),
+                run_end_datetime = timezone.now(),
+                hostname = socket.gethostname(),
+                stdout = '',
+                stderr = 'Job became stale and was marked as terminated.',
+                success = False,
+            )
+        
+        q = self.stale()
+        total = q.count()
+        print('{} total stale jobs.'.format(total))
+        for job in q.iterator():
+            print('Checking stale job {} <>...'.format(job.id, job))
+            
+            process_job(job)
+            #transaction.commit()
+            
+            create_log(job)
+            #transaction.commit()
+            
 
 class Job(models.Model):
     """
