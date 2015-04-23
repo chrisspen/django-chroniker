@@ -374,7 +374,7 @@ class JobManager(models.Manager):
     def all_running(self):
         return self.filter(is_running=True)
     
-    @transaction.commit_manually
+    @transaction.set_autocommit
     def end_all_stale(self):
         """
         Marks as complete but failed, and attempts to kill the process
