@@ -374,13 +374,13 @@ class JobManager(models.Manager):
     def all_running(self):
         return self.filter(is_running=True)
     
-    @transaction.set_autocommit
     def end_all_stale(self):
         """
         Marks as complete but failed, and attempts to kill the process
         if still running, any job that's failed to report its status within
         the alotted threshold.
         """
+        transaction.set_autocommit(False)
         try:
             q = self.stale()
             total = q.count()
@@ -426,6 +426,8 @@ class JobManager(models.Manager):
             raise
         else:
             transaction.commit()
+        finally:
+            transaction.set_autocommit(True)
 
 class Job(models.Model):
     """
