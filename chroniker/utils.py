@@ -441,3 +441,7 @@ def make_aware(dt, tz):
         else:
             return dt
 
+def localtime(dt):
+    dt = make_aware(dt, settings.TIME_ZONE)
+    return dt
+    

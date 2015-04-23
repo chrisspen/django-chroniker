@@ -15,6 +15,7 @@ import six
 from django.core.management import call_command
 from django.core import mail
 from django.test import TestCase
+from django.test.client import Client
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.conf import settings
@@ -301,4 +302,45 @@ class JobTestCase(TestCase):
             j.save()
         finally:
             settings.USE_TZ = True
+            
+    def testTimezone2(self):
+        
+        _USE_TZ = settings.USE_TZ
+        settings.USE_TZ = False
+        try:
+            self.assertEqual(settings.USE_TZ, False)
+        
+            username = 'joe'
+            password = 'password'
+            user = User.objects.create(
+                username=username,
+                email='joe@joe.com',
+                is_active=True,
+                is_staff=True,
+                is_superuser=True,
+            )
+            user.set_password(password)
+            user.save()
+        
+            client = Client()
+            ret = client.login(username=username, password=password)
+            self.assertTrue(ret)
+        
+            j = Job.objects.get(id=1)
+            next_run = j.next_run
+            print('next_run:', next_run)
+            self.assertTrue(timezone.is_naive(next_run))
+            try:
+                #astimezone() cannot be applied to a naive datetime
+                timezone.make_naive(j.next_run)
+                self.assertTrue(0)
+            except ValueError:
+                pass
+            j.save()
+        
+            response = client.get('/admin/chroniker/job/')
+            self.assertEqual(response.status_code, 200)
+        
+        finally:
+            settings.USE_TZ = _USE_TZ
             

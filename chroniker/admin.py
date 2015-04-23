@@ -28,7 +28,7 @@ from django.utils.translation import (
 )
 
 from chroniker.models import Job, Log, JobDependency, Monitor
-from chroniker.utils import get_admin_changelist_url
+from chroniker import utils
 from chroniker.widgets import ImproveRawIdFieldsFormTabularInline
 
 try:
@@ -248,7 +248,7 @@ class JobAdmin(admin.ModelAdmin):
         value = None
         try:
             if obj.last_run is not None:
-                value = timezone.localtime(obj.last_run)
+                value = utils.localtime(obj.last_run)
                 value = capfirst(dateformat.format(value, format))
             log_id = obj.log_set.latest('run_start_datetime').id
             try:
@@ -276,7 +276,9 @@ class JobAdmin(admin.ModelAdmin):
         if not obj or not obj.id or not obj.next_run:
             return ''
         format = get_format('DATETIME_FORMAT')
-        value = capfirst(dateformat.format(timezone.localtime(obj.next_run), format))
+        dt = obj.next_run
+        dt = utils.localtime(dt)
+        value = capfirst(dateformat.format(dt, format))
         return "%s<br /><span class='mini'>(%s)</span>" \
             % (value, obj.get_timeuntil())
     get_timeuntil.admin_order_field = 'next_run'
@@ -317,7 +319,7 @@ class JobAdmin(admin.ModelAdmin):
         if not obj or not obj.id:
             return ''
         q = obj.logs.all()
-        url = get_admin_changelist_url(Log)
+        url = utils.get_admin_changelist_url(Log)
         return ('<a href="%s?job=%d" target="_blank" class="button">View&nbsp;%i</a>') % \
             (url, obj.id, q.count())
     view_logs_button.allow_tags = True
@@ -659,7 +661,7 @@ class MonitorAdmin(admin.ModelAdmin):
     
     def get_timeuntil(self, obj):
         format = get_format('DATETIME_FORMAT')
-        value = capfirst(dateformat.format(timezone.localtime(obj.next_run), format))
+        value = capfirst(dateformat.format(utils.localtime(obj.next_run), format))
         return "%s<br /><span class='mini'>(%s)</span>" \
             % (value, obj.get_timeuntil())
     get_timeuntil.admin_order_field = 'next_run'
