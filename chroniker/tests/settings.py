@@ -30,3 +30,13 @@ SITE_ID = 1
 
 BASE_SECURE_URL = 'https://localhost'
 BASE_URL = 'http://localhost'
+
+MIDDLEWARE_CLASSES = (
+    'django.middleware.common.CommonMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    #'django.middleware.transaction.TransactionMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.locale.LocaleMiddleware',    
+)
