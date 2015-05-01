@@ -49,7 +49,7 @@ or directly from github with (warning, this may be less stable than the official
     
 Add 'chroniker' to the INSTALLED_APPS list in your settings.py.
 
-If you're using South (which you should be), install Chroniker's models by running:
+If you're using Django 1.7 or higher (which you should be), install Chroniker's models by running:
 
     python manage.py migrate
     
