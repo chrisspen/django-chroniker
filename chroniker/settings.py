@@ -1,9 +1,17 @@
+from distutils.version import StrictVersion
 from django.conf import settings
+import django
+
+DJANGO_VERSION = StrictVersion(django.get_version())
 
 def _get_name():
     from socket import gethostname
     from getpass import getuser
     return '%s@%s' % (getuser(), gethostname())
+    
+# Use Django's built-in migration system instead of South, if available 
+if DJANGO_VERSION >= StrictVersion('1.8'):
+    settings.MIGRATION_MODULES['chroniker'] = 'db_migrations'
 
 # Number of seconds that a lock file must be "stale" for a Job to be considered
 # "dead".  Default is 1 minute (60 seconds)
