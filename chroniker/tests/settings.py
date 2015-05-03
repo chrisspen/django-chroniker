@@ -19,7 +19,7 @@ INSTALLED_APPS = [
     'chroniker.tests',
 ]
 MEDIA_ROOT = os.path.join(PROJECT_DIR, 'media')
-SOUTH_TESTS_MIGRATE = False
+SOUTH_TESTS_MIGRATE = True
 USE_TZ = True
 
 AUTH_USER_MODEL = 'auth.User'

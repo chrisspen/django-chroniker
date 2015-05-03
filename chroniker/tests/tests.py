@@ -304,7 +304,8 @@ class JobTestCase(TestCase):
             settings.USE_TZ = True
             
     def testTimezone2(self):
-        
+        from dateutil import zoneinfo
+        tz = zoneinfo.gettz(settings.TIME_ZONE)
         _USE_TZ = settings.USE_TZ
         settings.USE_TZ = False
         try:
@@ -332,7 +333,7 @@ class JobTestCase(TestCase):
             self.assertTrue(timezone.is_naive(next_run))
             try:
                 #astimezone() cannot be applied to a naive datetime
-                timezone.make_naive(j.next_run)
+                timezone.make_naive(j.next_run, timezone=tz)
                 self.assertTrue(0)
             except ValueError:
                 pass
