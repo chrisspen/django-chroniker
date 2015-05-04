@@ -10,7 +10,7 @@ def _get_name():
     return '%s@%s' % (getuser(), gethostname())
     
 # Use Django's built-in migration system instead of South, if available 
-if DJANGO_VERSION >= StrictVersion('1.8'):
+if DJANGO_VERSION >= StrictVersion('1.7'):
     settings.MIGRATION_MODULES['chroniker'] = 'db_migrations'
 
 # Number of seconds that a lock file must be "stale" for a Job to be considered
