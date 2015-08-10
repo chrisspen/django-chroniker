@@ -834,7 +834,8 @@ class Job(models.Model):
             self.current_hostname = None
             self.current_pid = None
         
-        self.next_run = utils.make_aware(self.next_run, tz)
+        if self.next_run:
+            self.next_run = utils.make_aware(self.next_run, tz)
         
         super(Job, self).save(*args, **kwargs)
         
