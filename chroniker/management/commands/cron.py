@@ -105,7 +105,7 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
         # Check PID file to prevent conflicts with prior executions.
         # TODO: is this still necessary? deprecate? As long as jobs run by
         # JobProcess don't wait for other jobs, multiple instances of cron
-        # should be able to run simeltaneously without issue.
+        # should be able to run simultaneously without an issue.
         if settings.CHRONIKER_USE_PID:
             if not settings.CHRONIKER_PID_FN:
                 print('CHRONIKER_PID_FN must be defined in settings')
