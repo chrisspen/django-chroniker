@@ -248,7 +248,6 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
                         )
 
                 time.sleep(1)
-            print('!' * 80)
             print('All jobs complete!')
     finally:
         if settings.CHRONIKER_USE_PID and os.path.isfile(pid_fn) \
