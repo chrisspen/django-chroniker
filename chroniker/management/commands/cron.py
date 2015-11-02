@@ -109,6 +109,7 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
         # JobProcess don't wait for other jobs, multiple instances of cron
         # should be able to run simeltaneously without issue.
         if settings.CHRONIKER_USE_PID:
+            pid_fn = settings.CHRONIKER_PID_FN
             pid = str(os.getpid())
             any_running = Job.objects.all_running().count()
             if not any_running:
