@@ -287,7 +287,7 @@ class Command(BaseCommand):
             for _ in options.get('jobs', '').strip().split(',')
             if _.strip().isdigit()
         ]
-        update_heartbeat = int(options['update_heartbeat'])
+        update_heartbeat = options['update_heartbeat']
         force_run = options['force_run']
         run_cron(
             jobs,
