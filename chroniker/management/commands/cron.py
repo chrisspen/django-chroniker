@@ -115,20 +115,20 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
                 # If no jobs are running, then even if the PID file exists,
                 # it must be stale, so ignore it.
                 pass
-            elif os.path.isfile(pid_fn):
+            elif os.path.isfile(pid):
                 try:
-                    old_pid = int(open(pid_fn, 'r').read())
+                    old_pid = int(open(pid, 'r').read())
                     if utils.pid_exists(old_pid):
-                        print('%s already exists, exiting' % pid_fn)
+                        print('%s already exists, exiting' % pid)
                         sys.exit()
                     else:
                         print(('%s already exists, but contains stale '
-                            'PID, continuing') % pid_fn)
+                            'PID, continuing') % pid)
                 except ValueError:
                     pass
                 except TypeError:
                     pass
-            file(pid_fn, 'w').write(pid)
+            file(pid, 'w').write(pid)
             clear_pid = True
         
         procs = []
@@ -245,19 +245,19 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
                         )
                         
                 time.sleep(1)
-            print('!'*80)
             print('All jobs complete!')
     finally:
-        if settings.CHRONIKER_USE_PID and os.path.isfile(pid_fn) \
+        if settings.CHRONIKER_USE_PID and os.path.isfile(pid) \
         and clear_pid:
-            os.unlink(pid_fn)
+            os.unlink(pid)
             
 class Command(BaseCommand):
     help = 'Runs all jobs that are due.'
     option_list = BaseCommand.option_list + (
         make_option('--update_heartbeat',
             dest='update_heartbeat',
-            default=1,
+            action='store_true',
+            default=True,
             help='If given, launches a thread to asynchronously update ' + \
                 'job heartbeat status.'),
         make_option('--force_run',
@@ -276,7 +276,7 @@ class Command(BaseCommand):
     )
     
     def handle(self, *args, **options):
-        pid_fn = settings.CHRONIKER_PID_FN
+        pid = settings.CHRONIKER_PID_FN
         clear_pid = False
         
         kill_stalled_processes(dryrun=False)
@@ -287,7 +287,7 @@ class Command(BaseCommand):
             for _ in options.get('jobs', '').strip().split(',')
             if _.strip().isdigit()
         ]
-        update_heartbeat = int(options['update_heartbeat'])
+        update_heartbeat = options['update_heartbeat']
         force_run = options['force_run']
         run_cron(
             jobs,
