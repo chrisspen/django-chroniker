@@ -276,9 +276,6 @@ class Command(BaseCommand):
     )
     
     def handle(self, *args, **options):
-        pid_fn = settings.CHRONIKER_PID_FN
-        clear_pid = False
-        
         kill_stalled_processes(dryrun=False)
         
         # Find specific job ids to run, if any.
