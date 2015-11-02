@@ -55,11 +55,11 @@ from django.contrib.sites.models import get_current_site
 from django.core.exceptions import ValidationError
 
 try:
-    # < Django 1.8
-    commit_on_success = transaction.commit_on_success
-except AttributeError:
     # >= Django 1.8
     commit_on_success = transaction.atomic
+except AttributeError:
+    # < Django 1.8
+    commit_on_success = transaction.commit_on_success
 
 import chroniker.constants as const
 from chroniker import utils
