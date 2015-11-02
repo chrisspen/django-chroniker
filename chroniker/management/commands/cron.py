@@ -119,18 +119,21 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
                 pass
             elif os.path.isfile(pid_fn):
                 try:
-                    old_pid = int(open(pid_fn, 'r').read())
-                    if utils.pid_exists(old_pid):
-                        print('%s already exists, exiting' % pid_fn)
-                        sys.exit()
-                    else:
-                        print(('%s already exists, but contains stale '
-                               'PID, continuing') % pid_fn)
+                    with open(pid_fn, 'r') as pid_file:
+
+                        old_pid = int(pid_file.read())
+                        if utils.pid_exists(old_pid):
+                            print('%s already exists, exiting' % pid_fn)
+                            sys.exit()
+                        else:
+                            print(('%s already exists, but contains stale '
+                                   'PID, continuing') % pid_fn)
                 except ValueError:
                     pass
                 except TypeError:
                     pass
-            file(pid_fn, 'w').write(pid)
+            with open(pid_fn, 'w') as pid_file:
+                pid_file.write(pid)
             clear_pid = True
 
         procs = []
