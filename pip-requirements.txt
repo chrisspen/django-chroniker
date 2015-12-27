@@ -1,0 +1,4 @@
+Django>=1.5
+python-dateutil>=2.2
+psutil>=2.1.1
+six>=1.7.2

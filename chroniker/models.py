@@ -51,7 +51,11 @@ from django.utils.encoding import smart_str
 from django.utils.safestring import mark_safe
 from django.utils.timesince import timeuntil
 from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
-from django.contrib.sites.models import get_current_site
+try:
+    from django.contrib.sites.models import get_current_site
+except ImportError:
+    # >= Django 1.7?
+    from django.contrib.sites.shortcuts import get_current_site 
 from django.core.exceptions import ValidationError
 
 try:
@@ -219,12 +223,12 @@ class JobDependency(models.Model):
     """
     
     dependent = models.ForeignKey(
-        'Job',
+        'chroniker.Job',
         related_name='dependencies',
         help_text='The thing that cannot run until another job completes.')
     
     dependee = models.ForeignKey(
-        'Job',
+        'chroniker.Job',
         related_name='dependents',
         help_text='The thing that has other jobs waiting on it to complete.')
     
@@ -1343,7 +1347,7 @@ class Log(models.Model):
     A record of stdout and stderr of a ``Job``.
     """
     
-    job = models.ForeignKey(Job, related_name='logs')
+    job = models.ForeignKey('chroniker.Job', related_name='logs')
     
     run_start_datetime = models.DateTimeField(
         editable=False,

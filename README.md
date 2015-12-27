@@ -110,3 +110,19 @@ Depending on your usage, there are a few options that could greatly help or harm
 
 *   If this is set to True, chroniker will check for a local lockfile to determine if the job is running or not.
 *   You should set this to True in a single-server environment, and False in a multi-server environment.
+
+Development
+-----------
+
+To run all [tests](http://tox.readthedocs.org/en/latest/):
+
+    tox
+
+To run tests for a specific environment (e.g. Python 2.7 with Django 1.4):
+    
+    tox -e py27-django14
+
+To run a specific test:
+    
+    tox -e py27-django14 -- -s chroniker/tests/test_project.py::test_project
+    
