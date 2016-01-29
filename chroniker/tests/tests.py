@@ -23,6 +23,7 @@ from django.conf import settings
 from chroniker.models import Job, Log, order_by_dependencies
 from chroniker.tests.commands import Sleeper, InfiniteWaiter, ErrorThrower
 from chroniker.management.commands.cron import run_cron
+from chroniker import utils
 
 import warnings
 warnings.simplefilter('error', RuntimeWarning)
@@ -344,4 +345,10 @@ class JobTestCase(TestCase):
         
         finally:
             settings.USE_TZ = _USE_TZ
-            
+
+    def testWriteLock(self):
+        import tempfile
+        lock_file = tempfile.NamedTemporaryFile()
+        utils.write_lock(lock_file)
+        lock_file.close()
+        

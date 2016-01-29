@@ -445,3 +445,8 @@ def localtime(dt):
     dt = make_aware(dt, settings.TIME_ZONE)
     return dt
     
+def write_lock(lock_file):
+    lock_file.seek(0)
+    lock_file.write(str(time.time()).encode('utf-8'))
+    lock_file.flush()
+    

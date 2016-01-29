@@ -114,15 +114,19 @@ Depending on your usage, there are a few options that could greatly help or harm
 Development
 -----------
 
+Tests require the Python development headers to be installed, which you can install on Ubuntu with:
+
+    sudo apt-get install python-dev python3-dev python3.4-dev
+
 To run all [tests](http://tox.readthedocs.org/en/latest/):
 
-    tox
+    export TESTNAME=; tox
 
 To run tests for a specific environment (e.g. Python 2.7 with Django 1.4):
     
-    tox -e py27-django14
+    export TESTNAME=; tox -e py27-django15
 
 To run a specific test:
     
-    tox -e py27-django14 -- -s chroniker/tests/test_project.py::test_project
+    export TESTNAME=.testTimezone2; tox -e py27-django15
     

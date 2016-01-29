@@ -168,9 +168,7 @@ class JobHeartbeatThread(threading.Thread):
             if os.getpid() != self.original_pid:
                 return
             
-            self.lock_file.seek(0)
-            self.lock_file.write(str(time.time()))
-            self.lock_file.flush()
+            utils.write_lock(self.lock_file)
             
             # Check job status and save heartbeat timestamp.
             self.lock.acquire()

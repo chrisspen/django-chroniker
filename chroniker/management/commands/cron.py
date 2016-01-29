@@ -273,6 +273,10 @@ class Command(BaseCommand):
             dest='jobs',
             default='',
             help='A comma-delimited list of job ids to limit executions to.'),
+        make_option('--name',
+            dest='name',
+            default='',
+            help='A name to give this process.'),
     )
     
     def handle(self, *args, **options):
