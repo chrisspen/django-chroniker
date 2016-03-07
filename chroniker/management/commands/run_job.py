@@ -22,20 +22,15 @@ class Command(BaseCommand):
         )
     
     def handle(self, *args, **options):
-        try:
-            job_id = args[0]
-        except IndexError:
-            sys.stderr.write(
-                "This command requires a single argument: a job id to run.\n")
-            return
-        
-        try:
-            job = Job.objects.get(pk=job_id)
-        except Job.DoesNotExist:
-            sys.stderr.write("The requested Job does not exist.\n")
-            return
-        
-        # Run the job and wait for it to finish
-        print('Attempting to run job %i...' % (job.id,))
-        job.handle_run(update_heartbeat=int(options['update_heartbeat']))
-        
+        for job_id in args:
+            
+            try:
+                job = Job.objects.get(pk=int(job_id))
+            except Job.DoesNotExist:
+                sys.stderr.write("The requested Job %s does not exist.\n" % job_id)
+                return
+            
+            # Run the job and wait for it to finish
+            print('Attempting to run job %i...' % (job.id,))
+            job.handle_run(update_heartbeat=int(options['update_heartbeat']))
+            
