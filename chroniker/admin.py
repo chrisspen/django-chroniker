@@ -668,7 +668,8 @@ class MonitorAdmin(admin.ModelAdmin):
     
     def get_timeuntil(self, obj):
         format = get_format('DATETIME_FORMAT')
-        value = capfirst(dateformat.format(utils.localtime(obj.next_run), format))
+        next_run = obj.next_run or timezone.now()
+        value = capfirst(dateformat.format(utils.localtime(next_run), format))
         return "%s<br /><span class='mini'>(%s)</span>" \
             % (value, obj.get_timeuntil())
     get_timeuntil.admin_order_field = 'next_run'

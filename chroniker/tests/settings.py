@@ -17,6 +17,7 @@ INSTALLED_APPS = [
     'django.contrib.sites',
     'chroniker',
     'chroniker.tests',
+    'admin_steroids',
 ]
 MEDIA_ROOT = os.path.join(PROJECT_DIR, 'media')
 SOUTH_TESTS_MIGRATE = True

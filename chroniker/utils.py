@@ -432,7 +432,9 @@ def make_naive(dt, tz):
     return dt
 
 def make_aware(dt, tz):
-    if settings.USE_TZ:
+    if dt is None:
+        return
+    elif settings.USE_TZ:
         if timezone.is_aware(dt):
             return dt
         else:

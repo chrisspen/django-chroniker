@@ -287,6 +287,12 @@ class JobDependency(models.Model):
 
 class JobManager(models.Manager):
     
+    def get_by_natural_key(self, *args):
+        kwargs = dict(
+            (_name, _value)
+            for _name, _value in zip(settings.CHRONIKER_JOB_NK, args))
+        return self.get(**kwargs)
+        
     def due(self, job=None, check_running=True):
         """
         Returns a ``QuerySet`` of all jobs waiting to be run.  NOTE: this may
@@ -667,7 +673,11 @@ class Job(models.Model):
             return self.__unicode__()
         else:
             return self.__unicode__().encode('utf8')
-            
+    
+    def natural_key(self):
+        return tuple(getattr(self, _name) for _name in settings.CHRONIKER_JOB_NK)
+#     natural_key.dependencies = []
+    
     @property
     def monitor_url_rendered(self):
         if not self.is_monitor or not self.monitor_url:
@@ -1065,6 +1075,8 @@ class Job(models.Model):
         lock = threading.Lock()
         run_start_datetime = timezone.now()
         last_run_successful = False
+        stdout_str = ''
+        stderr_str = ''
         
         original_pid = os.getpid()
         
@@ -1144,11 +1156,21 @@ class Job(models.Model):
             try:
                 logger.debug("Calling command '%s'" % self.command)
                 if self.raw_command:
-                    retcode = subprocess.call(
+#                     retcode = subprocess.call(
+#                         self.raw_command,
+#                         shell=True,
+#                         stdout=sys.stdout,
+#                         stderr=sys.stderr)
+                    p = subprocess.Popen(
                         self.raw_command,
+#                         stdout=sys.stdout,
+#                         stderr=sys.stderr,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
                         shell=True,
-                        stdout=sys.stdout,
-                        stderr=sys.stderr)
+                        universal_newlines=True)
+                    stdout_str, stderr_str = p.communicate()
+                    retcode = p.returncode
                 else:
                     #print('self.command:',self.command, args, options)
                     call_command(self.command, *args, **options)
@@ -1247,17 +1269,17 @@ class Job(models.Model):
             # Record run log.
             print('Recording log...')
             
-            stdout_str = ''
             if self.log_stdout:
-                stdout_str = stdout.getvalue()
+                if not stdout_str:
+                    stdout_str = stdout.getvalue()
                 if isinstance(stdout_str, six.text_type):
                     stdout_str = stdout_str.encode('utf-8', 'replace')
                 else:
                     stdout_str = six.text_type(stdout_str, 'utf-8', 'replace')
             
-            stderr_str = ''
             if self.log_stderr:
-                stderr_str = stderr.getvalue()
+                if not stderr_str:
+                    stderr_str = stderr.getvalue()
                 if isinstance(stderr_str, six.text_type):
                     stderr_str = stderr_str.encode('utf-8', 'replace')
                 else:

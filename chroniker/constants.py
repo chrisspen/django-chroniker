@@ -1,13 +1,21 @@
 from django.utils.translation import ugettext_lazy as _
 
+YEARLY = 'YEARLY'
+MONTHLY = 'MONTHLY'
+WEEKLY = 'WEEKLY'
+DAILY = 'DAILY'
+HOURLY = 'HOURLY'
+MINUTELY = 'MINUTELY'
+SECONDLY = 'SECONDLY'
+
 FREQ_CHOICES = (
-    ("YEARLY", _("Yearly")),
-    ("MONTHLY", _("Monthly")),
-    ("WEEKLY", _("Weekly")),
-    ("DAILY", _("Daily")),
-    ("HOURLY", _("Hourly")),
-    ("MINUTELY", _("Minutely")),
-    ("SECONDLY", _("Secondly")),
+    (YEARLY, _("Yearly")),
+    (MONTHLY, _("Monthly")),
+    (WEEKLY, _("Weekly")),
+    (DAILY, _("Daily")),
+    (HOURLY, _("Hourly")),
+    (MINUTELY, _("Minutely")),
+    (SECONDLY, _("Secondly")),
 )
 
 RRULE_WEEKDAY_DICT = {

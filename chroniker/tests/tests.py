@@ -12,6 +12,7 @@ socket.gethostname = lambda: 'localhost'
 
 import six
 
+import django
 from django.core.management import call_command
 from django.core import mail
 from django.test import TestCase
@@ -24,6 +25,7 @@ from chroniker.models import Job, Log, order_by_dependencies
 from chroniker.tests.commands import Sleeper, InfiniteWaiter, ErrorThrower
 from chroniker.management.commands.cron import run_cron
 from chroniker import utils
+from chroniker import constants as c
 
 import warnings
 warnings.simplefilter('error', RuntimeWarning)
@@ -277,6 +279,25 @@ class JobTestCase(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         #print(mail.outbox[0].body)
     
+    def testJobRawCommand(self):
+        
+        job = Job.objects.create(
+            name='raw command test',
+            frequency=c.MINUTELY,
+            raw_command='echo "hello"',
+            enabled=True,
+            force_run=True,
+        )
+        self.assertEqual(job.logs.all().count(), 0)
+        job.run(update_heartbeat=0)
+        self.assertEqual(job.logs.all().count(), 1)
+        
+        stdout_str = job.logs.all()[0].stdout
+        self.assertEqual(stdout_str, 'hello\n')
+        
+        stderr_str = job.logs.all()[0].stderr
+        self.assertEqual(stderr_str, '')
+    
     def testTimezone(self):
         
         self.assertEqual(settings.USE_TZ, True)
@@ -351,4 +372,30 @@ class JobTestCase(TestCase):
         lock_file = tempfile.NamedTemporaryFile()
         utils.write_lock(lock_file)
         lock_file.close()
-        
+    
+    def testNaturalKey(self):
+        if django.VERSION[:3] <= (1, 5, 0):
+            #TODO: support other versions once admin-steroids updated
+                
+            Job.objects.all().delete()
+            
+            settings.CHRONIKER_JOB_NK = ('name',)
+            call_command('loaddatanaturally', 'chroniker/tests/fixtures/jobs_by_name.json', traceback=True, verbosity=1)
+            qs = Job.objects.all()
+            # There are 3 jobs, but only 2 with unique names, so only two should have been created.
+            self.assertEqual(qs.count(), 2)
+            
+            Job.objects.all().delete()
+            
+            settings.CHRONIKER_JOB_NK = ('command',)
+            call_command('loaddatanaturally', 'chroniker/tests/fixtures/jobs_by_command.json', traceback=True, verbosity=1)
+            qs = Job.objects.all()
+            self.assertEqual(qs.count(), 2)
+            
+            Job.objects.all().delete()
+            
+            settings.CHRONIKER_JOB_NK = ('command', 'args')
+            call_command('loaddatanaturally', 'chroniker/tests/fixtures/jobs_by_command_args.json', traceback=True, verbosity=1)
+            qs = Job.objects.all()
+            self.assertEqual(qs.count(), 3)
+            

@@ -2,6 +2,8 @@ from distutils.version import StrictVersion
 from django.conf import settings
 import django
 
+from . import constants as c
+
 DJANGO_VERSION = StrictVersion(django.get_version())
 
 def _get_name():
@@ -102,3 +104,9 @@ settings.CHRONIKER_AUTO_END_STALE_JOBS = getattr(
     settings,
     'CHRONIKER_AUTO_END_STALE_JOBS',
     True)
+
+settings.CHRONIKER_JOB_NK = getattr(
+    settings,
+    'CHRONIKER_JOB_NK',
+    ('name',))
+    

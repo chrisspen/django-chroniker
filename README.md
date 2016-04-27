@@ -118,6 +118,10 @@ Tests require the Python development headers to be installed, which you can inst
 
     sudo apt-get install python-dev python3-dev python3.4-dev
 
+To run unittests across multiple Python versions, install:
+
+    sudo apt-get install python3.4-minimal python3.4-dev python3.5-minimal python3.5-dev
+
 To run all [tests](http://tox.readthedocs.org/en/latest/):
 
     export TESTNAME=; tox
