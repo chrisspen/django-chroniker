@@ -136,6 +136,9 @@ class TeeFile(StringIO):
             self.queue.put((current_process().pid, ''.join(self.queue_buffer)))
             self.queue_buffer = []
 
+    def fileno(self):
+        return self.file.fileno()
+
 # Based on:
 # http://djangosnippets.org/snippets/833/
 # http://www.shiningpanda.com/blog/2012/08/08/mysql-table-lock-django/
