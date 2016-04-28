@@ -574,13 +574,13 @@ class LogAdmin(admin.ModelAdmin):
         return qs
     
     def stdout_link(self, obj):
-        url = reverse("admin:chroniker_log_change", args=(obj.id,)) + 'stdout/'
+        url = reverse("admin:chroniker_log_stdout", args=(obj.id,))
         return '<a href="%s">Download</a>' % (url,)
     stdout_link.allow_tags = True
     stdout_link.short_description = 'Stdout full'
     
     def stderr_link(self, obj):
-        url = reverse("admin:chroniker_log_change", args=(obj.id,)) + 'stderr/'
+        url = reverse("admin:chroniker_log_stderr", args=(obj.id,))
         return '<a href="%s">Download</a>' % (url,)
     stderr_link.allow_tags = True
     stderr_link.short_description = 'Stderr full'
@@ -606,10 +606,14 @@ class LogAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super(LogAdmin, self).get_urls()
         my_urls = patterns('',
-            (r'^(?P<log_id>[0-9]+)/stdout/?$',
-                self.admin_site.admin_view(self.view_full_stdout)),
-            (r'^(?P<log_id>[0-9]+)/stderr/?$',
-                self.admin_site.admin_view(self.view_full_stderr)),
+            url(r'^(?P<log_id>[0-9]+)/stdout/?$',
+                self.admin_site.admin_view(self.view_full_stdout),
+                name='chroniker_log_stdout'
+            ),
+            url(r'^(?P<log_id>[0-9]+)/stderr/?$',
+                self.admin_site.admin_view(self.view_full_stderr),
+                name='chroniker_log_stderr'
+            ),
         )
         return my_urls + urls
     
