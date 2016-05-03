@@ -281,9 +281,6 @@ class Command(BaseCommand):
     )
     
     def handle(self, *args, **options):
-        pid_fn = settings.CHRONIKER_PID_FN
-        clear_pid = False
-        
         kill_stalled_processes(dryrun=False)
         
         # Find specific job ids to run, if any.
@@ -292,7 +289,7 @@ class Command(BaseCommand):
             for _ in options.get('jobs', '').strip().split(',')
             if _.strip().isdigit()
         ]
-        update_heartbeat = int(options['update_heartbeat'])
+        update_heartbeat = options['update_heartbeat']
         force_run = options['force_run']
         run_cron(
             jobs,
