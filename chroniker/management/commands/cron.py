@@ -88,7 +88,7 @@ def run_job(job, update_heartbeat=None, stdout_queue=None, stderr_queue=None, fo
     #TODO:mark job as not running if still marked?
     #TODO:normalize job termination and cleanup outside of handle_run()?
 
-def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False):
+def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False, clear_pid=False):
     try:
         
         # TODO: auto-kill inactive long-running cron processes whose
@@ -281,8 +281,6 @@ class Command(BaseCommand):
     )
     
     def handle(self, *args, **options):
-        pid_fn = settings.CHRONIKER_PID_FN
-        clear_pid = False
         
         kill_stalled_processes(dryrun=False)
         
