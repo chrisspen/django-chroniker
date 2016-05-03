@@ -1488,7 +1488,7 @@ class Log(models.Model):
                 base_url = 'http://' + current_site.domain
         
         if base_url:
-            admin_link = settings.BASE_SECURE_URL \
+            admin_link = base_url \
                 + utils.get_admin_change_url(self.job)
             body = 'To manage this job please visit: ' \
                 + admin_link + '\n\n' + body
