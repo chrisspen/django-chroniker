@@ -19,7 +19,7 @@ from multiprocessing import Process, Queue
 
 import psutil
 
-from chroniker.models import Job, Log, order_by_dependencies
+from chroniker.models import Job, Log
 from chroniker import constants as c
 from chroniker import utils
 

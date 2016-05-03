@@ -21,7 +21,7 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from django.conf import settings
 
-from chroniker.models import Job, Log, order_by_dependencies
+from chroniker.models import Job, Log
 from chroniker.tests.commands import Sleeper, InfiniteWaiter, ErrorThrower
 from chroniker.management.commands.cron import run_cron
 from chroniker import utils
@@ -66,7 +66,7 @@ class JobTestCase(TestCase):
             time_end = time.time()
             
             time_taken = time_end - time_start
-            self.assertAlmostEqual(time_taken, time_expected, delta=4)
+            self.assertTrue(time_taken >= time_expected)
     
     def testCronCommand(self):
         """
@@ -126,9 +126,14 @@ class JobTestCase(TestCase):
         3 dependent on 4
         """
         
+        # 1 comes before 2
+        # 3 comes before 2
+        # 4 comes before 3
         j1 = Job.objects.get(id=1)
         j2 = Job.objects.get(id=2)# needs j1 and j3
+        self.assertEqual(j2.dependencies.all().count(), 2)
         j3 = Job.objects.get(id=3)# need j4
+        self.assertEqual(j3.dependencies.all().count(), 1)
         j4 = Job.objects.get(id=4)
         j5 = Job.objects.get(id=5)
         j6 = Job.objects.get(id=6)
@@ -160,26 +165,32 @@ class JobTestCase(TestCase):
         self.assertEqual(j2.dependencies.filter(dependee=j1).count(), 1)
         self.assertEqual(j2.dependencies.filter(dependee=j3).count(), 1)
         
-        jobs = sorted(
-            Job.objects.filter(enabled=True),
-            key=cmp_to_key(order_by_dependencies))
+        jobs = Job.objects.ordered_by_dependencies(Job.objects.filter(enabled=True))
 #        for job in jobs:
 #            print(job, [_.dependee for _ in job.dependencies.all()])
-        print('jobs:', jobs)
-        self.assertEqual(jobs, [j1, j6, j4, j3, j2])
+        print('jobs:', [_.id for _ in jobs])
+        
+        # 1 comes before 2
+        self.assertTrue(jobs.index(j1) < jobs.index(j2))
+        
+        # 3 comes before 2
+        self.assertTrue(jobs.index(j3) < jobs.index(j2))
+        
+        # 4 comes before 3
+        self.assertTrue(jobs.index(j4) < jobs.index(j3))
         
         # Ensure all dependent jobs come after their dependee job.
         due = Job.objects.due_with_met_dependencies_ordered()
-        print('due:', due)
-        self.assertEqual(
-            due,
-            [
-                Job.objects.get(id=1),
-                Job.objects.get(id=6),
-                Job.objects.get(id=4),
-                Job.objects.get(id=3),# depends on 4
-                Job.objects.get(id=2),# depends on 1 and 3
-            ])
+        print('due:', [_.id for _ in due])
+        
+        # 1 comes before 2
+        self.assertTrue(due.index(j1) < jobs.index(j2))
+        
+        # 3 comes before 2
+        self.assertTrue(due.index(j3) < jobs.index(j2))
+        
+        # 4 comes before 3
+        self.assertTrue(due.index(j4) < jobs.index(j3))
         
         # Note, possible bug? call_command() causes all models
         # changes made within the command to be lost.

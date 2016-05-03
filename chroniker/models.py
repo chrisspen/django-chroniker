@@ -65,6 +65,8 @@ except AttributeError:
     # >= Django 1.8
     commit_on_success = transaction.atomic
 
+from toposort import toposort_flatten
+
 import chroniker.constants as const
 from chroniker import utils
 
@@ -72,25 +74,6 @@ logger = logging.getLogger('chroniker.models')
 
 _state = {} # {thread_ident:job_id}
 _state_heartbeat = {} # {thread_ident:heartbeat thread object}
-
-def order_by_dependencies(j1, j2):
-    """
-    Compares jobs so that jobs that are depended upon by another
-    process are ordered first.
-    """
-    # Return negative if x<y, zero if x==y, positive if x>y.
-    # If j1 depends on the completion of j2 then order j2 first.
-    if j1.dependencies.filter(dependee=j2).count():
-        ret = 1
-    elif j1.dependents.filter(dependent=j2).count():
-        ret = -1
-    elif j2.dependencies.filter(dependee=j1).count():
-        ret = -1
-    elif j2.dependents.filter(dependent=j1).count():
-        ret = 1
-    else:
-        ret = j1.id < j2.id
-    return ret
 
 def get_current_job():
     """
@@ -324,11 +307,13 @@ class JobManager(models.Manager):
             q = q.filter(id=job.id)
         return q
 
-    def due_with_met_dependencies(self, jobs=[]):
+    def due_with_met_dependencies(self, jobs=None):
         """
         Iterates over the results of due(), ignoring jobs
         that are dependent on another job that is also due.
         """
+        
+        jobs = jobs or []
         
         # Fixes the "Lost connection to MySQL server during query" error when
         # called from cron command?
@@ -372,13 +357,26 @@ class JobManager(models.Manager):
             
             yield job
 
-    def due_with_met_dependencies_ordered(self, jobs=[]):
+    def due_with_met_dependencies_ordered(self, jobs=None):
         """
         Returns a list of jobs sorted by dependency, with dependents after
         all their dependees.
         """
-        lst = list(self.due_with_met_dependencies(jobs=jobs))
-        lst.sort(key=cmp_to_key(order_by_dependencies))
+        data = dict(
+            (j.id, set([_.dependee.id for _ in j.dependencies.all()]))
+            for j in self.due_with_met_dependencies(jobs=jobs))
+        lst = toposort_flatten(data)
+        lst = [Job.objects.get(id=_) for _ in lst]
+        return lst
+
+    def ordered_by_dependencies(self, jobs=None):
+        """
+        Orders the given jobs so that all dependents are ordered after their dependencies.
+        """
+        jobs = jobs or []
+        data = dict((j.id, set([_.dependee.id for _ in j.dependencies.all()])) for j in jobs)
+        lst = toposort_flatten(data)
+        lst = [Job.objects.get(id=_) for _ in lst]
         return lst
 
     def stale(self):
