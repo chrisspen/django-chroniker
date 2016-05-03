@@ -88,7 +88,7 @@ class JobTestCase(TestCase):
         time_end = time.time()
         
         time_taken = time_end - time_start
-        self.assertAlmostEqual(time_taken, time_expected, delta=3.5)
+        self.assertTrue(time_taken >= time_expected)
     
     def testCronCleanCommand(self):
         """
