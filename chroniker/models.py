@@ -1474,8 +1474,8 @@ class Log(models.Model):
         and self.job.monitor_error_template:
             body = Template(self.job.monitor_error_template).render(c)
         else:
-            body = "Ouput:\n%s\nError output:\n%s" % (self.stdout, self.stderr)
-        
+            body = "Ouput:\n%s\nError output:\n%s" % (self.stdout.decode('utf-8'), self.stderr.decode('utf-8'))
+
         base_url = None
         if hasattr(settings, 'BASE_SECURE_URL'):
             base_url = settings.BASE_SECURE_URL
