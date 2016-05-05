@@ -168,7 +168,7 @@ class JobTestCase(TestCase):
         jobs = Job.objects.ordered_by_dependencies(Job.objects.filter(enabled=True))
 #        for job in jobs:
 #            print(job, [_.dependee for _ in job.dependencies.all()])
-        print('jobs:', [_.id for _ in jobs])
+        print('jobs1:', [_.id for _ in jobs])
         
         # 1 comes before 2
         self.assertTrue(jobs.index(j1) < jobs.index(j2))
@@ -181,7 +181,7 @@ class JobTestCase(TestCase):
         
         # Ensure all dependent jobs come after their dependee job.
         due = Job.objects.due_with_met_dependencies_ordered()
-        print('due:', [_.id for _ in due])
+        print('dueA:', [_.id for _ in due])
         
         # 1 comes before 2
         self.assertTrue(due.index(j1) < jobs.index(j2))
@@ -203,7 +203,7 @@ class JobTestCase(TestCase):
         
         Job.objects.update()
         due = list(Job.objects.due_with_met_dependencies())
-        print('due:', due)
+        print('dueB:', due)
         self.assertEqual(
             due,
             [
@@ -215,7 +215,7 @@ class JobTestCase(TestCase):
         
         Job.objects.update()
         due = list(Job.objects.due_with_met_dependencies())
-        print('due:', due)
+        print('dueC:', due)
         self.assertEqual(
             due,
             [
