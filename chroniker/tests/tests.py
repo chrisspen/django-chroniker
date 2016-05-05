@@ -201,6 +201,9 @@ class JobTestCase(TestCase):
         for job in due:
             job.run(update_heartbeat=0)
         
+        # Everything just ran, and they shouldn't run again for an hour, so we should
+        # find nothing due.
+        Job.objects.update(is_running=False, last_heartbeat=timezone.now())
         Job.objects.update()
         due = list(Job.objects.due_with_met_dependencies())
         print('dueB:', due)
@@ -271,6 +274,7 @@ class JobTestCase(TestCase):
         Job.objects.end_all_stale()
         
         while 1:
+            proc.terminate()
             time.sleep(1)
             if not proc.is_alive():
                 break
