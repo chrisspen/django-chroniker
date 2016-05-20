@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='job',
             name='hostname',
-            field=models.CharField(max_length=700, blank=True, help_text='If given, ensures the job is only run on the server with the equivalent host name.<br/>Not setting any hostname will cause the job to be run on the first server that processes pending jobs.<br/> e.g. The hostname of this server is <b>7910f538ac86</b>.', null=True, verbose_name='target hostname'),
+            field=models.CharField(max_length=700, blank=True, help_text=chroniker.models.Job.hostname_help_text_setter, null=True, verbose_name='target hostname'),
         ),
         migrations.AlterField(
             model_name='job',

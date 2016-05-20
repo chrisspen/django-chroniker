@@ -568,17 +568,20 @@ class Job(models.Model):
         help_text=_('''When non-zero, the job will be forcibly killed if
             running for more than this amount of time.'''))
     
+    def hostname_help_text_setter():
+        return _('If given, ensures the job is only run on the server ' + \
+                 'with the equivalent host name.<br/>Not setting any hostname ' + \
+                 'will cause the job to be run on the first server that ' + \
+                 'processes pending jobs.<br/> ' + \
+                 'e.g. The hostname of this server is <b>%s</b>.') \
+                 % socket.gethostname()
+
     hostname = models.CharField(
         max_length=700,
         blank=True,
         null=True,
         verbose_name='target hostname',
-        help_text=_('If given, ensures the job is only run on the server ' + \
-            'with the equivalent host name.<br/>Not setting any hostname ' + \
-            'will cause the job to be run on the first server that ' + \
-            'processes pending jobs.<br/> ' + \
-            'e.g. The hostname of this server is <b>%s</b>.') \
-            % socket.gethostname())
+        help_text=hostname_help_text_setter)
     
     current_hostname = models.CharField(
         max_length=700,
