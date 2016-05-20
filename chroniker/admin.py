@@ -8,7 +8,7 @@ DJANGO_VERSION = StrictVersion(django.get_version())
 
 from django import forms
 from django.conf import settings
-from django.conf.urls import patterns, url
+from django.conf.urls import url
 from django.contrib import admin
 from django.core.management import get_commands
 from django.core.urlresolvers import reverse, NoReverseMatch
@@ -410,7 +410,7 @@ class JobAdmin(admin.ModelAdmin):
     
     def get_urls(self):
         urls = super(JobAdmin, self).get_urls()
-        my_urls = patterns('',
+        my_urls = [
             url(r'^(.+)/run/$',
                 self.admin_site.admin_view(self.run_job_view),
                 name="chroniker_job_run"),
@@ -420,7 +420,7 @@ class JobAdmin(admin.ModelAdmin):
             url(r'^(.+)/graph/duration/$',
                 self.admin_site.admin_view(self.view_duration_graph),
                 name='chroniker_job_duration_graph'),
-        )
+        ]
         return my_urls + urls
     
     def run_selected_jobs(self, request, queryset):
@@ -605,7 +605,7 @@ class LogAdmin(admin.ModelAdmin):
     
     def get_urls(self):
         urls = super(LogAdmin, self).get_urls()
-        my_urls = patterns('',
+        my_urls = [
             url(r'^(?P<log_id>[0-9]+)/stdout/?$',
                 self.admin_site.admin_view(self.view_full_stdout),
                 name='chroniker_log_stdout'
@@ -614,7 +614,7 @@ class LogAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.view_full_stderr),
                 name='chroniker_log_stderr'
             ),
-        )
+        ]
         return my_urls + urls
     
     def job_name(self, obj):
@@ -757,14 +757,14 @@ class MonitorAdmin(admin.ModelAdmin):
     
     def get_urls(self):
         urls = super(MonitorAdmin, self).get_urls()
-        my_urls = patterns('',
+        my_urls = [
             url(r'^(.+)/run/$',
                 self.admin_site.admin_view(self.run_job_view),
                 name="chroniker_job_run"),
 #            url(r'^(.+)/stop/$',
 #                self.admin_site.admin_view(self.stop_job_view),
 #                name="chroniker_job_stop"),
-        )
+        ]
         return my_urls + urls
 
 admin.site.register(Monitor, MonitorAdmin)
