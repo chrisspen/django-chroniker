@@ -7,6 +7,7 @@ from django.db import migrations, models
 import django.db.models.deletion
 import django.utils.timezone
 
+import chroniker
 
 class Migration(migrations.Migration):
 
@@ -22,7 +23,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('name', models.CharField(max_length=200, verbose_name='name')),
-                ('frequency', models.CharField(choices=[(b'YEARLY', 'Yearly'), (b'MONTHLY', 'Monthly'), (b'WEEKLY', 'Weekly'), (b'DAILY', 'Daily'), (b'HOURLY', 'Hourly'), (b'MINUTELY', 'Minutely'), (b'SECONDLY', 'Secondly')], max_length=10, verbose_name='frequency')),
+                ('frequency', models.CharField(choices=[('YEARLY', 'Yearly'), ('MONTHLY', 'Monthly'), ('WEEKLY', 'Weekly'), ('DAILY', 'Daily'), ('HOURLY', 'Hourly'), ('MINUTELY', 'Minutely'), ('SECONDLY', 'Secondly')], max_length=10, verbose_name='frequency')),
                 ('params', models.TextField(blank=True, help_text='Comma-separated list of <a href="http://labix.org/python-dateutil" target="_blank">rrule parameters</a>. e.g: interval:15', null=True, verbose_name='params')),
                 ('command', models.CharField(blank=True, help_text='A valid django-admin command to run.', max_length=200, verbose_name='command')),
                 ('args', models.CharField(blank=True, help_text='Space separated list; e.g: arg1 option1=True', max_length=200, verbose_name='args')),
@@ -40,17 +41,17 @@ class Migration(migrations.Migration):
                 ('force_run', models.BooleanField(default=False, help_text='If checked, then this job will be run immediately.')),
                 ('force_stop', models.BooleanField(default=False, help_text='If checked, and running then this job will be stopped.')),
                 ('timeout_seconds', models.PositiveIntegerField(default=0, help_text='When non-zero, the job will be forcibly killed if\n            running for more than this amount of time.')),
-                ('hostname', models.CharField(blank=True, help_text='If given, ensures the job is only run on the server with the equivalent host name.<br/>Not setting any hostname will cause the job to be run on the first server that processes pending jobs.<br/> e.g. The hostname of this server is <b>charmion</b>.', max_length=700, null=True, verbose_name=b'target hostname')),
+                ('hostname', models.CharField(blank=True, help_text=chroniker.models.hostname_help_text_setter, max_length=700, null=True, verbose_name='target hostname')),
                 ('current_hostname', models.CharField(blank=True, editable=False, help_text='The name of the host currently running the job.', max_length=700, null=True)),
                 ('current_pid', models.CharField(blank=True, db_index=True, editable=False, help_text='The ID of the process currently running the job.', max_length=50, null=True)),
                 ('total_parts_complete', models.PositiveIntegerField(default=0, editable=False, help_text='The total number of complete parts.')),
                 ('total_parts', models.PositiveIntegerField(default=0, editable=False, help_text='The total number of parts of the task.')),
                 ('is_monitor', models.BooleanField(default=False, help_text='If checked, will appear in the monitors section.')),
                 ('monitor_url', models.CharField(blank=True, help_text='URL provided to further explain the monitor.', max_length=255, null=True)),
-                ('monitor_error_template', models.TextField(blank=True, default=b'\nThe monitor "{{ job.name }}" has indicated a problem.\n\nPlease review this monitor at {{ url }}\n\n{{ job.monitor_description_safe }}\n\n{{ stderr }}\n', help_text='If this is a monitor, this is the template used to compose the error text email.<br/>Available variables: {{ job }} {{ stderr }} {{ url }}', null=True)),
+                ('monitor_error_template', models.TextField(blank=True, default='\nThe monitor "{{ job.name }}" has indicated a problem.\n\nPlease review this monitor at {{ url }}\n\n{{ job.monitor_description_safe }}\n\n{{ stderr }}\n', help_text='If this is a monitor, this is the template used to compose the error text email.<br/>Available variables: {{ job }} {{ stderr }} {{ url }}', null=True)),
                 ('monitor_description', models.TextField(blank=True, help_text="An explanation of the monitor's purpose.", null=True)),
                 ('monitor_records', models.IntegerField(blank=True, editable=False, help_text='The number of records that need attention.', null=True)),
-                ('maximum_log_entries', models.PositiveIntegerField(default=1000, help_text=b'The maximum number of most recent log entries to keep.<br/>A value of 0 keeps all log entries.')),
+                ('maximum_log_entries', models.PositiveIntegerField(default=1000, help_text='The maximum number of most recent log entries to keep.<br/>A value of 0 keeps all log entries.')),
                 ('log_stdout', models.BooleanField(default=True, help_text='If checked, all characters printed to stdout will be\n            saved in a log record.')),
                 ('log_stderr', models.BooleanField(default=True, help_text='If checked, all characters printed to stderr will be\n            saved in a log record.')),
                 ('subscribers', models.ManyToManyField(blank=True, related_name='subscribed_jobs', to=settings.AUTH_USER_MODEL)),
@@ -63,11 +64,11 @@ class Migration(migrations.Migration):
             name='JobDependency',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('wait_for_completion', models.BooleanField(default=True, help_text=b'If checked, the dependent job will not run until the dependee job has completed.')),
-                ('wait_for_success', models.BooleanField(default=True, help_text=b'If checked, the dependent job will not run until the dependee job has completed successfully.')),
-                ('wait_for_next_run', models.BooleanField(default=True, help_text=b'If checked, the dependent job will not run until the dependee job has a next_run greater than its next_run.')),
-                ('dependee', models.ForeignKey(help_text=b'The thing that has other jobs waiting on it to complete.', on_delete=django.db.models.deletion.CASCADE, related_name='dependents', to='chroniker.Job')),
-                ('dependent', models.ForeignKey(help_text=b'The thing that cannot run until another job completes.', on_delete=django.db.models.deletion.CASCADE, related_name='dependencies', to='chroniker.Job')),
+                ('wait_for_completion', models.BooleanField(default=True, help_text='If checked, the dependent job will not run until the dependee job has completed.')),
+                ('wait_for_success', models.BooleanField(default=True, help_text='If checked, the dependent job will not run until the dependee job has completed successfully.')),
+                ('wait_for_next_run', models.BooleanField(default=True, help_text='If checked, the dependent job will not run until the dependee job has a next_run greater than its next_run.')),
+                ('dependee', models.ForeignKey(help_text='The thing that has other jobs waiting on it to complete.', on_delete=django.db.models.deletion.CASCADE, related_name='dependents', to='chroniker.Job')),
+                ('dependent', models.ForeignKey(help_text='The thing that cannot run until another job completes.', on_delete=django.db.models.deletion.CASCADE, related_name='dependencies', to='chroniker.Job')),
             ],
             options={
                 'verbose_name_plural': 'job dependencies',
@@ -79,7 +80,7 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('run_start_datetime', models.DateTimeField(db_index=True, default=django.utils.timezone.now, editable=False)),
                 ('run_end_datetime', models.DateTimeField(blank=True, db_index=True, editable=False, null=True)),
-                ('duration_seconds', models.PositiveIntegerField(blank=True, db_index=True, editable=False, null=True, verbose_name=b'duration (total seconds)')),
+                ('duration_seconds', models.PositiveIntegerField(blank=True, db_index=True, editable=False, null=True, verbose_name='duration (total seconds)')),
                 ('stdout', models.TextField(blank=True)),
                 ('stderr', models.TextField(blank=True)),
                 ('hostname', models.CharField(blank=True, editable=False, help_text='The hostname this job was executed on.', max_length=700, null=True)),

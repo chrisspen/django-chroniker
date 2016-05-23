@@ -11,6 +11,14 @@ from functools import cmp_to_key
 socket.gethostname = lambda: 'localhost'
 
 import six
+try:
+    from io import StringIO
+except ImportError:
+    from cStringIO import StringIO
+try:
+    from io import BytesIO
+except ImportError:
+    BytesIO = StringIO
 
 import django
 from django.core.management import call_command
@@ -413,4 +421,28 @@ class JobTestCase(TestCase):
             call_command('loaddatanaturally', 'chroniker/tests/fixtures/jobs_by_command_args.json', traceback=True, verbosity=1)
             qs = Job.objects.all()
             self.assertEqual(qs.count(), 3)
+    
+    def testMigration(self):
+        """
+        Ensure we can apply our initial migration without getting the error:
+        
+            Your models have changes that are not yet reflected in a migration, and so won't be applied.
             
+        caused by various Django+Python versions having incompatible migration representations.
+        """
+        if django.VERSION > (1, 7, 0):
+            ran = False
+            for stdout_cls in (BytesIO, StringIO):
+                stdout = stdout_cls()
+                try:
+                    call_command('migrate', 'chroniker', traceback=True, stdout=stdout)
+                except TypeError:
+                    continue
+                ran = True
+                stdout.seek(0)
+                stdout = stdout.read()
+                print('ret:', stdout)
+                self.assertFalse('Your models have changes' in stdout)
+                break
+            self.assertTrue(ran)
+        

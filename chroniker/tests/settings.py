@@ -38,9 +38,8 @@ class DisableMigrations(object):
     def __getitem__(self, item):
         return "notmigrations"
 SOUTH_TESTS_MIGRATE = False # <= Django 1.8
-#if django.VERSION > (1, 8, 0): # > Django 1.8
-if django.VERSION > (1, 7, 0): # > Django 1.8 
-    MIGRATION_MODULES = DisableMigrations()
+# if django.VERSION > (1, 7, 0): # > Django 1.8 
+#     MIGRATION_MODULES = DisableMigrations()
 
 USE_TZ = True
 

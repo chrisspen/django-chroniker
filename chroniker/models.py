@@ -113,6 +113,14 @@ def set_current_heartbeat(obj):
     if thread_ident not in _state_heartbeat:
         _state_heartbeat[thread_ident] = obj
 
+def hostname_help_text_setter():
+    return _('If given, ensures the job is only run on the server ' + \
+             'with the equivalent host name.<br/>Not setting any hostname ' + \
+             'will cause the job to be run on the first server that ' + \
+             'processes pending jobs.<br/> ' + \
+             'e.g. The hostname of this server is <b>%s</b>.') \
+             % socket.gethostname()
+
 class JobHeartbeatThread(threading.Thread):
     """
     A very simple thread that updates a temporary "lock" file every second.
@@ -567,19 +575,14 @@ class Job(models.Model):
         null=False,
         help_text=_('''When non-zero, the job will be forcibly killed if
             running for more than this amount of time.'''))
-    
+
     hostname = models.CharField(
         max_length=700,
         blank=True,
         null=True,
         verbose_name='target hostname',
-        help_text=_('If given, ensures the job is only run on the server ' + \
-            'with the equivalent host name.<br/>Not setting any hostname ' + \
-            'will cause the job to be run on the first server that ' + \
-            'processes pending jobs.<br/> ' + \
-            'e.g. The hostname of this server is <b>%s</b>.') \
-            % socket.gethostname())
-    
+        help_text=hostname_help_text_setter)
+        
     current_hostname = models.CharField(
         max_length=700,
         blank=True,
