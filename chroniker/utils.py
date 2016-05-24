@@ -9,6 +9,8 @@ import subprocess
 import warnings
 import errno
 
+from importlib import import_module
+
 from datetime import timedelta
 #from StringIO import StringIO
 try:
@@ -456,4 +458,31 @@ def write_lock(lock_file):
     lock_file.seek(0)
     lock_file.write(str(time.time()).encode('utf-8'))
     lock_file.flush()
+
+# Backportted from Django 1.7.
+def import_string(dotted_path):
+    """
+    Import a dotted module path and return the attribute/class designated by the
+    last name in the path. Raise ImportError if the import failed.
+    """
     
+    try:
+        from django.utils.module_loading import import_string
+        return import_string(dotted_path)
+    except ImportError:
+        pass
+        
+    try:
+        module_path, class_name = dotted_path.rsplit('.', 1)
+    except ValueError:
+        msg = "%s doesn't look like a module path" % dotted_path
+        six.reraise(ImportError, ImportError(msg), sys.exc_info()[2])
+
+    module = import_module(module_path)
+
+    try:
+        return getattr(module, class_name)
+    except AttributeError:
+        msg = 'Module "%s" does not define a "%s" attribute/class' % (
+            dotted_path, class_name)
+        six.reraise(ImportError, ImportError(msg), sys.exc_info()[2])

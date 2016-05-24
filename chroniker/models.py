@@ -69,6 +69,7 @@ from toposort import toposort_flatten
 
 import chroniker.constants as const
 from chroniker import utils
+from chroniker.utils import import_string
 
 logger = logging.getLogger('chroniker.models')
 
@@ -1308,6 +1309,14 @@ class Job(models.Model):
                 else:
                     if self.email_errors_to_subscribers:
                         log.email_subscribers()
+            except Exception as e:
+                print(e, file=sys.stderr)
+                
+            # Call error callback.
+            try:
+                if not last_run_successful and settings.CHRONIKER_JOB_ERROR_CALLBACK:
+                    cb = import_string(settings.CHRONIKER_JOB_ERROR_CALLBACK)
+                    cb(self, stdout=stdout_str, stderr=stderr_str)
             except Exception as e:
                 print(e, file=sys.stderr)
             

@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import os
+import sys
 import datetime
 from datetime import timedelta
 import time
@@ -39,6 +40,13 @@ import warnings
 warnings.simplefilter('error', RuntimeWarning)
 
 from multiprocessing import Process
+
+CALLBACK_ERRORS = []
+
+def job_error_callback(job, stdout, stderr):
+    print('Error for job %s' % job)
+    print(stderr, file=sys.stderr)
+    CALLBACK_ERRORS.append(stderr)
 
 class JobProcess(Process):
     
@@ -445,4 +453,21 @@ class JobTestCase(TestCase):
                 self.assertFalse('Your models have changes' in stdout)
                 break
             self.assertTrue(ran)
+    
+    def testErrorCallback(self):
+        
+        while CALLBACK_ERRORS:
+            CALLBACK_ERRORS.pop(0)
+        self.assertFalse(CALLBACK_ERRORS)
+        
+        job = Job.objects.get(id=6)
+        job.frequency = c.MINUTELY
+        job.force_run = True
+        job.enabled = True
+        job.save()
+        
+        self.assertEqual(job.logs.all().count(), 0)
+        job.run(update_heartbeat=0)
+        self.assertEqual(job.logs.all().count(), 1)
+        self.assertEqual(len(CALLBACK_ERRORS), 1)
         

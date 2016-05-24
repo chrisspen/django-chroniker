@@ -109,4 +109,8 @@ settings.CHRONIKER_JOB_NK = getattr(
     settings,
     'CHRONIKER_JOB_NK',
     ('name',))
-    
+
+settings.CHRONIKER_JOB_ERROR_CALLBACK = getattr(
+    settings,
+    'CHRONIKER_JOB_ERROR_CALLBACK',
+    None)

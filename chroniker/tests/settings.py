@@ -62,3 +62,5 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.locale.LocaleMiddleware',    
 )
+
+CHRONIKER_JOB_ERROR_CALLBACK = 'chroniker.tests.tests.job_error_callback'
