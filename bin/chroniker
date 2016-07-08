@@ -58,7 +58,8 @@ if __name__ == "__main__":
     # If we're supposed to be running in a virtualenv, activate it
     if args.virtualenv:
         virtualenv = os.path.abspath(args.virtualenv)
-        execfile(virtualenv, dict(__file__=virtualenv))
+        assert os.path.isfile(virtualenv), 'Virtualenv file "%s" does not exist.' % virtualenv
+        exec(open(virtualenv).read(), dict(__file__=virtualenv))
     
     # Now setup django
     project_dir = args.project_dir
@@ -102,10 +103,18 @@ if __name__ == "__main__":
         django.setup()
     from django.core.management import call_command
     
-    try:
-        settings = __import__(os.environ['DJANGO_SETTINGS_MODULE'])
-    except:
-        sys.stderr.write("Error: Could not find Django settings\n")
-        sys.exit(0)
+    for extra_path in [None, '.', '..']:
+        try:
+            if extra_path:
+                # If the previous import failed, try checking a few additional paths.
+                sys.path.append(extra_path)
+            settings = __import__(os.environ['DJANGO_SETTINGS_MODULE'])
+            break
+        except Exception as e:
+            if extra_path == '..':
+                sys.stderr.write("Error: Could not find Django settings\n")
+                sys.stderr.write(str(e))
+                sys.stderr.write(str('\n'))
+                sys.exit(0)
     
     call_command('cron', jobs=jobs)
