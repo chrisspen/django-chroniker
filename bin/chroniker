@@ -74,7 +74,7 @@ if __name__ == "__main__":
         sys.path.append(os.path.join(project_dir, '../'))
         
     settings = args.settings
-    if not settings and not os.environ.has_key('DJANGO_SETTINGS_MODULE'):
+    if not settings and 'DJANGO_SETTINGS_MODULE' not in os.environ:
         if not project_dir:
             # Well, we can't do anything...
             logger.error(INVALID_SETTINGS_ERROR)
@@ -86,10 +86,6 @@ if __name__ == "__main__":
     # Now assign the settings if necessary.
     if settings:
         os.environ['DJANGO_SETTINGS_MODULE'] = settings
-        
-#    if not os.environ.has_key('DJANGO_SETTINGS_MODULE'):
-#        logger.error(INVALID_SETTINGS_ERROR)
-#        sys.exit(0)
     
     jobs = args.jobs#(args.jobs or '').split(',')
     
