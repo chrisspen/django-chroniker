@@ -475,10 +475,10 @@ class Job(models.Model):
         null=True,
         blank=True,
         help_text=_(
-            'Comma-separated list of '
+            'Semicolon-separated list of '
             '<a href="http://labix.org/python-dateutil" '
             'target="_blank">rrule parameters</a>. '
-            'e.g: interval:15'))
+            'e.g: interval:15;byhour:7,8,9'))
     
     command = models.CharField(
         _("command"),
