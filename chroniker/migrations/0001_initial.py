@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('name', models.CharField(max_length=200, verbose_name='name')),
                 ('frequency', models.CharField(choices=[('YEARLY', 'Yearly'), ('MONTHLY', 'Monthly'), ('WEEKLY', 'Weekly'), ('DAILY', 'Daily'), ('HOURLY', 'Hourly'), ('MINUTELY', 'Minutely'), ('SECONDLY', 'Secondly')], max_length=10, verbose_name='frequency')),
-                ('params', models.TextField(blank=True, help_text='Comma-separated list of <a href="http://labix.org/python-dateutil" target="_blank">rrule parameters</a>. e.g: interval:15', null=True, verbose_name='params')),
+                ('params', models.TextField(blank=True, help_text='Semicolon-separated list of <a href="http://labix.org/python-dateutil" target="_blank">rrule parameters</a>. e.g: interval:15;byhour:7,8,9', null=True, verbose_name='params')),
                 ('command', models.CharField(blank=True, help_text='A valid django-admin command to run.', max_length=200, verbose_name='command')),
                 ('args', models.CharField(blank=True, help_text='Space separated list; e.g: arg1 option1=True', max_length=200, verbose_name='args')),
                 ('raw_command', models.CharField(blank=True, help_text='The raw shell command to run.\n            This is mutually exclusive with `command`.', max_length=1000, null=True, verbose_name='raw command')),
