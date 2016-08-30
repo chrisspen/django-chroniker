@@ -1,0 +1,10 @@
+site_name: Django Chroniker
+
+site_author: Chris Spencer
+
+repo_url: https://github.com/chrisspen/django-chroniker
+
+theme: readthedocs
+
+pages:
+-   Home: index.md
