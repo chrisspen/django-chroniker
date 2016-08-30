@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <meta name="author" content="Chris Spencer">
+  
+  <title>Django Chroniker</title>
+  
+
+  <link rel="shortcut icon" href="./img/favicon.ico">
+
+  
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  <link rel="stylesheet" href="./css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="./css/theme_extra.css" type="text/css" />
+  <link rel="stylesheet" href="./css/highlight.css">
+
+  
+  <script>
+    // Current page data
+    var mkdocs_page_name = "None";
+    var mkdocs_page_input_path = "index.md";
+    var mkdocs_page_url = "/";
+  </script>
+  
+  <script src="./js/jquery-2.1.1.min.js"></script>
+  <script src="./js/modernizr-2.8.3.min.js"></script>
+  <script type="text/javascript" src="./js/highlight.pack.js"></script>
+  <script src="./js/theme.js"></script> 
+
+  
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+      <div class="wy-side-nav-search">
+        <a href="." class="icon icon-home"> Django Chroniker</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <ul class="current">
+          
+            <li>
+    <li class="toctree-l1 current">
+        <a class="current" href=".">Home</a>
+        
+            <ul>
+            
+                <li class="toctree-l3"><a href="#overview">Overview</a></li>
+                
+            
+                <li class="toctree-l3"><a href="#features">Features</a></li>
+                
+            
+                <li class="toctree-l3"><a href="#installation">Installation</a></li>
+                
+            
+                <li class="toctree-l3"><a href="#usage">Usage</a></li>
+                
+            
+                <li class="toctree-l3"><a href="#settings">Settings</a></li>
+                
+            
+                <li class="toctree-l3"><a href="#maintenance">Maintenance</a></li>
+                
+            
+                <li class="toctree-l3"><a href="#tools">Tools</a></li>
+                
+            
+                <li class="toctree-l3"><a href="#architecture">Architecture</a></li>
+                
+            
+                <li class="toctree-l3"><a href="#development">Development</a></li>
+                
+            
+            </ul>
+        
+    </li>
+<li>
+          
+        </ul>
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href=".">Django Chroniker</a>
+      </nav>
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".">Docs</a> &raquo;</li>
+    
+      
+    
+    <li>Home</li>
+    <li class="wy-breadcrumbs-aside">
+      
+        
+          <a href="https://github.com/chrisspen/django-chroniker" class="icon icon-github"> Edit on GitHub</a>
+        
+      
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            <div class="section">
+              
+                <p><img alt="Build Status" src="https://secure.travis-ci.org/chrisspen/django-chroniker.png?branch=master" /></p>
+<h2 id="overview">Overview</h2>
+<p>Django Chroniker is a Python package that allows
+you to use cron to schedule Django management commands through Django's admin.</p>
+<p>Creating cron jobs for Django apps can be a pain, annoying and repetitive.
+With django-chroniker you simply create a single cron job to run every minute,
+point it at your site's directory and run <code>manage.py cron</code>.
+Then, you can create, update and delete jobs through Django's admin.</p>
+<p>This is a fork of Weston Nielson's <a href="https://bitbucket.org/wnielson/django-chronograph/">Chronograph</a> project.</p>
+<h2 id="features">Features</h2>
+<p>This package contains the following improvements over the parent Chronograph project:</p>
+<ul>
+<li>
+<p>Allow Django management commands to record their percent-progress and display it in admin. e.g.</p>
+<pre><code>from chroniker.models import Job
+Job.update_progress(total_parts=77, total_parts_complete=13)
+</code></pre>
+</li>
+<li>
+<p>Improved logging of management command stdout and stderr, and efficiently displaying these in admin.</p>
+</li>
+<li>Creation of the <code>Monitor</code> model, a proxy of the <code>Job</code> model, to allow easier setup of system and database state monitoring.</li>
+<li>Addition of a model for documenting inter-job dependencies as well as flags for controlling job behavior based on these dependencies. e.g. You can configure one job to not run until another job has successfully run, or run at a later date.</li>
+<li>Improved support for coordinating job execution in a multi-server environment. e.g. You can configure a job to only run on a specific host or any host.</li>
+</ul>
+<p>Unlike some scheduling systems, Chroniker attempts to ensure that every job may
+have at most only one running instance at any given time. This greatly
+simplifies scheduling, but necessarily imposes some restrictions. If you need
+to schedule multiple instances of a task to run simultaneously, especially in
+real-time, consider using a system like <a href="http://www.celeryproject.org/">Celery</a>
+instead.</p>
+<h2 id="installation">Installation</h2>
+<p>Install the package from PyPI via pip with:</p>
+<pre><code>pip install django-chroniker
+</code></pre>
+<p>or directly from github with (warning, this may be less stable than the official release on PyPI):</p>
+<pre><code>pip install https://github.com/chrisspen/django-chroniker/tarball/master
+</code></pre>
+<p>Add 'chroniker' and 'django.contrib.sites' to the INSTALLED_APPS list in your settings.py.</p>
+<p>If you're using Django 1.7 or higher (which you should be), install Chroniker's models by running:</p>
+<pre><code>python manage.py migrate
+</code></pre>
+<p>otherwise run:</p>
+<pre><code>python manage.py syncdb
+</code></pre>
+<h2 id="usage">Usage</h2>
+<p>In your admin, creating and jobs under the Chroniker section.</p>
+<p>If you're in a development setting, you can test your Chroniker-based cron jobs by first checking "force run" on your job, and then running:</p>
+<pre><code>python manage.py cron
+</code></pre>
+<p>Also, you can simulate a simple cron server that will automatically run any pending cron jobs every N seconds with:</p>
+<pre><code>python manage.py cronserver
+</code></pre>
+<p>To allow Chroniker can send email, ensure you have valid email parameters in your settings.py. A very basic example using Gmail might be:</p>
+<pre><code>EMAIL_USE_TLS = True
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_HOST_USER = 'myusername@gmail.com'
+EMAIL_HOST_PASSWORD = os.environ['GMAILPASS']
+</code></pre>
+<p>You can customize the "name" Chroniker uses in its emails with:</p>
+<pre><code>CHRONIKER_EMAIL_SENDER = 'Jon Doe'
+</code></pre>
+<p>You can also specify a separate email user for Chroniker with:</p>
+<pre><code>CHRONIKER_EMAIL_HOST_USER = 'someotherusername@otherdomain.com'
+</code></pre>
+<p>When installing Chroniker in a production environment, you'll need to add a single cron job that calls <code>bin/chroniker</code> or <code>python manage.py cron</code>.
+Within the call, you'll need to specify where this script is installed, where your Python virtual environment is located (if you're using one), and where your Django project is located.
+An example of this might be: </p>
+<pre><code>* * * * * /usr/local/myproject/bin/chroniker -e /usr/local/myproject/.env/bin/activate_this.py -p /usr/local/myproject
+</code></pre>
+<p>Run <code>bin/chroniker --help</code> for a full listing of options.</p>
+<h2 id="settings">Settings</h2>
+<p>Depending on your usage, there are a few options that could greatly help or harm job scheduling.</p>
+<p><code>CHRONIKER_USE_PID</code></p>
+<ul>
+<li>If this is set to True, the <code>cron</code> management command will wait for the previous run to complete using a local PID file.</li>
+</ul>
+<p><code>CHRONIKER_SELECT_FOR_UPDATE</code></p>
+<ul>
+<li>If this is set to True, the Job record <a href="https://docs.djangoproject.com/en/dev/ref/models/querysets/#select-for-update">will be locked</a> when updating job status in the database. This may not be supported on all database backends.</li>
+</ul>
+<p><code>CHRONIKER_CHECK_LOCK_FILE</code></p>
+<ul>
+<li>If this is set to True, chroniker will check for a local lockfile to determine if the job is running or not.</li>
+<li>You should set this to True in a single-server environment, and False in a multi-server environment.</li>
+</ul>
+<h2 id="maintenance">Maintenance</h2>
+<p>If you'd like an easy way to delete old job logs, there is a management command
+that will do it for you: <code>cron_clean</code>.  You can use it like so::</p>
+<pre><code>python manage.py cron_clean [weeks|days|hours|minutes] [integer]
+</code></pre>
+<p>So, if you want to remove all jobs that are older than a week, you can do the
+following::</p>
+<pre><code>python manage.py cron_clean weeks 1
+</code></pre>
+<p>Since this is just a simple management command, you can also easily add it to
+<code>chroniker</code>, via the admin, so that it will clear out old logs
+automatically.</p>
+<h2 id="tools">Tools</h2>
+<p>There is anther included management command, <code>cronserver</code> which can be used
+to test the periodic running of jobs.  It'll print out information to the
+screen about which job are due and also run them.  Here is how you would use
+it::</p>
+<pre><code>python manage.py cronserver
+</code></pre>
+<p>This will start up a process that will check for and run any jobs that are due
+every 60 seconds.  The interval can be changed by simply passing the number of
+seconds in between runs.  For example, to make the process check for due jobs
+every 2 minutes, you would run::</p>
+<pre><code>python manage.py cronserver 120
+</code></pre>
+<h2 id="architecture">Architecture</h2>
+<p>The trickiest thing to get right in <code>Chroniker</code> is the ability to properly
+manage the state of a <code>Job</code>, i.e. reliably determining whether or not a
+job is or isn't running, if it has been killed or terminated prematurely.  In
+the first version of <code>Chroniker</code> this issue was "solved" by keeping track
+of the PID of each running job and using the <code>ps</code> command to have the
+operating system tell us if the job was still running.  However, this route was
+less than ideal, for a few reasons, but most importantly because isn't wasn't
+cross-platform.  Additionally, using a series of <code>subprocess.Popen</code> calls was
+leading to path-related issues for some users, even on "supported" platforms.</p>
+<p>Newer version of <code>Chroniker</code> have attempted to solve this problem in the
+following way:</p>
+<pre><code>1.  Get a list of ``Job``\s that are "due"
+2.  For each ``Job``, launch a ``multiprocessing.Process`` instance, which
+    internally calls ``django.core.management.call_command``
+3.  When the ``Job`` is run, we spawn a ``threading.Thread`` instance whose
+    sole purpose is to keep track of a lock file.  This thread exists only
+    while the Job is running and updates the file every second.  We store
+    the path to this temporary file (an instance of
+    ``tempfile.NamedTemporaryFile``) on the ``Job`` model (which is then
+    stored in the database).  When we want to check if a ``Job`` is running
+    we do the following:
+
+    1.  If ``is_running`` equals ``True``, and ``lock_file`` point to a
+        file, then:
+
+        1.  If the lock file actually exists and has been updated more
+            recently than ``CHRONIKER_LOCK_TIMEOUT`` seconds, then we
+            can assume that the ``Job`` is still running
+    2.  Else we assume the ``Job`` is not running and update the database
+        accordingly
+</code></pre>
+<p>This new method should would much more reliably across all platforms that
+support the threading and multiprocess libraries.</p>
+<h2 id="development">Development</h2>
+<p>Tests require the Python development headers to be installed, which you can install on Ubuntu with:</p>
+<pre><code>sudo apt-get install python-dev python3-dev python3.4-dev
+</code></pre>
+<p>To run unittests across multiple Python versions, install:</p>
+<pre><code>sudo apt-get install python3.4-minimal python3.4-dev python3.5-minimal python3.5-dev
+</code></pre>
+<p>To run all <a href="http://tox.readthedocs.org/en/latest/">tests</a>:</p>
+<pre><code>export TESTNAME=; tox
+</code></pre>
+<p>To run tests for a specific environment (e.g. Python 2.7 with Django 1.4):</p>
+<pre><code>export TESTNAME=; tox -e py27-django15
+</code></pre>
+<p>To run a specific test:</p>
+<pre><code>export TESTNAME=.testTimezone2; tox -e py27-django15
+</code></pre>
+<p>To run the documentation server locally:</p>
+<pre><code>mkdocs serve -a :9999
+</code></pre>
+<p>If you make changes to the documentation, first run:</p>
+<pre><code>mkdocs build
+</code></pre>
+<p>To deploy documentation, run:</p>
+<pre><code>mkdocs gh-deploy --clean
+</code></pre>
+              
+            </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+    
+  </div>
+
+  Built with <a href="http://www.mkdocs.org">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+	  
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+<div class="rst-versions" role="note" style="cursor: pointer">
+    <span class="rst-current-version" data-toggle="rst-current-version">
+      
+          <a href="https://github.com/chrisspen/django-chroniker" class="icon icon-github" style="float: left; color: #fcfcfc"> GitHub</a>
+      
+      
+      
+    </span>
+</div>
+
+</body>
+</html>
+
+<!--
+MkDocs version : 0.15.3
+Build Date UTC : 2016-08-30 21:44:30.142254
+-->
