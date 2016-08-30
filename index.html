@@ -289,14 +289,15 @@ support the threading and multiprocess libraries.</p>
 <p>To run a specific test:</p>
 <pre><code>export TESTNAME=.testTimezone2; tox -e py27-django15
 </code></pre>
-<p>To run the documentation server locally:</p>
+<p>To run the <a href="http://www.mkdocs.org/#getting-started">documentation server</a> locally:</p>
 <pre><code>mkdocs serve -a :9999
 </code></pre>
-<p>If you make changes to the documentation, first run:</p>
-<pre><code>mkdocs build
-</code></pre>
-<p>To deploy documentation, run:</p>
+<p>To <a href="http://www.mkdocs.org/user-guide/deploying-your-docs/">deploy documentation</a>, run:</p>
 <pre><code>mkdocs gh-deploy --clean
+</code></pre>
+<p>To build and deploy a versioned package to PyPI, verify <a href="https://travis-ci.org/chrisspen/django-chroniker">all unittests are passing</a>, and then run:</p>
+<pre><code>python setup.py sdist
+python setup.py sdist upload
 </code></pre>
               
             </div>
@@ -336,5 +337,5 @@ support the threading and multiprocess libraries.</p>
 
 <!--
 MkDocs version : 0.15.3
-Build Date UTC : 2016-08-30 21:44:30.142254
+Build Date UTC : 2016-08-30 21:58:01.984502
 -->
