@@ -207,14 +207,15 @@ To run a specific test:
     
     export TESTNAME=.testTimezone2; tox -e py27-django15
 
-To run the documentation server locally:
+To run the [documentation server](http://www.mkdocs.org/#getting-started) locally:
 
     mkdocs serve -a :9999
 
-If you make changes to the documentation, first run:
-
-    mkdocs build
-
-To deploy documentation, run:
+To [deploy documentation](http://www.mkdocs.org/user-guide/deploying-your-docs/), run:
 
     mkdocs gh-deploy --clean
+
+To build and deploy a versioned package to PyPI, verify [all unittests are passing](https://travis-ci.org/chrisspen/django-chroniker), and then run:
+
+    python setup.py sdist
+    python setup.py sdist upload
