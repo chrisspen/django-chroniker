@@ -10,7 +10,7 @@ from optparse import make_option
 from collections import defaultdict
 import subprocess
 
-from django.core.management.base import BaseCommand, CommandParser
+from django.core.management.base import BaseCommand
 from django.db import connection
 import django
 from django.conf import settings
