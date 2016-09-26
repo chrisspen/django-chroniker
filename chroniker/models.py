@@ -58,14 +58,12 @@ except ImportError:
     from django.contrib.sites.shortcuts import get_current_site 
 from django.core.exceptions import ValidationError
 
-
-commit_on_success = getattr(transaction, 'commit_on_success', transaction.atomic)
-# try:
-#     # < Django 1.8
-#     commit_on_success = transaction.commit_on_success
-# except AttributeError:
-#     # >= Django 1.8
-#     commit_on_success = transaction.atomic
+try:
+    # < Django 1.8
+    commit_on_success = transaction.commit_on_success
+except AttributeError:
+    # >= Django 1.8
+    commit_on_success = transaction.atomic
 
 from toposort import toposort_flatten
 
