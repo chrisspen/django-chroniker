@@ -883,7 +883,7 @@ class Job(models.Model):
         Returns a string representing the time until the next
         time this Job will be run (actually, the "string" returned
         is really an instance of ``ugettext_lazy``).
-        
+
         >>> job = Job(next_run=timezone.now())
         >>> job.get_timeuntil().translate('en')
         'due'
