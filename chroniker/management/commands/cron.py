@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import sys
 import time
 import errno
@@ -9,7 +10,7 @@ from optparse import make_option
 from collections import defaultdict
 import subprocess
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 from django.db import connection
 import django
 from django.conf import settings
@@ -252,10 +253,11 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False, cl
         if settings.CHRONIKER_USE_PID and os.path.isfile(pid_fn) \
         and clear_pid:
             os.unlink(pid_fn)
-            
+
+
 class Command(BaseCommand):
     help = 'Runs all jobs that are due.'
-    option_list = BaseCommand.option_list + (
+    option_list = getattr(BaseCommand, 'option_list', ()) + (
         make_option('--update_heartbeat',
             dest='update_heartbeat',
             default=1,
@@ -279,6 +281,42 @@ class Command(BaseCommand):
             default='',
             help='A name to give this process.'),
     )
+
+    def create_parser(self, prog_name, subcommand):
+        """
+        For ``Django>=1.10``
+        Create and return the ``ArgumentParser`` which extends ``BaseCommand`` parser with
+        chroniker extra args and will be used to parse the arguments to this command.
+        """
+        parser = super(Command, self).create_parser(prog_name, subcommand)
+        from distutils.version import StrictVersion
+        version_threshold = StrictVersion('1.10')
+        current_version = StrictVersion(django.get_version(django.VERSION))
+        if current_version >= version_threshold:
+            parser.add_argument('--update_heartbeat',
+                dest='update_heartbeat',
+                default=1,
+                help='If given, launches a thread to asynchronously update ' + \
+                    'job heartbeat status.')
+            parser.add_argument('--force_run',
+                dest='force_run',
+                action='store_true',
+                default=False,
+                help='If given, forces all jobs to run.')
+            parser.add_argument('--dryrun',
+                action='store_true',
+                default=False,
+                help='If given, only displays jobs to be run.')
+            parser.add_argument('--jobs',
+                dest='jobs',
+                default='',
+                help='A comma-delimited list of job ids to limit executions to.')
+            parser.add_argument('--name',
+                dest='name',
+                default='',
+                help='A name to give this process.')
+            self.add_arguments(parser)
+        return parser
     
     def handle(self, *args, **options):
         

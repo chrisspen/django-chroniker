@@ -58,12 +58,14 @@ except ImportError:
     from django.contrib.sites.shortcuts import get_current_site 
 from django.core.exceptions import ValidationError
 
-try:
-    # < Django 1.8
-    commit_on_success = transaction.commit_on_success
-except AttributeError:
-    # >= Django 1.8
-    commit_on_success = transaction.atomic
+
+commit_on_success = getattr(transaction, 'commit_on_success', transaction.atomic)
+# try:
+#     # < Django 1.8
+#     commit_on_success = transaction.commit_on_success
+# except AttributeError:
+#     # >= Django 1.8
+#     commit_on_success = transaction.atomic
 
 from toposort import toposort_flatten
 
@@ -883,7 +885,7 @@ class Job(models.Model):
         Returns a string representing the time until the next
         time this Job will be run (actually, the "string" returned
         is really an instance of ``ugettext_lazy``).
-        
+
         >>> job = Job(next_run=timezone.now())
         >>> job.get_timeuntil().translate('en')
         'due'
