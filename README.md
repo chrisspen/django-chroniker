@@ -1,7 +1,7 @@
 Chroniker - Django Controlled Cron Jobs
 =============================================================================
 
-![Build Status](https://secure.travis-ci.org/chrisspen/django-chroniker.png?branch=master)
+[<img src="https://secure.travis-ci.org/chrisspen/django-chroniker.png?branch=master" alt="Build Status">](https://travis-ci.org/chrisspen/django-chroniker)
 
 Overview
 --------
