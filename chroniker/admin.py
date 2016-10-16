@@ -1,11 +1,10 @@
 from __future__ import print_function
 
 from datetime import datetime
-from distutils.version import StrictVersion
+#from distutils.version import StrictVersion
 
 import django
-DJANGO_VERSION = StrictVersion(django.get_version())
-
+#DJANGO_VERSION = StrictVersion(django.get_version())
 from django import forms
 from django.conf import settings
 from django.conf.urls import url
@@ -14,9 +13,10 @@ from django.core.management import get_commands
 from django.core.urlresolvers import reverse, NoReverseMatch
 from django.db import models
 from django.forms import TextInput
-if DJANGO_VERSION >= StrictVersion('1.8'):
+#if DJANGO_VERSION >= StrictVersion('1.8'):
+try:
     from django.forms.utils import flatatt
-else:
+except ImportError:
     from django.forms.util import flatatt
 from django.shortcuts import render_to_response
 from django.template import RequestContext
@@ -44,7 +44,7 @@ except ImportError:
     ApproxCountQuerySet = None
 
 class HTMLWidget(forms.Widget):
-    def __init__(self,rel=None, attrs=None):
+    def __init__(self, rel=None, attrs=None):
         self.rel = rel
         super(HTMLWidget, self).__init__(attrs)
     
@@ -251,21 +251,21 @@ class JobAdmin(admin.ModelAdmin):
     def last_run_with_link(self, obj=None):
         if not obj or not obj.id:
             return ''
-        format = get_format('DATETIME_FORMAT')
+        fmt = get_format('DATETIME_FORMAT')
         value = None
         try:
             if obj.last_run is not None:
                 value = utils.localtime(obj.last_run)
-                value = capfirst(dateformat.format(value, format))
+                value = capfirst(dateformat.format(value, fmt))
             log_id = obj.log_set.latest('run_start_datetime').id
             try:
                 # Old way
-                url = reverse('chroniker_log_change', args=(log_id,))
+                u = reverse('chroniker_log_change', args=(log_id,))
             except NoReverseMatch:
                 # New way
-                url = reverse('admin:chroniker_log_change', args=(log_id,))
-            return '<a href="%s">%s</a>' % (url, value)
-        except:
+                u = reverse('admin:chroniker_log_change', args=(log_id,))
+            return '<a href="%s">%s</a>' % (u, value)
+        except Exception:
             return value
     last_run_with_link.admin_order_field = 'last_run'
     last_run_with_link.allow_tags = True
@@ -282,12 +282,11 @@ class JobAdmin(admin.ModelAdmin):
     def get_timeuntil(self, obj=None):
         if not obj or not obj.id or not obj.next_run:
             return ''
-        format = get_format('DATETIME_FORMAT')
+        fmt = get_format('DATETIME_FORMAT')
         dt = obj.next_run
         dt = utils.localtime(dt)
-        value = capfirst(dateformat.format(dt, format))
-        return "%s<br /><span class='mini'>(%s)</span>" \
-            % (value, obj.get_timeuntil())
+        value = capfirst(dateformat.format(dt, fmt))
+        return "%s<br /><span class='mini'>(%s)</span>" % (value, obj.get_timeuntil())
     get_timeuntil.admin_order_field = 'next_run'
     get_timeuntil.allow_tags = True
     get_timeuntil.short_description = _('next scheduled run')
@@ -305,19 +304,20 @@ class JobAdmin(admin.ModelAdmin):
     def run_button(self, obj=None):
         if not obj or not obj.id:
             return ''
-        url = '%d/run/?inline=1' % obj.id
-        return '<a href="%s" class="button">Run</a>' % url
+        kwargs = dict(
+            url='%d/run/?inline=1' % obj.id,
+        )
+        return '<a href="{url}" class="button">Run</a>'.format(**kwargs)
     run_button.allow_tags = True
     run_button.short_description = 'Run'
     
     def stop_button(self, obj=None):
         if not obj or not obj.id:
             return ''
-        url = '%d/stop/?inline=1' % obj.id
-        vars = dict(url=url, disabled='')
+        kwargs = dict(url='%d/stop/?inline=1' % obj.id, disabled='')
         if not obj.is_running:
-            vars['disabled'] = 'disabled'
-        s = ('<a href="%(url)s" class="button" %(disabled)s>Stop</a>') % vars
+            kwargs['disabled'] = 'disabled'
+        s = '<a href="{url}" class="button" {disabled}>Stop</a>'.format(**kwargs)
         return s
     stop_button.allow_tags = True
     stop_button.short_description = 'Stop'
@@ -326,9 +326,13 @@ class JobAdmin(admin.ModelAdmin):
         if not obj or not obj.id:
             return ''
         q = obj.logs.all()
-        url = utils.get_admin_changelist_url(Log)
-        return ('<a href="%s?job=%d" target="_blank" class="button">View&nbsp;%i</a>') % \
-            (url, obj.id, q.count())
+        kwargs = dict(
+            url=utils.get_admin_changelist_url(Log),
+            id=obj.id,
+            count=q.count(),
+        )
+        return '<a href="{url}?job={id}" target="_blank" class="button">View&nbsp;{count}</a>'\
+            .format(**kwargs)
     view_logs_button.allow_tags = True
     view_logs_button.short_description = 'Logs'
     
@@ -337,13 +341,12 @@ class JobAdmin(admin.ModelAdmin):
         Runs the specified job.
         """
         Job.objects.filter(id=job_id).update(
-            force_run = True,
-            force_stop = False,
+            force_run=True,
+            force_stop=False,
         )
         self.message_user(
             request,
-            _('Job %(job)s has been signalled to start running immediately.') \
-                % {'job': job_id})
+            _('Job %(job)s has been signalled to start running immediately.') % {'job': job_id})
         if 'inline' in request.GET:
             redirect = request.path + '../../'
         else:
@@ -355,8 +358,8 @@ class JobAdmin(admin.ModelAdmin):
         Stop the specified job.
         """
         Job.objects.filter(id=job_id).update(
-            force_run = False,
-            force_stop = True,
+            force_run=False,
+            force_stop=True,
         )
         self.message_user(
             request,
@@ -441,7 +444,8 @@ class JobAdmin(admin.ModelAdmin):
                 job.is_running = False
                 job.save()
         self.message_user(request, 'Cleared %i stalled jobs.' % (reset_count,))
-    clear_stalled.short_description = 'Mark the selected stalled %(verbose_name_plural)s as not running'
+    clear_stalled.short_description = \
+        'Mark the selected stalled %(verbose_name_plural)s as not running'
         
     def toggle_enabled(self, request, queryset):
         for row in queryset:
@@ -490,7 +494,7 @@ class JobAdmin(admin.ModelAdmin):
                 #    key = str(key)
                 commands = choices_dict.getlist(key)
                 commands.sort()
-                choices.append([key, [[c,c] for c in commands]])
+                choices.append([key, [[c, c] for c in commands]])
             
             choices.insert(0, ('', '--- None ---'))
             kwargs['widget'] = forms.widgets.Select(choices=choices)
@@ -574,14 +578,14 @@ class LogAdmin(admin.ModelAdmin):
         return qs
     
     def stdout_link(self, obj):
-        url = reverse("admin:chroniker_log_stdout", args=(obj.id,))
-        return '<a href="%s">Download</a>' % (url,)
+        return '<a href="%s">Download</a>' % (
+            reverse("admin:chroniker_log_stdout", args=(obj.id,)),)
     stdout_link.allow_tags = True
     stdout_link.short_description = 'Stdout full'
     
     def stderr_link(self, obj):
-        url = reverse("admin:chroniker_log_stderr", args=(obj.id,))
-        return '<a href="%s">Download</a>' % (url,)
+        return '<a href="%s">Download</a>' % (
+            reverse("admin:chroniker_log_stderr", args=(obj.id,)),)
     stderr_link.allow_tags = True
     stderr_link.short_description = 'Stderr full'
     
@@ -671,9 +675,9 @@ class MonitorAdmin(admin.ModelAdmin):
     )
     
     def get_timeuntil(self, obj):
-        format = get_format('DATETIME_FORMAT')
+        fmt = get_format('DATETIME_FORMAT')
         next_run = obj.next_run or timezone.now()
-        value = capfirst(dateformat.format(utils.localtime(next_run), format))
+        value = capfirst(dateformat.format(utils.localtime(next_run), fmt))
         return "%s<br /><span class='mini'>(%s)</span>" \
             % (value, obj.get_timeuntil())
     get_timeuntil.admin_order_field = 'next_run'
@@ -700,8 +704,7 @@ class MonitorAdmin(admin.ModelAdmin):
     
     def name_str(self, obj):
         if obj.monitor_url:
-            url = obj.monitor_url_rendered
-            return '<a href="%s" target="_blank">%s</a>' % (url, obj.name)
+            return '<a href="%s" target="_blank">%s</a>' % (obj.monitor_url_rendered, obj.name)
         else:
             return obj.name
     name_str.short_description = 'Name'
@@ -709,9 +712,10 @@ class MonitorAdmin(admin.ModelAdmin):
     
     def action_buttons(self, obj):
         buttons = []
-        url = '%d/run/?inline=1' % obj.id
-        buttons.append('<a href="%s" class="button">Check now</a>' % url)
-        buttons.append('<a href="/admin/chroniker/job/%i/" target="_blank" class="button">Edit</a>' % (obj.id,))
+        buttons.append('<a href="%s" class="button">Check now</a>' % '%d/run/?inline=1' % obj.id)
+        buttons.append(
+            ('<a href="/admin/chroniker/job/%i/" target="_blank"'
+                ' class="button">Edit</a>') % (obj.id,))
         return ' '.join(buttons)
     action_buttons.allow_tags = True
     action_buttons.short_description = 'Actions'
@@ -719,13 +723,16 @@ class MonitorAdmin(admin.ModelAdmin):
     def status(self, obj):
         if obj.is_running:
             help_text = 'The monitor is currently being checked.'
-            temp = '<img src="'+settings.STATIC_URL+'admin/img/icon-unknown.gif" alt="%(help_text)s" title="%(help_text)s" />'
+            temp = '<img src="' + settings.STATIC_URL \
+                + 'admin/img/icon-unknown.gif" alt="%(help_text)s" title="%(help_text)s" />'
         elif obj.last_run_successful:
             help_text = 'All checks passed.'
-            temp = '<img src="'+settings.STATIC_URL+'admin/img/icon_success.gif" alt="%(help_text)s" title="%(help_text)s" />'
+            temp = '<img src="' + settings.STATIC_URL \
+                + 'admin/img/icon_success.gif" alt="%(help_text)s" title="%(help_text)s" />'
         else:
             help_text = 'Requires attention.'
-            temp = '<img src="'+settings.STATIC_URL+'admin/img/icon_error.gif" alt="%(help_text)s" title="%(help_text)s" />'
+            temp = '<img src="' + settings.STATIC_URL \
+                + 'admin/img/icon_error.gif" alt="%(help_text)s" title="%(help_text)s" />'
         return temp % dict(help_text=help_text)
             
     status.allow_tags = True

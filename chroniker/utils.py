@@ -8,11 +8,9 @@ import signal
 import subprocess
 import warnings
 import errno
-
+from multiprocessing import Process, current_process
 from importlib import import_module
-
 from datetime import timedelta
-#from StringIO import StringIO
 try:
     from io import StringIO
 except ImportError:
@@ -24,8 +22,6 @@ from django.db import models
 from django.db import connection
 from django.utils import timezone
 from django.conf import settings
-
-from multiprocessing import Process, current_process
 
 import psutil
 
@@ -100,9 +96,9 @@ class TeeFile(StringIO):
     A helper class for allowing output to be stored in a StringIO instance
     while still be directed to a second file object, such as sys.stdout.
     """
-    def __init__(self, file, auto_flush=False, queue=None):
-        #super(TeeFile, self).__init__()
-        StringIO.__init__(self)
+    def __init__(self, file, auto_flush=False, queue=None): # pylint: disable=W0622
+        super(TeeFile, self).__init__()
+        #StringIO.__init__(self)
         self.file = file
         self.auto_flush = auto_flush
         self.length = 0
@@ -191,7 +187,6 @@ class LockingManager(models.Manager):
         cursor = connection.cursor()
         if 'mysql' in connection.settings_dict['ENGINE']:
             table = self.model._meta.db_table
-            logger.debug("Locking table %s" % table)
             cursor.execute("LOCK TABLES %s WRITE" % table)
         else:
             warnings.warn(
@@ -307,9 +302,9 @@ class TimedProcess(Process):
         self._process_times = {} # {pid:user_seconds}
         self._last_duration_seconds = None
 
-    def terminate(self, signal=15, *args, **kwargs):
+    def terminate(self, sig=15, *args, **kwargs):
         """
-        signal := 6=abrt, 9=kill, 15=term
+        sig := 6=abrt, 9=kill, 15=term
         """
         if self.is_alive() and self._p:
             # Explicitly kill children since the default terminate() doesn't
@@ -317,11 +312,11 @@ class TimedProcess(Process):
             for child in self._p.get_children():
                 # Do one last time check.
                 self._process_times[child.pid] = child.get_cpu_times().user
-                os.system('kill -%i %i' % (signal, child.pid,))
+                os.system('kill -%i %i' % (sig, child.pid,))
             # Sum final time.
             self._process_times[self._p.pid] = self._p.get_cpu_times().user
             self._last_duration_seconds = sum(self._process_times.itervalues())
-        os.system('kill -%i %i' % (signal, self._p.pid,))
+        os.system('kill -%i %i' % (sig, self._p.pid,))
         #return super(TimedProcess, self).terminate(*args, **kwargs)
 
     def get_duration_seconds_wall(self):
@@ -424,7 +419,8 @@ class TimedProcess(Process):
                 break
             elif self.is_expired:
                 if verbose:
-                    six.print_('\nAttempting to terminate expired process %s...' % (self.pid,), file=self.fout)
+                    six.print_('\nAttempting to terminate expired process %s...' \
+                        % (self.pid,), file=self.fout)
                 timeout = True
                 self.terminate()
         self.t1 = time.clock()
@@ -467,7 +463,7 @@ def import_string(dotted_path):
     """
     
     try:
-        from django.utils.module_loading import import_string
+        from django.utils.module_loading import import_string # pylint: disable=W0621
         return import_string(dotted_path)
     except ImportError:
         pass

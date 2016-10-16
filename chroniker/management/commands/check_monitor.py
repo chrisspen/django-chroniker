@@ -1,14 +1,13 @@
 from __future__ import print_function
 
 import sys
+import importlib
 from datetime import timedelta
+from optparse import make_option
 
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-
-from optparse import make_option
-import importlib
 
 import six
 
@@ -51,7 +50,7 @@ class Command(BaseCommand):
             six.exec_(cmd)
         if verbose:
             print(query)
-        q = eval(query, globals(), locals())
+        q = eval(query, globals(), locals()) # pylint: disable=W0123
         
         job = get_current_job()
         if job:
@@ -62,4 +61,3 @@ class Command(BaseCommand):
             print('%i records require attention.' % (q.count(),), file=sys.stderr)
         else:
             print('%i records require attention.' % (q.count(),), file=sys.stdout)
-        

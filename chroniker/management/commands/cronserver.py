@@ -1,15 +1,15 @@
+
+import logging
+import sys
+from datetime import datetime
+from time import sleep, time
+from threading import Thread
+
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
 from django.utils.translation import ugettext_lazy as _
 
 from chroniker.models import Job
-
-import logging
-import sys
-
-from datetime import datetime
-from time import sleep, time
-from threading import Thread
 
 logger = logging.getLogger('chroniker.commands.cronserver')
 
@@ -25,16 +25,17 @@ class Command(BaseCommand):
     help = _("Emulates a reoccurring cron call to run jobs at a specified "
              "interval.  This is meant primarily for development use.")
     
-    def handle( self, *args, **options ):
-        from django.core.management import call_command
+    def handle(self, *args, **options):
         
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO,
-                            datefmt="%Y-%m-%d %H:%M:%S",
-                            format="[%(asctime)-15s] %(message)s")
+        logging.basicConfig(
+            stream=sys.stdout,
+            level=logging.INFO,
+            datefmt="%Y-%m-%d %H:%M:%S",
+            format="[%(asctime)-15s] %(message)s")
         
         try:
             time_wait = int(args[0])
-        except:
+        except Exception:
             time_wait = 60
         
         try:

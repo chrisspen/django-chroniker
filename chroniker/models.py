@@ -9,15 +9,8 @@ import sys
 import tempfile
 import time
 import traceback
-
 from functools import cmp_to_key
 from datetime import datetime, timedelta
-from dateutil import rrule
-
-import six
-from six import u
-
-unicode = six.text_type
 
 try:
     from io import StringIO
@@ -36,7 +29,10 @@ except ImportError:
     except ImportError:
         import dummy_thread as thread
 
-from . import settings as _settings
+from dateutil import rrule
+
+import six
+from six import u
 
 import django
 from django.conf import settings
@@ -46,6 +42,7 @@ from django.core.management import call_command
 from django.db import models, connection, transaction
 from django.db.models import Q
 from django.template import loader, Context, Template
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.encoding import smart_str
 from django.utils.safestring import mark_safe
@@ -58,6 +55,14 @@ except ImportError:
     from django.contrib.sites.shortcuts import get_current_site 
 from django.core.exceptions import ValidationError
 
+from toposort import toposort_flatten
+
+import chroniker.constants as const
+from chroniker import utils
+from chroniker.utils import import_string
+
+from . import settings as _settings
+
 try:
     # < Django 1.8
     commit_on_success = transaction.commit_on_success
@@ -65,11 +70,7 @@ except AttributeError:
     # >= Django 1.8
     commit_on_success = transaction.atomic
 
-from toposort import toposort_flatten
-
-import chroniker.constants as const
-from chroniker import utils
-from chroniker.utils import import_string
+unicode = six.text_type # pylint: disable=W0622
 
 logger = logging.getLogger('chroniker.models')
 
@@ -168,9 +169,9 @@ class JobHeartbeatThread(threading.Thread):
             job = Job.objects.only('id', 'force_stop').get(id=self.job_id)
             force_stop = job.force_stop
             Job.objects.filter(id=self.job_id).update(
-                last_heartbeat = timezone.now(),
-                force_stop = False,
-                force_run = False,
+                last_heartbeat=timezone.now(),
+                force_stop=False,
+                force_run=False,
             )
             self.lock.release()
             
@@ -201,8 +202,8 @@ class JobHeartbeatThread(threading.Thread):
         if lock:
             self.lock.acquire()
         Job.objects.filter(id=self.job_id).update(
-            total_parts = total_parts,
-            total_parts_complete = total_parts_complete,
+            total_parts=total_parts,
+            total_parts_complete=total_parts_complete,
         )
         if lock:
             self.lock.release()
@@ -240,7 +241,8 @@ class JobDependency(models.Model):
     def criteria_met(self, running_ids=None):
         if running_ids is None:
             running_ids = set()
-        if self.wait_for_completion and (self.dependee.is_running or self.dependee.id in running_ids):
+        if self.wait_for_completion \
+        and (self.dependee.is_running or self.dependee.id in running_ids):
             # Don't run until our dependency completes.
 #            print('"%s": Dependee "%s" is still running.' \
 #                % (self.dependent.name, self.dependee.name,))
@@ -331,7 +333,6 @@ class JobManager(models.Manager):
         skipped_job_ids = set()
         for job in self.due():
             if jobs and job.id not in jobs:
-                #print('Skipping job %i (%s) because jobs are limited to %s.' % (job.id, job, ', '.join(map(str, jobs))))
                 skipped_job_ids.add(job.id)
                 continue
             
@@ -389,10 +390,11 @@ class JobManager(models.Manager):
         return lst
 
     def stale(self):
+        threshold = timezone.now() - timedelta(minutes=settings.CHRONIKER_STALE_MINUTES)
         q = self.filter(is_running=True)
         q = q.filter(
             Q(last_heartbeat__isnull=True) | 
-            Q(last_heartbeat__lt=timezone.now() - timedelta(minutes=settings.CHRONIKER_STALE_MINUTES)))
+            Q(last_heartbeat__lt=threshold))
         return q
     
     def all_running(self):
@@ -412,11 +414,6 @@ class JobManager(models.Manager):
             if job.current_pid and job.current_hostname \
             and job.current_hostname == socket.gethostname():
                 if utils.pid_exists(job.current_pid):
-#                        cpu_usage = utils.get_cpu_usage(job.current_pid)
-#                        if cpu_usage:
-#                            print('Process with PID %s is still consuming CPU so keeping alive for now.' % (job.current_pid,))
-#                            continue
-#                        else:
                     print('Killing process {}...'.format(job.current_pid))
                     utils.kill_process(job.current_pid)
                     #TODO:record log entry
@@ -432,20 +429,20 @@ class JobManager(models.Manager):
         @commit_on_success
         def create_log(job):
             Log.objects.create(
-                job = job,
-                run_start_datetime = job.last_run_start_timestamp or timezone.now(),
-                run_end_datetime = timezone.now(),
-                hostname = socket.gethostname(),
-                stdout = '',
-                stderr = 'Job became stale and was marked as terminated.',
-                success = False,
+                job=job,
+                run_start_datetime=job.last_run_start_timestamp or timezone.now(),
+                run_end_datetime=timezone.now(),
+                hostname=socket.gethostname(),
+                stdout='',
+                stderr='Job became stale and was marked as terminated.',
+                success=False,
             )
         
         q = self.stale()
         total = q.count()
         print('{} total stale jobs.'.format(total))
         for job in q.iterator():
-            print('Checking stale job {} <>...'.format(job.id, job))
+            print('Checking stale job {}: {}'.format(job.id, job))
             
             process_job(job)
             #transaction.commit()
@@ -684,8 +681,6 @@ class Job(models.Model):
     def monitor_url_rendered(self):
         if not self.is_monitor or not self.monitor_url:
             return
-        from django.template import Context, Template
-        from django.template.loader import render_to_string
         t = Template('{% load chroniker_tags %}' + self.monitor_url)
         c = Context(dict(
             #date=timezone.now(),#.strftime('%Y-%m-%d'),
@@ -776,7 +771,6 @@ class Job(models.Model):
     
     @property
     def estimated_completion_datetime(self):
-        from datetime import datetime, timedelta
         remaining_sec = self.estimated_seconds_to_completion
         if remaining_sec is None:
             return
@@ -917,7 +911,7 @@ class Job(models.Model):
         Returns the rrule objects for this ``Job``.
         Can also be accessed via the ``rrule`` property of the ``Job``.
         """
-        frequency = eval('rrule.%s' % self.frequency)
+        frequency = eval('rrule.%s' % self.frequency) # pylint: disable=W0123
         return rrule.rrule(
             frequency, dtstart=self.next_run, **self.get_params())
     rrule = property(get_rrule)
@@ -1130,13 +1124,13 @@ class Job(models.Model):
                 connection.close()
 
                 Job.objects.filter(id=self.id).update(
-                    is_running = True,
-                    last_run_start_timestamp = timezone.now(),
-                    current_hostname = socket.gethostname(),
-                    current_pid = str(os.getpid()),
-                    total_parts = 0,
-                    total_parts_complete = 0,
-                    lock_file = lock_file,
+                    is_running=True,
+                    last_run_start_timestamp=timezone.now(),
+                    current_hostname=socket.gethostname(),
+                    current_pid=str(os.getpid()),
+                    total_parts=0,
+                    total_parts_complete=0,
+                    lock_file=lock_file,
                 )
             except Exception as e:
                 # The command failed to run; log the exception
@@ -1156,13 +1150,8 @@ class Job(models.Model):
                 heartbeat.start()
             success = True
             try:
-                logger.debug("Calling command '%s'" % self.command)
+                logger.debug("Calling command '%s'", self.command)
                 if self.raw_command:
-#                     retcode = subprocess.call(
-#                         self.raw_command,
-#                         shell=True,
-#                         stdout=sys.stdout,
-#                         stderr=sys.stderr)
                     p = subprocess.Popen(
                         self.raw_command,
 #                         stdout=sys.stdout,
@@ -1176,7 +1165,7 @@ class Job(models.Model):
                 else:
                     #print('self.command:',self.command, args, options)
                     call_command(self.command, *args, **options)
-                logger.debug("Command '%s' completed" % self.command)
+                logger.debug("Command '%s' completed", self.command)
                 if original_pid != os.getpid():
                     return
             except Exception as e:
@@ -1234,14 +1223,13 @@ class Job(models.Model):
                     'id', 'total_parts', 'last_run_successful'
                 ).get(id=self.id)
                 Job.objects.filter(id=self.id).update(
-                    is_running = False,
-                    lock_file = '',
-                    last_run = run_start_datetime,
-                    force_run = False,
-                    next_run = next_run,
-                    last_run_successful = last_run_successful,
-                    total_parts_complete = \
-                        (job.last_run_successful and job.total_parts) or 0,
+                    is_running=False,
+                    lock_file='',
+                    last_run=run_start_datetime,
+                    force_run=False,
+                    next_run=next_run,
+                    last_run_successful=last_run_successful,
+                    total_parts_complete=(job.last_run_successful and job.total_parts) or 0,
                 )
             except Exception as e:
                 # The command failed to run; log the exception
@@ -1262,7 +1250,7 @@ class Job(models.Model):
             if original_pid != os.getpid():
                 # We're a clone of the parent job, so exit immediately
                 # so we don't conflict.
-                return
+                return # pylint: disable=W0150
             
             # Redirect output back to default
             sys.stdout = ostdout
@@ -1291,14 +1279,14 @@ class Job(models.Model):
             duration_seconds = (run_end_datetime - run_start_datetime)\
                 .total_seconds()
             log = Log.objects.create(
-                job = self,
-                run_start_datetime = run_start_datetime,
-                run_end_datetime = run_end_datetime,
-                duration_seconds = duration_seconds,
+                job=self,
+                run_start_datetime=run_start_datetime,
+                run_end_datetime=run_end_datetime,
+                duration_seconds=duration_seconds,
                 hostname=socket.gethostname(),
-                stdout = stdout_str,
-                stderr = stderr_str,
-                success = last_run_successful,
+                stdout=stdout_str,
+                stderr=stderr_str,
+                success=last_run_successful,
             )
             
             # Email subscribers.
@@ -1447,9 +1435,8 @@ class Log(models.Model):
         super(Log, self).save(*args, **kwargs)
     
     def duration_str(self):
-        from datetime import datetime, timedelta
         sec = timedelta(seconds=self.duration_seconds)
-        d = datetime(1,1,1) + sec
+        d = datetime(1, 1, 1) + sec
         days = d.day-1
         hours = d.hour
         minutes = d.minute
@@ -1484,7 +1471,8 @@ class Log(models.Model):
         and self.job.monitor_error_template:
             body = Template(self.job.monitor_error_template).render(c)
         else:
-            body = "Ouput:\n%s\nError output:\n%s" % (self.stdout.decode('utf-8'), self.stderr.decode('utf-8'))
+            body = "Ouput:\n%s\nError output:\n%s" \
+                % (self.stdout.decode('utf-8'), self.stderr.decode('utf-8'))
 
         base_url = None
         if hasattr(settings, 'BASE_SECURE_URL'):
@@ -1498,18 +1486,17 @@ class Log(models.Model):
                 base_url = 'http://' + current_site.domain
         
         if base_url:
-            admin_link = base_url \
-                + utils.get_admin_change_url(self.job)
-            body = 'To manage this job please visit: ' \
-                + admin_link + '\n\n' + body
+            admin_link = base_url + utils.get_admin_change_url(self.job)
+            body = 'To manage this job please visit: ' + admin_link + '\n\n' + body
         
         send_mail(
-            from_email = '"%s" <%s>' % (
+            from_email='"%s" <%s>' % (
                 settings.CHRONIKER_EMAIL_SENDER,
-                settings.CHRONIKER_EMAIL_HOST_USER),
-            subject = subject,
-            recipient_list = subscribers,
-            message = body
+                settings.CHRONIKER_EMAIL_HOST_USER,
+            ),
+            subject=subject,
+            recipient_list=subscribers,
+            message=body,
         )
     
     def stdout_sample(self):
@@ -1549,7 +1536,7 @@ class Log(models.Model):
         """
         q = cls.objects.all()
         if time_ago:
-            q = q.filter(run_start_datetime__lte = time_ago)
+            q = q.filter(run_start_datetime__lte=time_ago)
         q.delete()
 
 

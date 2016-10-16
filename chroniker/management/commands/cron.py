@@ -5,18 +5,17 @@ import sys
 import time
 import errno
 import socket
+import subprocess
 from functools import partial
 from optparse import make_option
 from collections import defaultdict
-import subprocess
+from multiprocessing import Process, Queue
 
 from django.core.management.base import BaseCommand
 from django.db import connection
 import django
 from django.conf import settings
 from django.utils import timezone
-
-from multiprocessing import Process, Queue
 
 import psutil
 
@@ -50,7 +49,7 @@ def kill_stalled_processes(dryrun=True):
                     if not dryrun:
                         utils.kill_process(pid)
                 else:
-                    'PID not cron.'
+                    print('PID not cron.')
             else:
                 print('PID dead.')
         except psutil.NoSuchProcess:
@@ -62,9 +61,14 @@ class JobProcess(utils.TimedProcess):
         super(JobProcess, self).__init__(*args, **kwargs)
         self.job = job
 
-def run_job(job, update_heartbeat=None, stdout_queue=None, stderr_queue=None, force_run=False, **kwargs):
+def run_job(job, update_heartbeat=None, **kwargs):
     
-    # TODO:causes UnicodeEncodeError: 'ascii' codec can't encode character u'\xa0' in position 59: ordinal not in range(128)
+    stdout_queue = kwargs.pop('stdout_queue', None)
+    stderr_queue = kwargs.pop('stderr_queue', None)
+    force_run = stderr_queue('force_run', False)
+    
+    # TODO:causes UnicodeEncodeError: 'ascii' codec can't encode
+    # character u'\xa0' in position 59: ordinal not in range(128)
     #print(u"Running Job: %i - '%s' with args: %s" \
     #    % (job.id, job, job.args))
     
@@ -227,7 +231,8 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False, cl
                         
                         connection.close()
                         Job.objects.update()
-                        run_start_datetime = Job.objects.get(id=proc.job.id).last_run_start_timestamp
+                        j = Job.objects.get(id=proc.job.id)
+                        run_start_datetime = j.last_run_start_timestamp
                         proc.job.is_running = False
                         proc.job.force_run = False
                         proc.job.force_stop = False
@@ -336,4 +341,3 @@ class Command(BaseCommand):
             force_run=force_run,
             dryrun=options['dryrun'],
         )
-        

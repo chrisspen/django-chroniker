@@ -2,6 +2,7 @@ language: python
 python:
 -   "3.5"
 install:
--   pip install tox
+-   pip install tox pylint
 script:
+-   ./pep8.sh
 -   tox

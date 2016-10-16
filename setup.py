@@ -22,11 +22,11 @@ def get_reqs(*fns):
     return lst
 
 setup(
-    name = "django-chroniker",
-    version = chroniker.__version__,
-    packages = find_packages(),
-    scripts = ['bin/chroniker'],
-    package_data = {
+    name="django-chroniker",
+    version=chroniker.__version__,
+    packages=find_packages(),
+    scripts=['bin/chroniker'],
+    package_data={
         '': ['docs/*.txt', 'docs/*.py'],
         'chroniker': [
             'static/*/*/*.*',
@@ -38,24 +38,26 @@ setup(
             'tests/fixtures/*',
         ],
     },
-    author = "Chris Spencer",
-    author_email = "chrisspen@gmail.com",
-    description = "Easily control cron jobs via Django's admin.",
-    license = "BSD",
-    url = "https://github.com/chrisspen/django-chroniker",
+    author="Chris Spencer",
+    author_email="chrisspen@gmail.com",
+    description="Easily control cron jobs via Django's admin.",
+    license="BSD",
+    url="https://github.com/chrisspen/django-chroniker",
     #https://pypi.python.org/pypi?%3Aaction=list_classifiers
-    classifiers = [
+    classifiers=[
+        'Development Status :: 6 - Mature',
         'Environment :: Web Environment',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.0',
+        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
         'Framework :: Django',
     ],
-    zip_safe = False,
+    zip_safe=False,
     install_requires=get_reqs('pip-requirements-min-django.txt', 'pip-requirements.txt'),
     tests_require=get_reqs('pip-requirements-test.txt'),
 )

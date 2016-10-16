@@ -7,19 +7,17 @@ from datetime import timedelta
 import time
 import socket
 import threading
+import warnings
 from functools import cmp_to_key
-
-socket.gethostname = lambda: 'localhost'
+from multiprocessing import Process
 
 import six
 try:
     from io import StringIO
-except ImportError:
-    from cStringIO import StringIO
-try:
     from io import BytesIO
 except ImportError:
-    BytesIO = StringIO
+    from cStringIO import StringIO
+    from cStringIO import StringIO as BytesIO
 
 import django
 from django.core.management import call_command
@@ -36,10 +34,9 @@ from chroniker.management.commands.cron import run_cron
 from chroniker import utils
 from chroniker import constants as c
 
-import warnings
 warnings.simplefilter('error', RuntimeWarning)
 
-from multiprocessing import Process
+socket.gethostname = lambda: 'localhost'
 
 CALLBACK_ERRORS = []
 
@@ -351,7 +348,7 @@ class JobTestCase(TestCase):
             self.assertTrue(j.next_run)
             settings.USE_TZ = True
             j.params = "interval:10"
-            j.next_run = datetime.datetime(2014, 6, 27, 14, 31, 4)#, tzinfo=timezone.get_default_timezone())
+            j.next_run = datetime.datetime(2014, 6, 27, 14, 31, 4)
             j.save()
         finally:
             settings.USE_TZ = True
@@ -411,7 +408,11 @@ class JobTestCase(TestCase):
             Job.objects.all().delete()
             
             settings.CHRONIKER_JOB_NK = ('name',)
-            call_command('loaddatanaturally', 'chroniker/tests/fixtures/jobs_by_name.json', traceback=True, verbosity=1)
+            call_command(
+                'loaddatanaturally',
+                'chroniker/tests/fixtures/jobs_by_name.json',
+                traceback=True,
+                verbosity=1)
             qs = Job.objects.all()
             # There are 3 jobs, but only 2 with unique names, so only two should have been created.
             self.assertEqual(qs.count(), 2)
@@ -419,14 +420,22 @@ class JobTestCase(TestCase):
             Job.objects.all().delete()
             
             settings.CHRONIKER_JOB_NK = ('command',)
-            call_command('loaddatanaturally', 'chroniker/tests/fixtures/jobs_by_command.json', traceback=True, verbosity=1)
+            call_command(
+                'loaddatanaturally',
+                'chroniker/tests/fixtures/jobs_by_command.json',
+                traceback=True,
+                verbosity=1)
             qs = Job.objects.all()
             self.assertEqual(qs.count(), 2)
             
             Job.objects.all().delete()
             
             settings.CHRONIKER_JOB_NK = ('command', 'args')
-            call_command('loaddatanaturally', 'chroniker/tests/fixtures/jobs_by_command_args.json', traceback=True, verbosity=1)
+            call_command(
+                'loaddatanaturally',
+                'chroniker/tests/fixtures/jobs_by_command_args.json',
+                traceback=True,
+                verbosity=1)
             qs = Job.objects.all()
             self.assertEqual(qs.count(), 3)
     
@@ -434,7 +443,8 @@ class JobTestCase(TestCase):
         """
         Ensure we can apply our initial migration without getting the error:
         
-            Your models have changes that are not yet reflected in a migration, and so won't be applied.
+            Your models have changes that are not yet reflected in a migration,
+            and so won't be applied.
             
         caused by various Django+Python versions having incompatible migration representations.
         """
@@ -470,4 +480,3 @@ class JobTestCase(TestCase):
         job.run(update_heartbeat=0)
         self.assertEqual(job.logs.all().count(), 1)
         self.assertEqual(len(CALLBACK_ERRORS), 1)
-        

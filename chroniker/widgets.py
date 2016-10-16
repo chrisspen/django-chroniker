@@ -98,7 +98,8 @@ class VerboseForeignKeyRawIdWidget(ForeignKeyRawIdWidget):
                 "admin:%s_%s_change" % (obj._meta.app_label, obj._meta.object_name.lower()),
                 args=(obj.pk,)
             )
-            return '&nbsp;<strong><a href="%s" target="_blank">%s</a></strong>' % (change_url, escape(obj))
+            return '&nbsp;<strong><a href="%s" target="_blank">%s</a></strong>' \
+                % (change_url, escape(obj))
         except (ValueError, self.rel.to.DoesNotExist):
             return ''
 
@@ -115,7 +116,8 @@ class VerboseManyToManyRawIdWidget(ManyToManyRawIdWidget):
                     "admin:%s_%s_change" % (obj._meta.app_label, obj._meta.object_name.lower()),
                     args=(obj.pk,)
                 )
-                str_values += ['<strong><a href="%s" target="_blank">%s</a></strong>' % (change_url, escape(x))]
+                str_values += ['<strong><a href="%s" target="_blank">%s</a></strong>' \
+                    % (change_url, escape(x))]
             except self.rel.to.DoesNotExist:
                 str_values += ['???']
         return ', '.join(str_values)
@@ -124,10 +126,10 @@ class ImproveRawIdFieldsForm(admin.ModelAdmin):
     def formfield_for_dbfield(self, db_field, **kwargs):
         if db_field.name in self.raw_id_fields:
             kwargs.pop("request", None)
-            type = db_field.rel.__class__.__name__
-            if type == "ManyToOneRel":
+            typ = db_field.rel.__class__.__name__
+            if typ == "ManyToOneRel":
                 kwargs['widget'] = VerboseForeignKeyRawIdWidget(db_field.rel, site)
-            elif type == "ManyToManyRel":
+            elif typ == "ManyToManyRel":
                 kwargs['widget'] = VerboseManyToManyRawIdWidget(db_field.rel, site)
             return db_field.formfield(**kwargs)
         return super(ImproveRawIdFieldsForm, self).formfield_for_dbfield(db_field, **kwargs)
@@ -136,10 +138,11 @@ class ImproveRawIdFieldsFormTabularInline(admin.TabularInline):
     def formfield_for_dbfield(self, db_field, **kwargs):
         if db_field.name in self.raw_id_fields:
             kwargs.pop("request", None)
-            type = db_field.rel.__class__.__name__
-            if type == "ManyToOneRel":
+            typ = db_field.rel.__class__.__name__
+            if typ == "ManyToOneRel":
                 kwargs['widget'] = VerboseForeignKeyRawIdWidget(db_field.rel, site)
-            elif type == "ManyToManyRel":
+            elif typ == "ManyToManyRel":
                 kwargs['widget'] = VerboseManyToManyRawIdWidget(db_field.rel, site)
             return db_field.formfield(**kwargs)
-        return super(ImproveRawIdFieldsFormTabularInline, self).formfield_for_dbfield(db_field, **kwargs)
+        return super(ImproveRawIdFieldsFormTabularInline, self)\
+            .formfield_for_dbfield(db_field, **kwargs)

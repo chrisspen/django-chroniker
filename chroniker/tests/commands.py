@@ -35,4 +35,3 @@ class ErrorThrower(BaseCommand):
         print(
             'Something went wrong (but not really, this is just a test).',
             file=sys.stderr)
-
