@@ -134,7 +134,7 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False, cl
                     pass
                 except TypeError:
                     pass
-            file(pid_fn, 'w').write(pid)
+            open(pid_fn, 'w').write(pid)
             clear_pid = True
         
         procs = []
@@ -294,7 +294,7 @@ class Command(BaseCommand):
         chroniker extra args and will be used to parse the arguments to this command.
         """
         parser = super(Command, self).create_parser(prog_name, subcommand)
-        from distutils.version import StrictVersion
+        from distutils.version import StrictVersion # pylint: disable=E0611
         version_threshold = StrictVersion('1.10')
         current_version = StrictVersion(django.get_version(django.VERSION))
         if current_version >= version_threshold:

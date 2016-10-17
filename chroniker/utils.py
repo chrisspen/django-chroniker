@@ -131,7 +131,8 @@ class TeeFile(StringIO):
         #super(TeeFile, self).flush()
         StringIO.flush(self)
         if self.queue is not None:
-            self.queue.put((current_process().pid, ''.join(self.queue_buffer)))
+            data = (current_process().pid, ''.join(self.queue_buffer)) # pylint: disable=E1102
+            self.queue.put(data)
             self.queue_buffer = []
 
     def fileno(self):
