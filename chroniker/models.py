@@ -1222,6 +1222,7 @@ class Job(models.Model):
                 job = Job.objects.only(
                     'id', 'total_parts', 'last_run_successful'
                 ).get(id=self.id)
+                tpc = (job.last_run_successful and job.total_parts) or 0 # pylint: disable=E0601
                 Job.objects.filter(id=self.id).update(
                     is_running=False,
                     lock_file='',
@@ -1229,7 +1230,7 @@ class Job(models.Model):
                     force_run=False,
                     next_run=next_run,
                     last_run_successful=last_run_successful,
-                    total_parts_complete=(job.last_run_successful and job.total_parts) or 0,
+                    total_parts_complete=tpc,
                 )
             except Exception as e:
                 # The command failed to run; log the exception
