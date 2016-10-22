@@ -5,6 +5,7 @@ import importlib
 from datetime import timedelta
 from optparse import make_option
 
+import django
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -16,7 +17,7 @@ from chroniker.models import Job, Log, get_current_job
 class Command(BaseCommand):
     help = 'Runs a specific monitoring routine.'
     
-    option_list = BaseCommand.option_list + (
+    option_list = getattr(BaseCommand, 'option_list', ()) + (
         make_option('--imports',
             dest='imports',
             help='Modules to import.'),
@@ -28,7 +29,32 @@ class Command(BaseCommand):
             default=False,
             help='If given, displays extra logging messages.'),
         )
-    
+        
+    def create_parser(self, prog_name, subcommand):
+        """
+        For ``Django>=1.10``
+        Create and return the ``ArgumentParser`` which extends ``BaseCommand`` parser with
+        chroniker extra args and will be used to parse the arguments to this command.
+        """
+        from distutils.version import StrictVersion # pylint: disable=E0611
+        parser = super(Command, self).create_parser(prog_name, subcommand)
+        version_threshold = StrictVersion('1.10')
+        current_version = StrictVersion(django.get_version(django.VERSION))
+        if current_version >= version_threshold:
+            parser.add_argument('args', nargs="*")
+            parser.add_argument('--imports',
+                dest='imports',
+                help='Modules to import.')
+            parser.add_argument('--query',
+                dest='query',
+                help='The query to run.')
+            parser.add_argument('--verbose',
+                dest='verbose',
+                default=False,
+                help='If given, displays extra logging messages.')
+            self.add_arguments(parser)
+        return parser
+        
     def handle(self, *args, **options):
         imports = options['imports']
         query = options['query']

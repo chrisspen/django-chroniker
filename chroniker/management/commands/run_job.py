@@ -1,6 +1,7 @@
 import sys
 from optparse import make_option
 
+import django
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 
@@ -13,14 +14,34 @@ class Command(BaseCommand):
         
     args = "job.id"
     
-    option_list = BaseCommand.option_list + (
+    option_list = getattr(BaseCommand, 'option_list', ()) + (
         make_option('--update_heartbeat',
             dest='update_heartbeat',
             default=1,
             help='If given, launches a thread to asynchronously update ' + \
                 'job heartbeat status.'),
         )
-    
+        
+    def create_parser(self, prog_name, subcommand):
+        """
+        For ``Django>=1.10``
+        Create and return the ``ArgumentParser`` which extends ``BaseCommand`` parser with
+        chroniker extra args and will be used to parse the arguments to this command.
+        """
+        from distutils.version import StrictVersion # pylint: disable=E0611
+        parser = super(Command, self).create_parser(prog_name, subcommand)
+        version_threshold = StrictVersion('1.10')
+        current_version = StrictVersion(django.get_version(django.VERSION))
+        if current_version >= version_threshold:
+            parser.add_argument('args', nargs="*")
+            parser.add_argument('--update_heartbeat',
+                dest='update_heartbeat',
+                default=1,
+                help='If given, launches a thread to asynchronously update ' + \
+                    'job heartbeat status.')
+            self.add_arguments(parser)
+        return parser
+        
     def handle(self, *args, **options):
         for job_id in args:
             

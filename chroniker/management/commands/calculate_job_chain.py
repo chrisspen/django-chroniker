@@ -4,6 +4,7 @@ import sys
 import time
 from optparse import make_option
 
+import django
 from django.core.management.base import BaseCommand
 
 from chroniker.models import Job, Log, JobDependency
@@ -13,16 +14,30 @@ from criticalpath import Node
 class Command(BaseCommand):
     help = 'Calculates the total time a series of chained jobs will take.'
     
-    option_list = BaseCommand.option_list + (
-#        make_option('--seconds',
-#            dest='seconds',
-#            default=60,
-#            help='The number of total seconds to count up to.'),
+    option_list = getattr(BaseCommand, 'option_list', ()) + (
         make_option('--samples',
             default=20,
             help='The number of log samples to use when estimating mean job run time.'),
         )
-    
+        
+    def create_parser(self, prog_name, subcommand):
+        """
+        For ``Django>=1.10``
+        Create and return the ``ArgumentParser`` which extends ``BaseCommand`` parser with
+        chroniker extra args and will be used to parse the arguments to this command.
+        """
+        from distutils.version import StrictVersion # pylint: disable=E0611
+        parser = super(Command, self).create_parser(prog_name, subcommand)
+        version_threshold = StrictVersion('1.10')
+        current_version = StrictVersion(django.get_version(django.VERSION))
+        if current_version >= version_threshold:
+            parser.add_argument('root_job_id')
+            parser.add_argument('--samples',
+                default=20,
+                help='The number of log samples to use when estimating mean job run time.')
+            self.add_arguments(parser)
+        return parser
+        
     def handle(self, root_job_id, **options):
         root_job = Job.objects.get(id=int(root_job_id))
         samples = int(options['samples'])

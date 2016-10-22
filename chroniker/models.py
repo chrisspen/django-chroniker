@@ -1163,7 +1163,7 @@ class Job(models.Model):
                     stdout_str, stderr_str = p.communicate()
                     retcode = p.returncode
                 else:
-                    #print('self.command:',self.command, args, options)
+                    logger.debug('command: %s %s %s', self.command, args, options)
                     call_command(self.command, *args, **options)
                 logger.debug("Command '%s' completed", self.command)
                 if original_pid != os.getpid():

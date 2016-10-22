@@ -293,8 +293,8 @@ class Command(BaseCommand):
         Create and return the ``ArgumentParser`` which extends ``BaseCommand`` parser with
         chroniker extra args and will be used to parse the arguments to this command.
         """
-        parser = super(Command, self).create_parser(prog_name, subcommand)
         from distutils.version import StrictVersion # pylint: disable=E0611
+        parser = super(Command, self).create_parser(prog_name, subcommand)
         version_threshold = StrictVersion('1.10')
         current_version = StrictVersion(django.get_version(django.VERSION))
         if current_version >= version_threshold:
