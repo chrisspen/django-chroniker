@@ -19,13 +19,13 @@ FREQ_CHOICES = (
 )
 
 RRULE_WEEKDAY_DICT = {
-    "MO":0,
-    "TU":1,
-    "WE":2,
-    "TH":3,
-    "FR":4,
-    "SA":5,
-    "SU":6,
+    "MO": 0,
+    "TU": 1,
+    "WE": 2,
+    "TH": 3,
+    "FR": 4,
+    "SA": 5,
+    "SU": 6,
 }
 
 DEFAULT_MONITOR_ERROR_TEMPLATE = '''
@@ -39,6 +39,9 @@ Please review this monitor at {{ url }}
 '''
 
 WALL_CLOCK_TIME = 'wall-clock-time'
+
 CPU_TIME = 'cpu-time'
+
 RECURSIVE_CPU_TIME = 'recursive-cpu-time'
+
 MAX_TIME = 'max-time' # max(WALL_CLOCK_TIME, RECURSIVE_CPU_TIME)

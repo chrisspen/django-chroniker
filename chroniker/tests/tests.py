@@ -480,3 +480,41 @@ class JobTestCase(TestCase):
         job.run(update_heartbeat=0)
         self.assertEqual(job.logs.all().count(), 1)
         self.assertEqual(len(CALLBACK_ERRORS), 1)
+
+    def test_cron_queue(self):
+        
+        jobs = Job.objects.all()
+        self.assertEqual(jobs.count(), 6)
+        Job.objects.all().update(enabled=False)
+        
+        logs = Log.objects.all()
+        self.assertEqual(logs.count(), 0)
+        
+        job = Job.objects.create(
+            name='test',
+            raw_command='ls',
+            enabled=True,
+            force_run=True,
+            log_stdout=True,
+            log_stderr=True,
+        )
+        
+        time_start = time.time()
+        # Note, if we run cron asynchronously, this breaks the transactions in Sqlite
+        # and stops us from seeing model changes.
+        call_command('cron', update_heartbeat=0, sync=1)
+        time_end = time.time()
+        
+        Log.objects.update()
+        logs = Log.objects.all()
+        self.assertEqual(logs.count(), 1)
+        
+        Job.objects.update()
+        job = Job.objects.get(id=job.id)
+        logs = job.logs.all()
+        self.assertEqual(logs.count(), 1)
+        self.assertEqual(logs[0].stderr, '')
+        print(logs[0].stdout)
+        print(logs[0].stderr)
+        self.assertEqual(job.last_run_successful, True)
+        self.assertTrue(job.last_run_start_timestamp)

@@ -19,7 +19,7 @@ from django.utils import timezone
 
 import psutil
 
-from chroniker.models import Job, Log
+from chroniker.models import Job, Log, commit_on_success
 from chroniker import constants as c
 from chroniker import utils
 
@@ -63,9 +63,10 @@ class JobProcess(utils.TimedProcess):
 
 def run_job(job, update_heartbeat=None, **kwargs):
     
+    update_heartbeat = kwargs.pop('update_heartbeat', None)
     stdout_queue = kwargs.pop('stdout_queue', None)
     stderr_queue = kwargs.pop('stderr_queue', None)
-    force_run = stderr_queue('force_run', False)
+    force_run = kwargs.pop('force_run', False)
     
     # TODO:causes UnicodeEncodeError: 'ascii' codec can't encode
     # character u'\xa0' in position 59: ordinal not in range(128)
@@ -93,7 +94,14 @@ def run_job(job, update_heartbeat=None, **kwargs):
     #TODO:mark job as not running if still marked?
     #TODO:normalize job termination and cleanup outside of handle_run()?
 
-def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False, clear_pid=False):
+def run_cron(jobs=None, **kwargs):
+    
+    update_heartbeat = kwargs.pop('update_heartbeat', True)
+    force_run = kwargs.pop('force_run', False)
+    dryrun = kwargs.pop('dryrun', False)
+    clear_pid = kwargs.pop('clear_pid', False)
+    sync = kwargs.pop('sync', False)
+    
     try:
         
         # TODO: auto-kill inactive long-running cron processes whose
@@ -162,12 +170,13 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False, cl
             Job.objects.update()
             job = Job.objects.get(id=job.id)
             if not force_run and not job.is_due_with_dependencies_met(running_ids=running_ids):
-                print('Job %i %s is due but has unmet dependencies.' % (job.id, job))
+                print(('Job %i %s is due but has unmet dependencies.' \
+                    % (job.id, job)).encode('utf-8'))
                 continue
             
             # Immediately mark the job as running so the next jobs can
             # update their dependency check.
-            print('Running job %i %s.' % (job.id, job))
+            print(('Running job %i %s.' % (job.id, job)).encode('utf-8'))
             running_ids.add(job.id)
             if dryrun:
                 continue
@@ -175,25 +184,35 @@ def run_cron(jobs=None, update_heartbeat=True, force_run=False, dryrun=False, cl
             Job.objects.filter(id=job.id).update(is_running=job.is_running)
             
             # Launch job.
-            #proc = JobProcess(job, update_heartbeat=update_heartbeat, name=str(job))
-            job_func = partial(
-                run_job,
-                job=job,
-                force_run=force_run or job.force_run,
-                update_heartbeat=update_heartbeat,
-                name=str(job),
-            )
-            proc = JobProcess(
-                job=job,
-                max_seconds=job.timeout_seconds,
-                target=job_func,
-                name=str(job),
-                kwargs=dict(
+            if sync:
+                # Run job synchronously.
+                run_job(
+                    job,
+                    update_heartbeat=update_heartbeat,
                     stdout_queue=stdout_queue,
                     stderr_queue=stderr_queue,
-                ))
-            proc.start()
-            procs.append(proc)
+                    force_run=force_run or job.force_run,
+                )
+            else:
+                # Run job asynchronously.
+                job_func = partial(
+                    run_job,
+                    job=job,
+                    force_run=force_run or job.force_run,
+                    update_heartbeat=update_heartbeat,
+                    name=str(job),
+                )
+                proc = JobProcess(
+                    job=job,
+                    max_seconds=job.timeout_seconds,
+                    target=job_func,
+                    name=str(job),
+                    kwargs=dict(
+                        stdout_queue=stdout_queue,
+                        stderr_queue=stderr_queue,
+                    ))
+                proc.start()
+                procs.append(proc)
         
         if not dryrun:
             print("%d Jobs are due." % len(procs))
@@ -285,6 +304,10 @@ class Command(BaseCommand):
             dest='name',
             default='',
             help='A name to give this process.'),
+        make_option('--sync',
+            action='store_true',
+            default=False,
+            help='If given, runs job one at a time.'),
     )
 
     def create_parser(self, prog_name, subcommand):
@@ -320,6 +343,10 @@ class Command(BaseCommand):
                 dest='name',
                 default='',
                 help='A name to give this process.')
+            parser.add_argument('--sync',
+                action='store_true',
+                default=False,
+                help='If given, runs job one at a time.')
             self.add_arguments(parser)
         return parser
     
@@ -333,11 +360,11 @@ class Command(BaseCommand):
             for _ in options.get('jobs', '').strip().split(',')
             if _.strip().isdigit()
         ]
-        update_heartbeat = int(options['update_heartbeat'])
-        force_run = options['force_run']
+        
         run_cron(
             jobs,
-            update_heartbeat=update_heartbeat,
-            force_run=force_run,
+            update_heartbeat=int(options['update_heartbeat']),
+            force_run=options['force_run'],
             dryrun=options['dryrun'],
+            sync=options['sync'],
         )

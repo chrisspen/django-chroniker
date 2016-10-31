@@ -57,7 +57,7 @@ from django.core.exceptions import ValidationError
 
 from toposort import toposort_flatten
 
-import chroniker.constants as const
+import chroniker.constants as c
 from chroniker import utils
 from chroniker.utils import import_string
 
@@ -464,7 +464,7 @@ class Job(models.Model):
     
     frequency = models.CharField(
         _("frequency"),
-        choices=const.FREQ_CHOICES,
+        choices=c.FREQ_CHOICES,
         max_length=10)
     
     params = models.TextField(
@@ -620,7 +620,7 @@ class Job(models.Model):
     
     monitor_error_template = models.TextField(
         blank=True, null=True,
-        default=const.DEFAULT_MONITOR_ERROR_TEMPLATE,
+        default=c.DEFAULT_MONITOR_ERROR_TEMPLATE,
         help_text=_('If this is a monitor, this is the template used ' + \
             'to compose the error text email.<br/>' + \
             'Available variables: {{ job }} {{ stderr }} {{ url }}'))
@@ -777,15 +777,18 @@ class Job(models.Model):
         return timezone.now() + timedelta(seconds=int(remaining_sec))
     
     def estimated_completion_datetime_str(self):
-        c = self.estimated_completion_datetime
-        if c is None:
+        ecdt = self.estimated_completion_datetime
+        if ecdt is None:
             return ''
-        return c.replace(microsecond=0)
+        return ecdt.replace(microsecond=0)
     estimated_completion_datetime_str.short_description = 'ETC'
     estimated_completion_datetime_str.help_text = \
         'Estimated time of completion'
     
     def clean(self, *args, **kwargs):
+        
+        self.frequency = self.frequency or c.DAILY
+        
         cmd1 = (self.command or '').strip()
         cmd2 = (self.raw_command or '').strip()
         if cmd1 and cmd2:
@@ -911,7 +914,7 @@ class Job(models.Model):
         Returns the rrule objects for this ``Job``.
         Can also be accessed via the ``rrule`` property of the ``Job``.
         """
-        frequency = eval('rrule.%s' % self.frequency) # pylint: disable=W0123
+        frequency = getattr(rrule, self.frequency)
         return rrule.rrule(
             frequency, dtstart=self.next_run, **self.get_params())
     rrule = property(get_rrule)
@@ -929,8 +932,8 @@ class Job(models.Model):
         >>> job.get_params()
         {'byweekday': [1, 2, 4, 5]}
         """
-        if param_value in const.RRULE_WEEKDAY_DICT:
-            return const.RRULE_WEEKDAY_DICT[param_value]
+        if param_value in c.RRULE_WEEKDAY_DICT:
+            return c.RRULE_WEEKDAY_DICT[param_value]
         try:
             val = int(param_value)
         except ValueError:
@@ -1199,8 +1202,7 @@ class Job(models.Model):
                 _next_run = next_run
                 next_run = self.rrule.after(next_run)
                 print(_next_run, next_run)
-                assert next_run != _next_run, \
-                    'RRule failed to increment next run datetime.'
+                assert next_run != _next_run, 'RRule failed to increment next run datetime.'
             #next_run = next_run.replace(tzinfo=timezone.get_current_timezone()) 
             
             last_run_successful = not bool(stderr.length)
@@ -1277,8 +1279,7 @@ class Job(models.Model):
                     stderr_str = six.text_type(stderr_str, 'utf-8', 'replace')
             
             run_end_datetime = timezone.now()
-            duration_seconds = (run_end_datetime - run_start_datetime)\
-                .total_seconds()
+            duration_seconds = (run_end_datetime - run_start_datetime).total_seconds()
             log = Log.objects.create(
                 job=self,
                 run_start_datetime=run_start_datetime,
