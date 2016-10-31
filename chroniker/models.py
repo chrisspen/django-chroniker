@@ -659,10 +659,9 @@ class Job(models.Model):
     
     def __unicode__(self):
         if self.enabled:
-            ret = "%i - %s - %s" % (self.id, self.name, self.timeuntil)
+            ret = u"{} - {} - {}".format(self.id, self.name, self.timeuntil)
         else:
-            ret = "%(id)s - %(name)s - disabled" \
-                % {'name': self.name, 'id':self.id}
+            ret = u"{id} - {name} - disabled".format(**{'name': self.name, 'id':self.id})
         if not isinstance(ret, six.text_type):
             ret = u(ret)
         return ret
@@ -682,10 +681,10 @@ class Job(models.Model):
         if not self.is_monitor or not self.monitor_url:
             return
         t = Template('{% load chroniker_tags %}' + self.monitor_url)
-        c = Context(dict(
+        ctx = Context(dict(
             #date=timezone.now(),#.strftime('%Y-%m-%d'),
         ))
-        url = t.render(c)
+        url = t.render(ctx)
         url = url.replace(' ', '+')
         return url
     
@@ -1138,13 +1137,13 @@ class Job(models.Model):
             except Exception as e:
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
-                c = Context({
+                ctx = Context({
                     'exception': unicode(e),
                     'traceback': [
                         '\n'.join(traceback.format_exception(*sys.exc_info()))
                      ]
                 })
-                print(t.render(c), file=sys.stderr)
+                print(t.render(ctx), file=sys.stderr)
                 success = False
             finally:
                 lock.release()
@@ -1176,13 +1175,13 @@ class Job(models.Model):
                     return
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
-                c = Context({
+                ctx = Context({
                   'exception': unicode(e),
                   'traceback': [
                       '\n'.join(traceback.format_exception(*sys.exc_info()))
                     ]
                 })
-                print(t.render(c), file=sys.stderr)
+                print(t.render(ctx), file=sys.stderr)
                 success = False
             
             # Stop the heartbeat
@@ -1237,13 +1236,13 @@ class Job(models.Model):
             except Exception as e:
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
-                c = Context({
+                ctx = Context({
                   'exception': unicode(e),
                   'traceback': [
                       '\n'.join(traceback.format_exception(*sys.exc_info()))
                     ]
                 })
-                print(t.render(c), file=sys.stderr)
+                print(t.render(ctx), file=sys.stderr)
                 success = False
             finally:
                 lock.release()
@@ -1466,12 +1465,12 @@ class Log(models.Model):
         args['stderr'] = self.stderr if self.job.is_monitor else None
         args['url'] = mark_safe('http://%s%s' % \
             (current_site.domain, self.job.monitor_url_rendered))
-        c = Context(args)
-        subject = Template(subject_tmpl).render(c)
+        ctx = Context(args)
+        subject = Template(subject_tmpl).render(ctx)
         
         if is_error and self.job.is_monitor \
         and self.job.monitor_error_template:
-            body = Template(self.job.monitor_error_template).render(c)
+            body = Template(self.job.monitor_error_template).render(ctx)
         else:
             body = "Ouput:\n%s\nError output:\n%s" \
                 % (self.stdout.decode('utf-8'), self.stderr.decode('utf-8'))

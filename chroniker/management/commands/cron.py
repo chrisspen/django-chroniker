@@ -19,6 +19,8 @@ from django.utils import timezone
 
 import psutil
 
+from six import u
+
 from chroniker.models import Job, Log, commit_on_success
 from chroniker import constants as c
 from chroniker import utils
@@ -45,7 +47,7 @@ def kill_stalled_processes(dryrun=True):
                     job = None
                     if jobs:
                         job = jobs[0]
-                    print('Killing process %s associated with %s.' % (pid, job))
+                    utils.smart_print('Killing process %s associated with %s.' % (pid, job))
                     if not dryrun:
                         utils.kill_process(pid)
                 else:
@@ -170,13 +172,13 @@ def run_cron(jobs=None, **kwargs):
             Job.objects.update()
             job = Job.objects.get(id=job.id)
             if not force_run and not job.is_due_with_dependencies_met(running_ids=running_ids):
-                print(('Job %i %s is due but has unmet dependencies.' \
-                    % (job.id, job)).encode('utf-8'))
+                utils.smart_print(u'Job {} {} is due but has unmet dependencies.'\
+                    .format(job.id, job))
                 continue
             
             # Immediately mark the job as running so the next jobs can
             # update their dependency check.
-            print(('Running job %i %s.' % (job.id, job)).encode('utf-8'))
+            utils.smart_print(u'Running job {} {}.'.format(job.id, job))
             running_ids.add(job.id)
             if dryrun:
                 continue
@@ -229,14 +231,6 @@ def run_cron(jobs=None, **kwargs):
                     stderr_map[proc_id].append(proc_stderr)
                     
                 for proc in list(procs):
-                    
-                    # Auto kill processes that haven't terminated but yet
-                    # register no cpu usage.
-                    #cpu = proc.get_cpu_usage_recursive()
-                    #print('cpu:',proc,cpu)
-#                    if not cpu:
-#                        utils.kill_process(proc.pid)
-#                        time.sleep(1)
                     
                     if not proc.is_alive():
                         print('Process %s ended.' % (proc,))

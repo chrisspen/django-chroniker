@@ -22,6 +22,7 @@ from django.db import models
 from django.db import connection
 from django.utils import timezone
 from django.conf import settings
+from django.utils.encoding import smart_str
 
 import psutil
 
@@ -483,3 +484,18 @@ def import_string(dotted_path):
         msg = 'Module "%s" does not define a "%s" attribute/class' % (
             dotted_path, class_name)
         six.reraise(ImportError, ImportError(msg), sys.exc_info()[2])
+
+def smart_print(*args, **kwargs):
+    """
+    Attempts to print, respecting encoding, across all Python versions.
+    """
+    encoding = kwargs.pop('encoding', 'utf8')
+    s = smart_str(' ')
+    s = s.join(args)
+    try:
+        print(six.u(s).encode(encoding), **kwargs)
+    except TypeError:
+        try:
+            print(smart_str(s, encoding=encoding), **kwargs)
+        except TypeError:
+            print(s, **kwargs)
