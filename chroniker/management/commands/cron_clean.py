@@ -1,10 +1,11 @@
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import logging
 import sys
 
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 
 from chroniker.models import Log
 
@@ -22,13 +23,12 @@ class Command(BaseCommand):
             unit = str(args[0])
             if unit not in ['weeks', 'days', 'hours', 'minutes']:
                 sys.stderr.write('Valid units are weeks, days, hours or minutes.\n')
-                return
+                return 1
             try:
                 amount = int(args[1]) 
             except ValueError:
                 sys.stderr.write('Interval must be an integer.\n')
-                return
+                return 1
         kwargs = {unit: amount}
-        time_ago = datetime.now() - timedelta(**kwargs)
-        #Log.objects.filter( run_start_datetime__lte = time_ago ).delete()
+        time_ago = timezone.now() - timedelta(**kwargs)
         Log.cleanup(time_ago)
