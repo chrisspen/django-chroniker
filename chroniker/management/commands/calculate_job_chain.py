@@ -1,13 +1,12 @@
 from __future__ import print_function
 
 import sys
-import time
 from optparse import make_option
 
 import django
 from django.core.management.base import BaseCommand
 
-from chroniker.models import Job, Log, JobDependency
+from chroniker.models import Job, JobDependency
 
 from criticalpath import Node
 

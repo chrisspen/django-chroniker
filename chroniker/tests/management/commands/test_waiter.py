@@ -1,8 +1,7 @@
 from __future__ import print_function
-import sys
 import time
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 
 class Command(BaseCommand):
     args = ''
@@ -12,4 +11,3 @@ class Command(BaseCommand):
         while 1:
             time.sleep(1)
             print('Waiting...')
-            

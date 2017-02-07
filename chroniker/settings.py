@@ -1,8 +1,5 @@
 #from distutils.version import StrictVersion
 from django.conf import settings
-#import django
-
-from . import constants as c
 
 #DJANGO_VERSION = StrictVersion(django.get_version())
 

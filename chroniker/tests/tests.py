@@ -1,15 +1,14 @@
 from __future__ import print_function
 
-import os
 import sys
 import datetime
 from datetime import timedelta
 import time
 import socket
-import threading
 import warnings
-from functools import cmp_to_key
 from multiprocessing import Process
+
+import pytz
 
 import six
 try:
@@ -29,8 +28,8 @@ from django.contrib.auth.models import User
 from django.conf import settings
 
 from chroniker.models import Job, Log
-from chroniker.tests.commands import Sleeper, InfiniteWaiter, ErrorThrower
-from chroniker.management.commands.cron import run_cron
+# from chroniker.tests.commands import Sleeper, InfiniteWaiter, ErrorThrower
+# from chroniker.management.commands.cron import run_cron
 from chroniker import utils
 from chroniker import constants as c
 
@@ -381,12 +380,9 @@ class JobTestCase(TestCase):
             next_run = j.next_run
             print('next_run:', next_run)
             self.assertTrue(timezone.is_naive(next_run))
-            try:
+            with self.assertRaises(ValueError):
                 #astimezone() cannot be applied to a naive datetime
                 timezone.make_naive(j.next_run, timezone=tz)
-                self.assertTrue(0)
-            except ValueError:
-                pass
             j.save()
         
             response = client.get('/admin/chroniker/job/')
@@ -518,3 +514,70 @@ class JobTestCase(TestCase):
         print(logs[0].stderr)
         self.assertEqual(job.last_run_successful, True)
         self.assertTrue(job.last_run_start_timestamp)
+
+    def test_hourly(self):
+        
+        Job.objects.all().delete()
+
+        job = Job.objects.create(
+            name='test',
+            raw_command='ls',
+            frequency=c.HOURLY,
+            enabled=True,
+            force_run=True,
+            log_stdout=True,
+            log_stderr=True,
+        )
+        self.assertEqual(job.logs.all().count(), 0)
+        self.assertTrue(job.next_run)
+        next_run0 = job.next_run.astimezone(pytz.utc)
+        print('next_run0:', next_run0)
+        self.assertTrue(timezone.is_aware(next_run0))
+        self.assertEqual(next_run0.tzname(), 'UTC')
+        
+        # Initial next_run should be one-hour from now.
+        td = next_run0 - timezone.now().astimezone(pytz.utc)
+        print('td:', td)
+        self.assertTrue(abs(td.total_seconds() -3600) <= 1)
+        
+        call_command('cron', update_heartbeat=0, sync=1)
+        
+        print('stdout:', job.logs.all()[0].stdout)
+        print('stderr:', job.logs.all()[0].stderr)
+        self.assertEqual(job.logs.all()[0].success, True)
+        
+        Job.objects.update()
+        job = Job.objects.get(id=job.id)
+        self.assertEqual(job.enabled, True)
+        self.assertEqual(job.force_run, False)
+        self.assertTrue(job.next_run)
+        self.assertEqual(job.logs.all().count(), 1)
+        next_run1 = job.next_run.astimezone(pytz.utc)
+        print('next_run1:', next_run1)
+        print('now:', timezone.now().astimezone(pytz.utc))
+        self.assertTrue(timezone.is_aware(next_run1))
+        # All datetimes get normalized to UTC in the database.
+        self.assertEqual(next_run1.tzname(), 'UTC')
+        
+        # Force run should have left the next_run unchanged.
+        td = (next_run1 - next_run0)#.total_seconds()
+        print('td:', td)
+        self.assertEqual(td.total_seconds(), 0)
+        
+        job.next_run = timezone.now() - timedelta(seconds=3600)
+        job.save()
+        self.assertEqual(job.is_due(), True)
+        
+        call_command('cron', update_heartbeat=0, sync=1)
+        
+        # The job should have been automatically scheduled to run an hour later.
+        Job.objects.update()
+        job = Job.objects.get(id=job.id)
+        self.assertEqual(job.logs.all().count(), 2)
+        next_run2 = job.next_run.astimezone(pytz.utc)
+        print('next_run0:', next_run0)
+        print('next_run2:', next_run2)
+        #self.assertTrue(td.total_seconds())
+        td2 = (next_run2 - timezone.now().astimezone(pytz.utc))
+        print('td2:', td2)
+        self.assertTrue(abs(td2.total_seconds() - 3600) <= 2)

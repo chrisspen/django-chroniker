@@ -1,7 +1,4 @@
-
 from datetime import timedelta
-
-import logging
 import sys
 
 from django.core.management.base import BaseCommand

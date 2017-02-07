@@ -7,7 +7,7 @@ except ImportError:
     
 try:
     # Relocated in Django 1.6
-    from django.conf.urls.defaults import pattern
+    from django.conf.urls.defaults import patterns
 except ImportError:
     # Completely removed in Django 1.10
     try:    

@@ -2,7 +2,7 @@ from __future__ import print_function
 import sys
 import time
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 
 class Sleeper(BaseCommand):
     args = '[time in seconds to loop]'

@@ -1,15 +1,11 @@
-import logging
 import os
-import re
 import sys
 import time
-import errno
 import socket
-import subprocess
 from functools import partial
 from optparse import make_option
 from collections import defaultdict
-from multiprocessing import Process, Queue
+from multiprocessing import Queue
 
 from django.core.management.base import BaseCommand
 from django.db import connection
@@ -19,10 +15,10 @@ from django.utils import timezone
 
 import psutil
 
-from six import u
+# from six import u
 
-from chroniker.models import Job, Log, commit_on_success
-from chroniker import constants as c
+from chroniker.models import Job, Log
+# from chroniker import constants as c
 from chroniker import utils
 
 def kill_stalled_processes(dryrun=True):

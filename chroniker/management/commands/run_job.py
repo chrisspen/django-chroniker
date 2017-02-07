@@ -2,10 +2,9 @@ import sys
 from optparse import make_option
 
 import django
-from django.core.management import call_command
 from django.core.management.base import BaseCommand
 
-from chroniker.models import Job, Log
+from chroniker.models import Job
 
 class Command(BaseCommand):
     

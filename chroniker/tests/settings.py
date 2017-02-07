@@ -1,7 +1,4 @@
 import os
-import sys
-
-import django
 
 PROJECT_DIR = os.path.dirname(__file__)
 
@@ -43,6 +40,8 @@ SOUTH_TESTS_MIGRATE = False # <= Django 1.8
 #     MIGRATION_MODULES = DisableMigrations()
 
 USE_TZ = True
+
+TIME_ZONE = 'America/New_York'
 
 AUTH_USER_MODEL = 'auth.User'
 
