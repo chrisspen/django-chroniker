@@ -2,14 +2,12 @@
 import logging
 import sys
 from datetime import datetime
-from time import sleep, time
+from time import sleep
 from threading import Thread
 
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
 from django.utils.translation import ugettext_lazy as _
-
-from chroniker.models import Job
 
 logger = logging.getLogger('chroniker.commands.cronserver')
 

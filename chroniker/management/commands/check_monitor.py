@@ -1,18 +1,14 @@
 from __future__ import print_function
 
 import sys
-import importlib
-from datetime import timedelta
 from optparse import make_option
 
 import django
-from django.core.management import call_command
 from django.core.management.base import BaseCommand
-from django.utils import timezone
 
 import six
 
-from chroniker.models import Job, Log, get_current_job
+from chroniker.models import get_current_job
 
 class Command(BaseCommand):
     help = 'Runs a specific monitoring routine.'

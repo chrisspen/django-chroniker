@@ -1,6 +1,6 @@
 recursive-include chroniker/templates *
 recursive-include chroniker/static *
 recursive-include chroniker/tests/fixtures *
-include pip-requirements-min-django.txt
-include pip-requirements.txt
-include pip-requirements-test.txt
+include requirements-min-django.txt
+include requirements.txt
+include requirements-test.txt

@@ -58,6 +58,6 @@ setup(
         'Framework :: Django',
     ],
     zip_safe=False,
-    install_requires=get_reqs('pip-requirements-min-django.txt', 'pip-requirements.txt'),
-    tests_require=get_reqs('pip-requirements-test.txt'),
+    install_requires=get_reqs('requirements-min-django.txt', 'requirements.txt'),
+    tests_require=get_reqs('requirements-test.txt'),
 )

@@ -5,7 +5,7 @@ import os
 import sys
 import time
 import signal
-import subprocess
+#import subprocess
 import warnings
 import errno
 from multiprocessing import Process, current_process
@@ -26,8 +26,7 @@ from django.utils.encoding import smart_str
 
 import psutil
 
-import six
-from six import print_
+from six import print_, reraise, u
 
 from . import constants as c
 
@@ -421,7 +420,7 @@ class TimedProcess(Process):
                 break
             elif self.is_expired:
                 if verbose:
-                    six.print_('\nAttempting to terminate expired process %s...' \
+                    print_('\nAttempting to terminate expired process %s...' \
                         % (self.pid,), file=self.fout)
                 timeout = True
                 self.terminate()
@@ -474,7 +473,7 @@ def import_string(dotted_path):
         module_path, class_name = dotted_path.rsplit('.', 1)
     except ValueError:
         msg = "%s doesn't look like a module path" % dotted_path
-        six.reraise(ImportError, ImportError(msg), sys.exc_info()[2])
+        reraise(ImportError, ImportError(msg), sys.exc_info()[2])
 
     module = import_module(module_path)
 
@@ -483,7 +482,7 @@ def import_string(dotted_path):
     except AttributeError:
         msg = 'Module "%s" does not define a "%s" attribute/class' % (
             dotted_path, class_name)
-        six.reraise(ImportError, ImportError(msg), sys.exc_info()[2])
+        reraise(ImportError, ImportError(msg), sys.exc_info()[2])
 
 def smart_print(*args, **kwargs):
     """
@@ -493,7 +492,7 @@ def smart_print(*args, **kwargs):
     s = smart_str(' ')
     s = s.join(args)
     try:
-        print(six.u(s).encode(encoding), **kwargs)
+        print(u(s).encode(encoding), **kwargs)
     except TypeError:
         try:
             print(smart_str(s, encoding=encoding), **kwargs)

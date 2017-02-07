@@ -1,5 +1,5 @@
 
-from django import forms
+# from django import forms
 from django.contrib import admin
 from django.contrib.admin.sites import site
 from django.contrib.admin.widgets import ManyToManyRawIdWidget, ForeignKeyRawIdWidget
@@ -15,15 +15,15 @@ except ImportError:
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
 
-try:
-    from django.utils.encoding import StrAndUnicode
-except ImportError:
-    from django.utils.encoding import python_2_unicode_compatible
-
-    @python_2_unicode_compatible
-    class StrAndUnicode:
-        def __str__(self):
-            return self.code
+# try:
+#     from django.utils.encoding import StrAndUnicode
+# except ImportError:
+#     from django.utils.encoding import python_2_unicode_compatible
+# 
+#     @python_2_unicode_compatible
+#     class StrAndUnicode:
+#         def __str__(self):
+#             return self.code
 
 import six
 
