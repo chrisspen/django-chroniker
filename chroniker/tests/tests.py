@@ -584,4 +584,3 @@ class JobTestCase(TestCase):
         td2 = (next_run2 - timezone.now().astimezone(pytz.utc))
         print('td2:', td2)
         self.assertTrue(abs(td2.total_seconds() - 3600) <= 2)
-        

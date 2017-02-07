@@ -817,7 +817,6 @@ class Job(models.Model):
     def save(self, *args, **kwargs):
         
         self.full_clean()
-        print('next_run.a:', self.next_run)
         
         tz = timezone.get_default_timezone()
         
@@ -840,15 +839,14 @@ class Job(models.Model):
                     self.next_run = utils.make_aware(
                         self.rrule.after(utils.make_naive(next_run, tz)),
                         tz)
-        
-        print('next_run.b:', self.next_run)
+
         if not self.is_running:
             self.current_hostname = None
             self.current_pid = None
         
         if self.next_run:
             self.next_run = utils.make_aware(self.next_run, tz)
-        print('next_run.c:', self.next_run)
+
         super(Job, self).save(*args, **kwargs)
         
         # Delete expired logs.
@@ -1197,7 +1195,7 @@ class Job(models.Model):
             #next_run = self.next_run.replace(tzinfo=None)
             next_run = self.next_run
             if not self.force_run:
-                print("Determining 'next_run' for job {}...".format(self.id), file=ostdout)
+                print("Determining 'next_run' for job {}...".format(self.id))
                 if next_run < timezone.now():
                     next_run = timezone.now()
                 _next_run = next_run
@@ -1248,11 +1246,7 @@ class Job(models.Model):
                 success = False
             finally:
                 lock.release()
-        
-        except Exception as e:
-            
-            traceback.print_exc(file=ostderr)
-                    
+                            
         finally:
             
             if original_pid != os.getpid():

@@ -1,7 +1,4 @@
 import os
-# import sys
-
-# import django
 
 PROJECT_DIR = os.path.dirname(__file__)
 

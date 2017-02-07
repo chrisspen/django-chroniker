@@ -5,7 +5,6 @@ import os
 import sys
 import time
 import signal
-#import subprocess
 import warnings
 import errno
 from multiprocessing import Process, current_process
