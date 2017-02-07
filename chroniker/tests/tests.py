@@ -380,12 +380,9 @@ class JobTestCase(TestCase):
             next_run = j.next_run
             print('next_run:', next_run)
             self.assertTrue(timezone.is_naive(next_run))
-            try:
+            with self.assertRaises(ValueError):
                 #astimezone() cannot be applied to a naive datetime
                 timezone.make_naive(j.next_run, timezone=tz)
-                self.assertTrue(0)
-            except ValueError:
-                pass
             j.save()
         
             response = client.get('/admin/chroniker/job/')
