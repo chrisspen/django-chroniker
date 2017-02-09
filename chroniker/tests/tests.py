@@ -1,5 +1,12 @@
+"""
+Quick run with:
+
+    export TESTNAME=.testJobRawCommand; tox -e py27-django17
+
+"""
 from __future__ import print_function
 
+import os
 import sys
 import datetime
 from datetime import timedelta
@@ -47,9 +54,11 @@ def job_error_callback(job, stdout, stderr):
 class JobProcess(Process):
     
     def run(self):
+        print('Job process started.')
         while 1:
-            #print('Waiting (pid=%i)...' % (os.getpid(),))
+            print('Job process waiting (pid=%i)...' % (os.getpid(),))
             time.sleep(1)
+        print('Job process stopped.')
 
 class JobTestCase(TestCase):
     
@@ -250,12 +259,15 @@ class JobTestCase(TestCase):
         job.save()
         self.assertEqual(job.is_running, True)
         self.assertEqual(job.is_fresh(), False)
+        self.assertEqual(job.is_stale(), True)
         
         Job.objects.end_all_stale()
         
         job = Job.objects.get(id=1)
         self.assertEqual(job.is_running, False)
         self.assertEqual(job.last_run_successful, False)
+        self.assertEqual(job.is_fresh(), True)
+        self.assertEqual(job.is_stale(), False)
 
         # TODO:Ideally this would use run_cron(),
         # but attempting to access Django models inside a thread/process
@@ -274,6 +286,7 @@ class JobTestCase(TestCase):
         proc.daemon = True
         proc.start()
         
+        # Wait for process to start.
         while not proc.is_alive():
             time.sleep()
         
@@ -290,7 +303,7 @@ class JobTestCase(TestCase):
             time.sleep(1)
             if not proc.is_alive():
                 break
-    
+
     def testJobFailure(self):
         self.assertEqual(len(mail.outbox), 0)
         user = User.objects.create(username='admin', email='admin@localhost')
@@ -318,13 +331,31 @@ class JobTestCase(TestCase):
         self.assertEqual(job.logs.all().count(), 0)
         job.run(update_heartbeat=0)
         self.assertEqual(job.logs.all().count(), 1)
-        
-        stdout_str = job.logs.all()[0].stdout
+
+        stdout_str = Log.objects.get(id=1).stdout
         self.assertEqual(stdout_str, 'hello\n')
-        
-        stderr_str = job.logs.all()[0].stderr
+        stderr_str = Log.objects.get(id=1).stderr
         self.assertEqual(stderr_str, '')
-    
+
+        # Disable logging.
+        Job.objects.update()
+        job = Job.objects.get(id=job.id)
+        job.log_stdout = False
+        job.log_stderr = False
+        job.force_run = True
+        job.save()
+
+        # Re-run.
+        self.assertEqual(job.logs.all().count(), 1)
+        job.run(update_heartbeat=0)
+        self.assertEqual(job.logs.all().count(), 2)
+        
+        # Confirm nothing was logged.
+        stdout_str = Log.objects.get(id=2).stdout
+        self.assertEqual(stdout_str, '')
+        stderr_str = Log.objects.get(id=2).stderr
+        self.assertEqual(stderr_str, '')
+
     def testTimezone(self):
         
         self.assertEqual(settings.USE_TZ, True)
@@ -477,7 +508,7 @@ class JobTestCase(TestCase):
         self.assertEqual(job.logs.all().count(), 1)
         self.assertEqual(len(CALLBACK_ERRORS), 1)
 
-    def test_cron_queue(self):
+    def testCronQueue(self):
         
         jobs = Job.objects.all()
         self.assertEqual(jobs.count(), 6)
@@ -515,7 +546,7 @@ class JobTestCase(TestCase):
         self.assertEqual(job.last_run_successful, True)
         self.assertTrue(job.last_run_start_timestamp)
 
-    def test_hourly(self):
+    def testHourly(self):
         
         Job.objects.all().delete()
 
@@ -581,3 +612,14 @@ class JobTestCase(TestCase):
         td2 = (next_run2 - timezone.now().astimezone(pytz.utc))
         print('td2:', td2)
         self.assertTrue(abs(td2.total_seconds() - 3600) <= 2)
+
+    def testMarkRunning(self):
+        _now = timezone.now
+        try:
+            job = Job.objects.get(id=1)
+            job.mark_running()
+            self.assertEqual(job.is_stale(), False)
+            timezone.now = lambda: _now() + timedelta(minutes=settings.CHRONIKER_STALE_MINUTES*2)
+            self.assertEqual(job.is_stale(), True)
+        finally:
+            timezone.now = _now
