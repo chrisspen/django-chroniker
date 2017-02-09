@@ -569,7 +569,7 @@ class JobTestCase(TestCase):
         # Initial next_run should be one-hour from now.
         td = next_run0 - timezone.now().astimezone(pytz.utc)
         print('td:', td)
-        self.assertTrue(abs(td.total_seconds() -3600) <= 1)
+        self.assertTrue(abs(td.total_seconds() -3600) <= 5)
         
         call_command('cron', update_heartbeat=0, sync=1)
         
@@ -611,7 +611,7 @@ class JobTestCase(TestCase):
         #self.assertTrue(td.total_seconds())
         td2 = (next_run2 - timezone.now().astimezone(pytz.utc))
         print('td2:', td2)
-        self.assertTrue(abs(td2.total_seconds() - 3600) <= 2)
+        self.assertTrue(abs(td2.total_seconds() - 3600) <= 5)
 
     def testMarkRunning(self):
         _now = timezone.now
