@@ -32,7 +32,7 @@ except ImportError:
 from dateutil import rrule
 
 import six
-from six import u
+from six import u, iteritems
 
 # import django
 from django.conf import settings
@@ -164,16 +164,15 @@ class JobHeartbeatThread(threading.Thread):
             utils.write_lock(self.lock_file)
             
             # Check job status and save heartbeat timestamp.
-            self.lock.acquire()
-            Job.objects.update()
-            job = Job.objects.only('id', 'force_stop').get(id=self.job_id)
-            force_stop = job.force_stop
-            Job.objects.filter(id=self.job_id).update(
-                last_heartbeat=timezone.now(),
-                force_stop=False,
-                force_run=False,
-            )
-            self.lock.release()
+            with self.lock:
+                Job.objects.update()
+                job = Job.objects.only('id', 'force_stop').get(id=self.job_id)
+                force_stop = job.force_stop
+                Job.objects.filter(id=self.job_id).update(
+                    last_heartbeat=timezone.now(),
+                    force_stop=False,
+                    force_run=False,
+                )
             
             # If we noticed we're being forced to stop, then interrupt
             # the entire process.
@@ -199,14 +198,11 @@ class JobHeartbeatThread(threading.Thread):
         """
         JobHeartbeatThread
         """
-        if lock:
-            self.lock.acquire()
-        Job.objects.filter(id=self.job_id).update(
-            total_parts=total_parts,
-            total_parts_complete=total_parts_complete,
-        )
-        if lock:
-            self.lock.release()
+        with self.lock:
+            Job.objects.filter(id=self.job_id).update(
+                total_parts=total_parts,
+                total_parts_complete=total_parts_complete,
+            )
 
 class JobDependency(models.Model):
     """
@@ -390,11 +386,13 @@ class JobManager(models.Manager):
         return lst
 
     def stale(self):
+        """
+        Returns a set of jobs that have been running without properly updating their health status
+        indicating that they've likely crashed or hung and need to be forcibly killed.
+        """
         threshold = timezone.now() - timedelta(minutes=settings.CHRONIKER_STALE_MINUTES)
         q = self.filter(is_running=True)
-        q = q.filter(
-            Q(last_heartbeat__isnull=True) | 
-            Q(last_heartbeat__lt=threshold))
+        q = q.filter(Q(last_heartbeat__isnull=True) | Q(last_heartbeat__lt=threshold))
         return q
     
     def all_running(self):
@@ -408,11 +406,10 @@ class JobManager(models.Manager):
         """
         
         @commit_on_success
-        def process_job(job):
+        def kill_job(job):
             # If we know the PID and it's running locally, and the process
             # appears inactive, then attempt to forcibly kill the job.
-            if job.current_pid and job.current_hostname \
-            and job.current_hostname == socket.gethostname():
+            if job.current_pid and job.current_hostname and job.current_hostname == socket.gethostname():
                 if utils.pid_exists(job.current_pid):
                     print('Killing process {}...'.format(job.current_pid))
                     utils.kill_process(job.current_pid)
@@ -444,7 +441,7 @@ class JobManager(models.Manager):
         for job in q.iterator():
             print('Checking stale job {}: {}'.format(job.id, job))
             
-            process_job(job)
+            kill_job(job)
             #transaction.commit()
             
             create_log(job)
@@ -865,13 +862,11 @@ class Job(models.Model):
                 return False
         return True
 
+    def is_stale(self):
+        return type(self).objects.stale().filter(id=self.id).exists()
+
     def is_fresh(self):
-        lookback_minutes = timedelta(minutes=settings.CHRONIKER_STALE_MINUTES)
-        threshold = timezone.now() - lookback_minutes
-        return not self.is_running or (
-            self.is_running and self.last_heartbeat
-            and self.last_heartbeat >= threshold
-        )
+        return not self.is_stale()
     is_fresh.boolean = True
 
     def get_timeuntil(self):
@@ -1034,7 +1029,6 @@ class Job(models.Model):
         dueness and don't want our current run status to give an incorrect
         reading.
         """
-        print('force_run:', force_run)
         if force_run:
             self.handle_run(*args, **kwargs)
             return True
@@ -1057,6 +1051,26 @@ class Job(models.Model):
             print('Job disabled. Aborting run.')
         return False
     
+    def mark_running(self, lock_file=None):
+        """
+        Updates the record in the database to show it as running.
+        Updates both the fields in the current instance as well as the fields in the database.
+        """
+        kwargs = dict(
+            is_running=True,
+            last_run_start_timestamp=timezone.now(),
+            current_hostname=socket.gethostname(),
+            current_pid=str(os.getpid()),
+            total_parts=0,
+            total_parts_complete=0,
+            lock_file=lock_file or '',
+            last_heartbeat=timezone.now(),
+        )
+        Job.objects.filter(id=self.id).update(**kwargs)
+        for name, value in iteritems(kwargs):
+            setattr(self, name, value)
+        
+    
     def handle_run(self,
         update_heartbeat=True,
         stdout_queue=None,
@@ -1070,7 +1084,7 @@ class Job(models.Model):
         """
         print('Handling run...')
         
-        lock = threading.Lock()
+        lock = threading.RLock()
         run_start_datetime = timezone.now()
         last_run_successful = False
         stdout_str = ''
@@ -1079,20 +1093,10 @@ class Job(models.Model):
         original_pid = os.getpid()
         
         try:
-            stdout = sys.stdout
-            stderr = sys.stderr
-            if self.log_stdout:
-                stdout = utils.TeeFile(
-                    sys.stdout,
-                    auto_flush=True,
-                    queue=stdout_queue)
-            if self.log_stderr:
-                stderr = utils.TeeFile(
-                    sys.stderr,
-                    auto_flush=True,
-                    queue=stderr_queue)
     
-            # Redirect output so that we can log it if there is any
+            # Redirect output so that we can log and easily check for errors.
+            stdout = utils.TeeFile(sys.stdout, auto_flush=True, queue=stdout_queue, local=self.log_stdout)
+            stderr = utils.TeeFile(sys.stderr, auto_flush=True, queue=stderr_queue, local=self.log_stderr)
             ostdout = sys.stdout
             ostderr = sys.stderr
             sys.stdout = stdout
@@ -1109,31 +1113,13 @@ class Job(models.Model):
                 lock_file = heartbeat.lock_file.name
 
             try:
-                lock.acquire()
-#                Job.objects.update()
-#                job = Job.objects.get(id=self.id)
-#                job.is_running = True
-#                job.last_run_start_timestamp = timezone.now()
-#                job.current_hostname = socket.gethostname()
-#                job.current_pid = str(os.getpid())
-#                job.total_parts = 0
-#                job.total_parts_complete = 0
-#                if heartbeat:
-#                    job.lock_file = heartbeat.lock_file.name
-#                job.save()
+                with lock:
+    
+                    # Fixes MySQL error "Commands out of sync"?
+                    connection.close()
 
-                # Fixes MySQL error "Commands out of sync"?
-                connection.close()
+                    self.mark_running(lock_file=lock_file)
 
-                Job.objects.filter(id=self.id).update(
-                    is_running=True,
-                    last_run_start_timestamp=timezone.now(),
-                    current_hostname=socket.gethostname(),
-                    current_pid=str(os.getpid()),
-                    total_parts=0,
-                    total_parts_complete=0,
-                    lock_file=lock_file,
-                )
             except Exception as e:
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
@@ -1145,8 +1131,6 @@ class Job(models.Model):
                 })
                 print(t.render(ctx), file=sys.stderr)
                 success = False
-            finally:
-                lock.release()
             
             if heartbeat:
                 heartbeat.start()
@@ -1154,6 +1138,7 @@ class Job(models.Model):
             try:
                 logger.debug("Calling command '%s'", self.command)
                 if self.raw_command:
+
                     p = subprocess.Popen(
                         self.raw_command,
 #                         stdout=sys.stdout,
@@ -1162,7 +1147,15 @@ class Job(models.Model):
                         stderr=subprocess.PIPE,
                         shell=True,
                         universal_newlines=True)
-                    stdout_str, stderr_str = p.communicate()
+                        
+                    _stdout_str, _stderr_str = p.communicate()
+                    
+                    if self.log_stdout:
+                        stdout_str = _stdout_str
+                        
+                    if self.log_stderr:
+                        stderr_str = _stderr_str
+                        
                     retcode = p.returncode
                 else:
                     logger.debug('command: %s %s %s', self.command, args, options)
@@ -1203,36 +1196,23 @@ class Job(models.Model):
                 print(_next_run, next_run)
                 assert next_run != _next_run, 'RRule failed to increment next run datetime.'
             #next_run = next_run.replace(tzinfo=timezone.get_current_timezone()) 
-            
+
             last_run_successful = not bool(stderr.length)
             
             try:
-                lock.acquire()
-                Job.objects.update()
-#                job = Job.objects.get(id=self.id)
-#                job.is_running = False
-#                job.lock_file = ""
-#                job.last_run = run_start_datetime
-#                job.force_run = False
-#                job.next_run = next_run
-#                job.last_run_successful = last_run_successful
-#                # Ensure we report 100% progress if everything ran successfully.
-#                if job.last_run_successful and job.total_parts is not None:
-#                    job.total_parts_complete = job.total_parts
-#                job.save()
-                job = Job.objects.only(
-                    'id', 'total_parts', 'last_run_successful'
-                ).get(id=self.id)
-                tpc = (job.last_run_successful and job.total_parts) or 0 # pylint: disable=E0601
-                Job.objects.filter(id=self.id).update(
-                    is_running=False,
-                    lock_file='',
-                    last_run=run_start_datetime,
-                    force_run=False,
-                    next_run=next_run,
-                    last_run_successful=last_run_successful,
-                    total_parts_complete=tpc,
-                )
+                with lock:
+                    Job.objects.update()
+                    job = Job.objects.only('id', 'total_parts', 'last_run_successful').get(id=self.id)
+                    tpc = (job.last_run_successful and job.total_parts) or 0 # pylint: disable=E0601
+                    Job.objects.filter(id=self.id).update(
+                        is_running=False,
+                        lock_file='',
+                        last_run=run_start_datetime,
+                        force_run=False,
+                        next_run=next_run,
+                        last_run_successful=last_run_successful,
+                        total_parts_complete=tpc,
+                    )
             except Exception as e:
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
@@ -1244,8 +1224,6 @@ class Job(models.Model):
                 })
                 print(t.render(ctx), file=sys.stderr)
                 success = False
-            finally:
-                lock.release()
                             
         finally:
             
@@ -1310,15 +1288,14 @@ class Job(models.Model):
                 print(e, file=sys.stderr)
             
             # If an exception occurs above, ensure we unmark is_running.
-            lock.acquire()
-            Job.objects.update()
-            job = Job.objects.get(id=self.id)
-            if job.is_running:
-                # This should only be reached if an error ocurred above.
-                job.is_running = False
-                job.last_run_successful = False
-                job.save()
-            lock.release()
+            with lock:
+                Job.objects.update()
+                job = Job.objects.get(id=self.id)
+                if job.is_running:
+                    # This should only be reached if an error ocurred above.
+                    job.is_running = False
+                    job.last_run_successful = False
+                    job.save()
             
             print('Job done.')
     
@@ -1337,8 +1314,7 @@ class Job(models.Model):
                 # The lock file exists, but if the file hasn't been modified
                 # in less than LOCK_TIMEOUT seconds ago, we assume the process
                 # is dead.
-                if (time.time() - os.stat(self.lock_file).st_mtime) \
-                <= settings.CHRONIKER_LOCK_TIMEOUT:
+                if (time.time() - os.stat(self.lock_file).st_mtime) <= settings.CHRONIKER_LOCK_TIMEOUT:
                     return True
             
             # This job isn't running; update it's info

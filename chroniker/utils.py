@@ -95,7 +95,7 @@ class TeeFile(StringIO):
     A helper class for allowing output to be stored in a StringIO instance
     while still be directed to a second file object, such as sys.stdout.
     """
-    def __init__(self, file, auto_flush=False, queue=None): # pylint: disable=W0622
+    def __init__(self, file, auto_flush=False, queue=None, local=True): # pylint: disable=W0622
         super(TeeFile, self).__init__()
         #StringIO.__init__(self)
         self.file = file
@@ -103,6 +103,11 @@ class TeeFile(StringIO):
         self.length = 0
         self.queue = queue
         self.queue_buffer = []
+        
+        # If False, tracks length, but doesn't store content locally.
+        # Useful if you want to keep track of whether or not data was written
+        # but don't care about the content, especially if it's expected to be massive.
+        self.local = local
 
     def write(self, s):
         try:
@@ -117,8 +122,9 @@ class TeeFile(StringIO):
             pass
         self.length += len(s)
         self.file.write(s)
-        #super(TeeFile, self).write(s)
-        StringIO.write(self, s)
+        if not self.local:
+            #super(TeeFile, self).write(s)
+            StringIO.write(self, s)
         if self.auto_flush:
             #self.file.flush()
             self.flush()
