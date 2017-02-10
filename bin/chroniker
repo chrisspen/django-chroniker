@@ -4,7 +4,7 @@ import argparse
 import logging
 import os
 import sys
-from distutils.version import StrictVersion
+from distutils.version import StrictVersion # pylint: disable=no-name-in-module
 
 INVALID_SETTINGS_ERROR = "Error: You must either set the environmental "\
     "variable DJANGO_SETTINGS_MODULE or pass it as "\
