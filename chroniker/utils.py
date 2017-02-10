@@ -122,7 +122,7 @@ class TeeFile(StringIO):
             pass
         self.length += len(s)
         self.file.write(s)
-        if not self.local:
+        if self.local:
             #super(TeeFile, self).write(s)
             StringIO.write(self, s)
         if self.auto_flush:
