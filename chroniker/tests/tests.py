@@ -303,21 +303,6 @@ class JobTestCase(TestCase):
             time.sleep(1)
             if not proc.is_alive():
                 break
-
-    def testJobFailure(self):
-        self.assertEqual(len(mail.outbox), 0)
-        user = User.objects.create(username='admin', email='admin@localhost')
-        job = Job.objects.get(id=6)
-        job.subscribers.add(user)
-        job.save()
-        self.assertEqual(job.email_errors_to_subscribers, True)
-        
-        # Run job.
-        job.run(update_heartbeat=0)
-        
-        # Confirm an error email was sent.
-        self.assertEqual(len(mail.outbox), 1)
-        #print(mail.outbox[0].body)
     
     def testJobRawCommand(self):
         
@@ -623,3 +608,72 @@ class JobTestCase(TestCase):
             self.assertEqual(job.is_stale(), True)
         finally:
             timezone.now = _now
+
+    def testJobFailure(self):
+        
+        user = User.objects.create(username='admin', email='admin@localhost')
+        
+        # Create a job that should fail and send an error email.
+        Job.objects.all().delete()
+        job = Job.objects.create(
+            name='test error',
+            command='test_error',
+            frequency=c.HOURLY,
+            enabled=True,
+            force_run=True,
+            log_stdout=True,
+            log_stderr=True,
+            email_errors_to_subscribers=True,
+        )
+        self.assertEqual(len(mail.outbox), 0)
+        job.subscribers.add(user)
+        job.save()
+        self.assertEqual(job.email_errors_to_subscribers, True)
+        self.assertEqual(Log.objects.all().count(), 0)
+        
+        # Run job.
+        call_command('cron', update_heartbeat=0, sync=1)
+        
+        # Confirm an error email was sent.
+        self.assertEqual(len(mail.outbox), 1)
+        #print(mail.outbox[0].body)
+        Job.objects.update()
+        job = Job.objects.get(id=job.id)
+        self.assertEqual(job.logs.all().count(), 1)
+        print('log.id:', job.logs.all()[0].id)
+        self.assertEqual(job.logs.all()[0].stdout, '')
+        self.assertEqual(job.logs.all()[0].stderr, 'Something went wrong (but not really, this is just a test).\n')
+        self.assertEqual(job.last_run_successful, False)
+
+        # Create a job that should succeed and not send an error email.
+        Job.objects.all().delete()
+        job = Job.objects.create(
+            name='test success',
+            command='test_success',
+            frequency=c.HOURLY,
+            enabled=True,
+            force_run=True,
+            log_stdout=True,
+            log_stderr=True,
+            email_errors_to_subscribers=True,
+        )
+        while len(mail.outbox):
+            mail.outbox.pop(0)
+        self.assertEqual(len(mail.outbox), 0)
+        job.subscribers.add(user)
+        job.save()
+        self.assertEqual(Log.objects.all().count(), 0)
+
+        # Run job.
+        call_command('cron', update_heartbeat=0, sync=1)
+        
+        # Confirm an error email was not sent.
+        if len(mail.outbox):
+            print(mail.outbox[0].body)
+        self.assertEqual(len(mail.outbox), 0)
+        Job.objects.update()
+        job = Job.objects.get(id=job.id)
+        self.assertEqual(job.logs.all().count(), 1)
+        self.assertEqual(job.logs.all()[0].stdout, 'Everything is ok.\n')
+        self.assertEqual(job.logs.all()[0].stderr, '')
+        self.assertEqual(job.last_run_successful, True)

@@ -3,7 +3,6 @@
 import argparse
 import logging
 import os
-import subprocess
 import sys
 from distutils.version import StrictVersion
 
@@ -59,15 +58,14 @@ if __name__ == "__main__":
     if args.virtualenv:
         virtualenv = os.path.abspath(args.virtualenv)
         assert os.path.isfile(virtualenv), 'Virtualenv file "%s" does not exist.' % virtualenv
-        exec(open(virtualenv).read(), dict(__file__=virtualenv))
+        exec(open(virtualenv).read(), dict(__file__=virtualenv)) # pylint: disable=exec-used
     
     # Now setup django
     project_dir = args.project_dir
     if project_dir:
         project_dir = os.path.abspath(args.project_dir)
         if not os.path.isdir(project_dir):
-            logger.error("Error: Project directory does not "
-                         "exist: %s" % project_dir)
+            logger.error("Error: Project directory does not exist: %s", project_dir)
         
         # Make sure that the project is on the path
         sys.path.append(project_dir)
@@ -89,8 +87,8 @@ if __name__ == "__main__":
     
     jobs = args.jobs#(args.jobs or '').split(',')
     
-    logger.debug("Project dir: %s" % project_dir)
-    logger.debug("Settings mod: %s" % settings)
+    logger.debug("Project dir: %s", project_dir)
+    logger.debug("Settings mod: %s", settings)
     
     # We should be good to go now
     import django

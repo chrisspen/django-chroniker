@@ -1,11 +1,7 @@
 from __future__ import print_function
- 
-from setuptools import setup, find_packages, Command
-from setuptools.command.test import test as TestCommand
-
 import os
-import sys
-import urllib
+ 
+from setuptools import setup, find_packages
 
 import chroniker
 
