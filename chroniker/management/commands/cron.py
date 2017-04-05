@@ -59,7 +59,7 @@ class JobProcess(utils.TimedProcess):
         super(JobProcess, self).__init__(*args, **kwargs)
         self.job = job
 
-def run_job(job, update_heartbeat=None, **kwargs):
+def run_job(job, **kwargs):
     
     update_heartbeat = kwargs.pop('update_heartbeat', None)
     stdout_queue = kwargs.pop('stdout_queue', None)
