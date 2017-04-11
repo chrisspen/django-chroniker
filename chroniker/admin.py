@@ -229,8 +229,9 @@ class JobAdmin(admin.ModelAdmin):
     
     class Media:
         js = ("chroniker/js/dygraph-combined.js",)
-    
-    def queryset(self, *args, **kwargs):
+
+
+    def get_queryset(self, *args, **kwargs):
         qs = super(JobAdmin, self).queryset(*args, **kwargs)
         if ApproxCountQuerySet is not None:
             qs = qs._clone(klass=ApproxCountQuerySet)
@@ -558,7 +559,7 @@ class LogAdmin(admin.ModelAdmin):
         }),
     )
     
-    def queryset(self, *args, **kwargs):
+    def get_queryset(self, *args, **kwargs):
         qs = super(LogAdmin, self).queryset(*args, **kwargs)
         qs = qs.only(
             'id',
@@ -691,7 +692,7 @@ class MonitorAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return False 
     
-    def queryset(self, request):
+    def get_queryset(self, request):
         qs = super(MonitorAdmin, self).queryset(request)
         qs = qs.filter(is_monitor=True)
         qs = qs.order_by('name')
