@@ -8,7 +8,7 @@ from django.utils import timezone
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
-        
+
         # Adding index on 'Log', fields ['run_start_datetime']
         db.create_index('chroniker_log', ['run_start_datetime'])
 
@@ -23,7 +23,7 @@ class Migration(SchemaMigration):
 
 
     def backwards(self, orm):
-        
+
         # Removing index on 'Log', fields ['run_end_datetime']
         db.delete_index('chroniker_log', ['run_end_datetime'])
 

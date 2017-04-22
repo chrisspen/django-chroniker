@@ -8,7 +8,7 @@ from django.utils import timezone
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
-        
+
         # Adding model 'JobDependency'
         db.create_table('chroniker_jobdependency', (
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
@@ -25,7 +25,7 @@ class Migration(SchemaMigration):
 
 
     def backwards(self, orm):
-        
+
         # Removing unique constraint on 'JobDependency', fields ['dependent', 'dependee']
         db.delete_unique('chroniker_jobdependency', ['dependent_id', 'dependee_id'])
 

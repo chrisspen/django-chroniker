@@ -36,7 +36,7 @@ class DisableMigrations(object):
     def __getitem__(self, item):
         return "notmigrations"
 SOUTH_TESTS_MIGRATE = False # <= Django 1.8
-# if django.VERSION > (1, 7, 0): # > Django 1.8 
+# if django.VERSION > (1, 7, 0): # > Django 1.8
 #     MIGRATION_MODULES = DisableMigrations()
 
 USE_TZ = True
@@ -60,7 +60,7 @@ MIDDLEWARE_CLASSES = (
     #'django.middleware.transaction.TransactionMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.locale.LocaleMiddleware',    
+    'django.middleware.locale.LocaleMiddleware',
 )
 
 CHRONIKER_JOB_ERROR_CALLBACK = 'chroniker.tests.tests.job_error_callback'

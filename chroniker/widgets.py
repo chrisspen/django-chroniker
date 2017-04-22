@@ -2,7 +2,11 @@ from django.contrib import admin
 from django.contrib.admin.sites import site
 from django.contrib.admin.widgets import ManyToManyRawIdWidget, ForeignKeyRawIdWidget
 from django.core.urlresolvers import reverse
-from django.forms.widgets import Select, TextInput, flatatt
+from django.forms.widgets import Select, TextInput
+try:
+    from django.forms.widgets import flatatt
+except ImportError:
+    from django.forms.utils import flatatt
 try:
     # force_unicode was deprecated in Django 1.5.
     from django.utils.encoding import force_unicode as force_text
@@ -17,7 +21,7 @@ from django.utils.safestring import mark_safe
 #     from django.utils.encoding import StrAndUnicode
 # except ImportError:
 #     from django.utils.encoding import python_2_unicode_compatible
-# 
+#
 #     @python_2_unicode_compatible
 #     class StrAndUnicode:
 #         def __str__(self):
@@ -46,7 +50,7 @@ class ForeignKeyTextInput(TextInput):
     Implements the same markup as VerboseForeignKeyRawIdWidget but does not
     require an explicit model relationship.
     """
-    
+
     def __init__(self, model_class, value, *args, **kwargs):
         super(ForeignKeyTextInput, self).__init__(*args, **kwargs)
         self._model_class = model_class
@@ -55,7 +59,7 @@ class ForeignKeyTextInput(TextInput):
         self._instance = None
         if q.count():
             self._instance = q[0]
-            
+
     def render(self, name, value, attrs=None):
         from django.template import Context, Template
         from django.template.context import Context

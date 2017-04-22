@@ -34,25 +34,25 @@ def get_etc(complete_parts, total_parts, start_datetime, current_datetime=None, 
     Estimates a job's expected time to completion.
     """
     current_datetime = current_datetime or timezone.now()
-    
+
     # Calculate the seconds passed since we started tracking progress.
     passed_seconds = float((current_datetime - start_datetime).total_seconds())
-    
+
     if total_parts:
-        
+
         # Estimate the total seconds the task will take to complete by using
         # a linear projection.
         total_seconds = passed_seconds/complete_parts*total_parts
-        
+
         # Estimate the expected time of completion by projecting the duration
         # onto the start time.
         etc = start_datetime + timedelta(seconds=total_seconds)
-        
+
         # If we only want remaining seconds, return difference between ETC and
         # the current time in seconds.
         if as_seconds:
             return (etc - current_datetime).total_seconds()
-            
+
         return etc
 
 def get_remaining_seconds(*args, **kwargs):
@@ -103,7 +103,7 @@ class TeeFile(StringIO):
         self.length = 0
         self.queue = queue
         self.queue_buffer = []
-        
+
         # If False, tracks length, but doesn't store content locally.
         # Useful if you want to keep track of whether or not data was written
         # but don't care about the content, especially if it's expected to be massive.
@@ -455,7 +455,7 @@ def make_aware(dt, tz):
 def localtime(dt):
     dt = make_aware(dt, settings.TIME_ZONE)
     return dt
-    
+
 def write_lock(lock_file):
     lock_file.seek(0)
     lock_file.write(str(time.time()).encode('utf-8'))
@@ -467,13 +467,13 @@ def import_string(dotted_path):
     Import a dotted module path and return the attribute/class designated by the
     last name in the path. Raise ImportError if the import failed.
     """
-    
+
     try:
         from django.utils.module_loading import import_string # pylint: disable=W0621
         return import_string(dotted_path)
     except ImportError:
         pass
-        
+
     try:
         module_path, class_name = dotted_path.rsplit('.', 1)
     except ValueError:
