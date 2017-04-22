@@ -4,13 +4,13 @@ try:
     from django.conf.urls.defaults import url, include
 except ImportError:
     from django.conf.urls import url, include
-    
+
 try:
     # Relocated in Django 1.6
     from django.conf.urls.defaults import patterns
 except ImportError:
     # Completely removed in Django 1.10
-    try:    
+    try:
         from django.conf.urls import patterns
     except ImportError:
         patterns = None

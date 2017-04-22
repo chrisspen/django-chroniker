@@ -8,7 +8,7 @@ register = template.Library()
 class RunJobURLNode(template.Node):
     def __init__(self, object_id):
         self.object_id = template.Variable(object_id)
-        
+
     def render(self, context):
         object_id = self.object_id.resolve(context)
         try:
@@ -22,9 +22,9 @@ class RunJobURLNode(template.Node):
 def do_get_run_job_url(parser, token):
     """
     Returns the URL to the view that does the 'run_job' command.
-    
+
     Usage::
-    
+
         {% get_run_job_url [object_id] %}
     """
     try:
@@ -49,4 +49,3 @@ def now_offset(format_string, offset_days=0):
     tzinfo = timezone.get_current_timezone() if settings.USE_TZ else None
     dt = datetime.now(tz=tzinfo) + timedelta(days=offset_days)
     return date(dt, format_string)
-    

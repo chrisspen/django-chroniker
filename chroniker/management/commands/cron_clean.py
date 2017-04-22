@@ -8,9 +8,9 @@ from chroniker.models import Log
 
 class Command(BaseCommand):
     help = 'Deletes old job logs.'
-    
+
     def handle(self, *args, **options):
-                
+
         if len(args) != 2:
             sys.stderr.write(
                 'Command requires two arguments. '
@@ -22,7 +22,7 @@ class Command(BaseCommand):
                 sys.stderr.write('Valid units are weeks, days, hours or minutes.\n')
                 return 1
             try:
-                amount = int(args[1]) 
+                amount = int(args[1])
             except ValueError:
                 sys.stderr.write('Interval must be an integer.\n')
                 return 1

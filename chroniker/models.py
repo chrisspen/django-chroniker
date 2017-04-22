@@ -52,7 +52,7 @@ from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
 #     from django.contrib.sites.models import get_current_site
 # except ImportError:
 #     # >= Django 1.7?
-#     from django.contrib.sites.shortcuts import get_current_site 
+#     from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import ValidationError
 
 from toposort import toposort_flatten
@@ -129,13 +129,13 @@ class JobHeartbeatThread(threading.Thread):
     If the ``Job`` that we are associated with gets killed off, then the file
     will no longer be updated and after ``CHRONIKER_LOCK_TIMEOUT`` seconds,
     we assume the ``Job`` has terminated.
-    
+
     The heartbeat should be started with the ``start`` method and once the
     ``Job`` is completed it should be stopped by calling the ``stop`` method.
     """
-    
+
     daemon = True
-    
+
     halt = False
 
     def __init__(self, job_id, lock, *args, **kwargs):
@@ -153,16 +153,16 @@ class JobHeartbeatThread(threading.Thread):
         """
         check_freq_secs = 5
         while not self.halt:
-            
+
             # If the current PID doesn't match the one we started with
             # then that means we were forked by a subprocess launched by the
             # job. In this case, we're a clone, so immediately exit so we don't
             # conflict with the thread in the original process.
             if os.getpid() != self.original_pid:
                 return
-            
+
             utils.write_lock(self.lock_file)
-            
+
             # Check job status and save heartbeat timestamp.
             with self.lock:
                 Job.objects.update()
@@ -173,18 +173,18 @@ class JobHeartbeatThread(threading.Thread):
                     force_stop=False,
                     force_run=False,
                 )
-            
+
             # If we noticed we're being forced to stop, then interrupt
             # the entire process.
             if force_stop:
                 self.halt = True
                 thread.interrupt_main()
                 return
-            
+
             time.sleep(check_freq_secs)
-            
+
         set_current_heartbeat(None)
-    
+
     def stop(self):
         """
         Call this to stop the heartbeat.
@@ -193,7 +193,7 @@ class JobHeartbeatThread(threading.Thread):
         while self.is_alive():
             time.sleep(.1)
         self.lock_file.close()
-        
+
     def update_progress(self, total_parts, total_parts_complete, lock=True):
         """
         JobHeartbeatThread
@@ -208,32 +208,32 @@ class JobDependency(models.Model):
     """
     Represents a scheduling dependency between two jobs.
     """
-    
+
     dependent = models.ForeignKey(
         'chroniker.Job',
         related_name='dependencies',
         help_text='The thing that cannot run until another job completes.')
-    
+
     dependee = models.ForeignKey(
         'chroniker.Job',
         related_name='dependents',
         help_text='The thing that has other jobs waiting on it to complete.')
-    
+
     wait_for_completion = models.BooleanField(
         default=True,
         help_text='If checked, the dependent job will not run until ' + \
             'the dependee job has completed.')
-    
+
     wait_for_success = models.BooleanField(
         default=True,
         help_text='If checked, the dependent job will not run until ' + \
             'the dependee job has completed successfully.')
-    
+
     wait_for_next_run = models.BooleanField(
         default=True,
         help_text='If checked, the dependent job will not run until ' + \
             'the dependee job has a next_run greater than its next_run.')
-    
+
     def criteria_met(self, running_ids=None):
         if running_ids is None:
             running_ids = set()
@@ -265,24 +265,24 @@ class JobDependency(models.Model):
                 return False
         return True
     criteria_met.boolean = True
-    
+
     class Meta:
         verbose_name_plural = 'job dependencies'
         unique_together = (
             ('dependent', 'dependee'),
         )
-        
+
     def __unicode__(self):
         return unicode(self.dependent) + ' -> ' + unicode(self.dependee)
 
 class JobManager(models.Manager):
-    
+
     def get_by_natural_key(self, *args):
         kwargs = dict(
             (_name, _value)
             for _name, _value in zip(settings.CHRONIKER_JOB_NK, args))
         return self.get(**kwargs)
-        
+
     def due(self, job=None, check_running=True):
         """
         Returns a ``QuerySet`` of all jobs waiting to be run.  NOTE: this may
@@ -290,7 +290,7 @@ class JobManager(models.Manager):
         responsibility to call ``Job.check_is_running()`` to determine whether
         or not the ``Job`` actually needs to be run.
         """
-        
+
         # Lock the Job record if possible with the backend.
         # https://docs.djangoproject.com/en/dev/ref/models/querysets/#select-for-update
         # Note, select_for_update() may not be supported, such as with MySQL.
@@ -319,26 +319,26 @@ class JobManager(models.Manager):
         Iterates over the results of due(), ignoring jobs
         that are dependent on another job that is also due.
         """
-        
+
         jobs = jobs or []
-        
+
         # Fixes the "Lost connection to MySQL server during query" error when
         # called from cron command?
         connection.close()
-        
+
         skipped_job_ids = set()
         for job in self.due():
             if jobs and job.id not in jobs:
                 skipped_job_ids.add(job.id)
                 continue
-            
+
             deps = job.dependencies.all()
             valid = True
-            
+
             if job.check_is_running():
                 #print('Skipping job %i (%s) which is already running.' % (job.id, job))
                 continue
-            
+
             failed_dep = None
             for dep in deps:
                 if dep.dependee.id in skipped_job_ids:
@@ -348,19 +348,19 @@ class JobManager(models.Manager):
                     valid = False
                     failed_dep = dep
                     break
-                
+
             if not valid:
                 #print('Skipping job %i (%s) which is dependent on a due job %i (%s).' \
                 #    % (job.id, job, failed_dep.dependee.id, failed_dep.dependee))
                 skipped_job_ids.add(job.id)
                 continue
-            
+
             #TODO:remove? redundant?
             if not job.dependencies_met():
                 #print('Skipping job %i (%s) which has unmet dependencies.' % (job.id, job))
                 skipped_job_ids.add(job.id)
                 continue
-            
+
             yield job
 
     def due_with_met_dependencies_ordered(self, jobs=None):
@@ -394,17 +394,17 @@ class JobManager(models.Manager):
         q = self.filter(is_running=True)
         q = q.filter(Q(last_heartbeat__isnull=True) | Q(last_heartbeat__lt=threshold))
         return q
-    
+
     def all_running(self):
         return self.filter(is_running=True)
-    
+
     def end_all_stale(self):
         """
         Marks as complete but failed, and attempts to kill the process
         if still running, any job that's failed to report its status within
         the alotted threshold.
         """
-        
+
         @commit_on_success
         def kill_job(job):
             # If we know the PID and it's running locally, and the process
@@ -418,11 +418,11 @@ class JobManager(models.Manager):
                     print('Process with PID {} is not running.'.format(job.current_pid))
             else:
                 print('Process with PID {} is not elligible for killing.'.format(job.current_pid))
-            
+
             job.is_running = False
             job.last_run_successful = False
             job.save()
-        
+
         @commit_on_success
         def create_log(job):
             Log.objects.create(
@@ -434,36 +434,36 @@ class JobManager(models.Manager):
                 stderr='Job became stale and was marked as terminated.',
                 success=False,
             )
-        
+
         q = self.stale()
         total = q.count()
         print('{} total stale jobs.'.format(total))
         for job in q.iterator():
             print('Checking stale job {}: {}'.format(job.id, job))
-            
+
             kill_job(job)
             #transaction.commit()
-            
+
             create_log(job)
             #transaction.commit()
-            
+
 
 class Job(models.Model):
     """
     A recurring ``django-admin`` command to be run.
     """
-    
+
     objects = JobManager()
-    
+
     name = models.CharField(
         _("name"),
         max_length=200)
-    
+
     frequency = models.CharField(
         _("frequency"),
         choices=c.FREQ_CHOICES,
         max_length=10)
-    
+
     params = models.TextField(
         _("params"),
         null=True,
@@ -473,19 +473,19 @@ class Job(models.Model):
             '<a href="http://labix.org/python-dateutil" '
             'target="_blank">rrule parameters</a>. '
             'e.g: interval:15;byhour:7,8,9'))
-    
+
     command = models.CharField(
         _("command"),
         max_length=200,
         blank=True,
         help_text=_("A valid django-admin command to run."))
-    
+
     args = models.CharField(
         _("args"),
         max_length=200,
         blank=True,
         help_text=_("Space separated list; e.g: arg1 option1=True"))
-    
+
     raw_command = models.CharField(
         _("raw command"),
         max_length=1000,
@@ -493,77 +493,77 @@ class Job(models.Model):
         null=True,
         help_text=_('''The raw shell command to run.
             This is mutually exclusive with `command`.'''))
-    
+
     enabled = models.BooleanField(
         default=True,
         help_text=_('''If checked, this job will be run automatically according
             to the frequency options.'''))
-    
+
     next_run = models.DateTimeField(
         _("next run"),
         blank=True,
         null=True,
         help_text=_("If you don't set this it will"
             " be determined automatically"))
-    
+
     last_run_start_timestamp = models.DateTimeField(
         _("last run start timestamp"),
         editable=False,
         blank=True,
         null=True)
-    
+
     last_run = models.DateTimeField(
         _("last run end timestamp"),
         editable=False,
         blank=True,
         null=True)
-    
+
     last_heartbeat = models.DateTimeField(
         _("last heartbeat"),
         editable=False,
         blank=True,
         null=True)
-    
+
     is_running = models.BooleanField(
         default=False,
         editable=True,
     )
-    
+
     last_run_successful = models.NullBooleanField(
         _('success'),
         blank=True,
         null=True,
         editable=False)
-    
+
     subscribers = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         related_name='subscribed_jobs',
         blank=True,
         limit_choices_to={'is_staff':True})
-    
+
     email_errors_to_subscribers = models.BooleanField(
         default=True,
         help_text=_('If checked, the stdout and stderr of a job will ' + \
             'be emailed to the subscribers if an error occur.'))
-    
+
     email_success_to_subscribers = models.BooleanField(
         default=False,
         help_text=_('If checked, the stdout of a job will ' + \
             'be emailed to the subscribers if not errors occur.'))
-    
+
     lock_file = models.CharField(
         max_length=255,
         blank=True,
         editable=False)
-    
+
     force_run = models.BooleanField(
         default=False,
         help_text=_("If checked, then this job will be run immediately."))
-    
+
     force_stop = models.BooleanField(
         default=False,
         help_text=_("If checked, and running then this job will be stopped."))
-    
+
     timeout_seconds = models.PositiveIntegerField(
         default=0,
         blank=False,
@@ -577,14 +577,14 @@ class Job(models.Model):
         null=True,
         verbose_name='target hostname',
         help_text=hostname_help_text_setter)
-        
+
     current_hostname = models.CharField(
         max_length=700,
         blank=True,
         null=True,
         editable=False,
         help_text=_('The name of the host currently running the job.'))
-    
+
     current_pid = models.CharField(
         max_length=50,
         blank=True,
@@ -592,68 +592,68 @@ class Job(models.Model):
         editable=False,
         db_index=True,
         help_text=_('The ID of the process currently running the job.'))
-    
+
     total_parts_complete = models.PositiveIntegerField(
         default=0,
         editable=False,
         blank=False,
         null=False,
         help_text=_('The total number of complete parts.'))
-    
+
     total_parts = models.PositiveIntegerField(
         default=0,
         editable=False,
         blank=False,
         null=False,
         help_text=_('The total number of parts of the task.'))
-    
+
     is_monitor = models.BooleanField(
         default=False,
         help_text=_('If checked, will appear in the monitors section.'))
-    
+
     monitor_url = models.CharField(
         max_length=255, blank=True, null=True,
         help_text=_('URL provided to further explain the monitor.'))
-    
+
     monitor_error_template = models.TextField(
         blank=True, null=True,
         default=c.DEFAULT_MONITOR_ERROR_TEMPLATE,
         help_text=_('If this is a monitor, this is the template used ' + \
             'to compose the error text email.<br/>' + \
             'Available variables: {{ job }} {{ stderr }} {{ url }}'))
-    
+
     monitor_description = models.TextField(
         blank=True, null=True,
         help_text=_('An explanation of the monitor\'s purpose.'))
-    
+
     monitor_records = models.IntegerField(
         blank=True,
         null=True,
         #verbose_name='records',
         editable=False,
         help_text=_('The number of records that need attention.'))
-    
+
     maximum_log_entries = models.PositiveIntegerField(
         default=1000,
         help_text='The maximum number of most recent log entries to keep.' + \
             '<br/>A value of 0 keeps all log entries.')
-    
+
     log_stdout = models.BooleanField(
         default=True,
         help_text=_('''If checked, all characters printed to stdout will be
             saved in a log record.'''))
-    
+
     log_stderr = models.BooleanField(
         default=True,
         help_text=_('''If checked, all characters printed to stderr will be
             saved in a log record.'''))
-    
+
     class Meta:
         ordering = (
             'name',
             #'enabled', 'next_run',
         )
-    
+
     def __unicode__(self):
         if self.enabled:
             ret = u"{} - {} - {}".format(self.id, self.name, self.timeuntil)
@@ -662,17 +662,17 @@ class Job(models.Model):
         if not isinstance(ret, six.text_type):
             ret = u(ret)
         return ret
-    
+
     def __str__(self):
         if six.PY3:
             return self.__unicode__()
         else:
             return self.__unicode__().encode('utf8')
-    
+
     def natural_key(self):
         return tuple(getattr(self, _name) for _name in settings.CHRONIKER_JOB_NK)
 #     natural_key.dependencies = []
-    
+
     @property
     def monitor_url_rendered(self):
         if not self.is_monitor or not self.monitor_url:
@@ -684,31 +684,31 @@ class Job(models.Model):
         url = t.render(ctx)
         url = url.replace(' ', '+')
         return url
-    
+
     @property
     def monitor_description_safe(self):
         return mark_safe(self.monitor_description)
-    
+
     @property
     def progress_ratio(self):
         if not self.total_parts_complete and not self.total_parts:
             return
         return self.total_parts_complete/float(self.total_parts)
-    
+
     @property
     def progress_percent(self):
         progress = self.progress_ratio
         if progress is None:
             return
         return min(progress*100, 100)
-    
+
     def progress_percent_str(self):
         progress = self.progress_percent
         if progress is None:
             return ''
         return '%.0f%%' % (progress,)
     progress_percent_str.short_description = 'Progress'
-    
+
     def get_chained_jobs(self):
         """
         Returns a list of jobs that depend on this job.
@@ -730,7 +730,7 @@ class Job(models.Model):
                 .filter(dependent__enabled=True, wait_for_completion=True)\
                 .values_list('dependent_id', flat=True))
         return chained
-    
+
     def get_run_length_estimate(self, samples=20):
         """
         Returns the average run length in seconds.
@@ -744,7 +744,7 @@ class Job(models.Model):
         if not q:
             return
         return int(round(sum(q)/float(len(q))))
-    
+
     @property
     def estimated_seconds_to_completion(self):
         """
@@ -764,14 +764,14 @@ class Job(models.Model):
         total_sec = td.total_seconds()/progress_ratio
         remaining_sec = total_sec - td.total_seconds()
         return remaining_sec
-    
+
     @property
     def estimated_completion_datetime(self):
         remaining_sec = self.estimated_seconds_to_completion
         if remaining_sec is None:
             return
         return timezone.now() + timedelta(seconds=int(remaining_sec))
-    
+
     def estimated_completion_datetime_str(self):
         ecdt = self.estimated_completion_datetime
         if ecdt is None:
@@ -780,11 +780,11 @@ class Job(models.Model):
     estimated_completion_datetime_str.short_description = 'ETC'
     estimated_completion_datetime_str.help_text = \
         'Estimated time of completion'
-    
+
     def clean(self, *args, **kwargs):
-        
+
         self.frequency = self.frequency or c.DAILY
-        
+
         cmd1 = (self.command or '').strip()
         cmd2 = (self.raw_command or '').strip()
         if cmd1 and cmd2:
@@ -806,17 +806,17 @@ class Job(models.Model):
                 ]
             })
         super(Job, self).clean(*args, **kwargs)
-    
+
     def full_clean(self,
         exclude=None, validate_unique=None, *args, **kwargs):
         return self.clean(*args, **kwargs)
-    
+
     def save(self, *args, **kwargs):
-        
+
         self.full_clean()
-        
+
         tz = timezone.get_default_timezone()
-        
+
         if self.enabled:
             if self.pk:
                 j = Job.objects.get(pk=self.pk)
@@ -840,12 +840,12 @@ class Job(models.Model):
         if not self.is_running:
             self.current_hostname = None
             self.current_pid = None
-        
+
         if self.next_run:
             self.next_run = utils.make_aware(self.next_run, tz)
 
         super(Job, self).save(*args, **kwargs)
-        
+
         # Delete expired logs.
         if self.maximum_log_entries:
             log_q = self.logs.all().order_by('-run_start_datetime')
@@ -881,10 +881,10 @@ class Job(models.Model):
         """
         if not self.enabled:
             return _('never (disabled)')
-        
+
         if not self.next_run:
             self.next_run = timezone.now()
-        
+
         delta = self.next_run - timezone.now()
         if delta.days < 0:
             # The job is past due and should be run as soon as possible
@@ -902,7 +902,7 @@ class Job(models.Model):
         return timeuntil(self.next_run)
     get_timeuntil.short_description = _('time until next run')
     timeuntil = property(get_timeuntil)
-    
+
     def get_rrule(self):
         """
         Returns the rrule objects for this ``Job``.
@@ -917,11 +917,11 @@ class Job(models.Model):
         """
         Converts a valid rrule parameter to an integer if it is not already
         one, else raises a ``ValueError``.  The following are equivalent:
-        
+
         >>> job = Job(params = "byweekday:1,2,4,5")
         >>> job.get_params()
         {'byweekday': [1, 2, 4, 5]}
-        
+
         >>> job = Job(params = "byweekday:TU,WE,FR,SA")
         >>> job.get_params()
         {'byweekday': [1, 2, 4, 5]}
@@ -936,11 +936,11 @@ class Job(models.Model):
                              'Error on: %s' % param_value)
         else:
             return val
-    
+
     def get_params(self):
         """
         Converts a string of parameters into a dict.
-        
+
         >>> job = Job(params = "count:1;bysecond:1;byminute:1,2,4,5")
         >>> job.get_params()
         {'count': 1, 'byminute': [1, 2, 4, 5], 'bysecond': 1}
@@ -965,12 +965,12 @@ class Job(models.Model):
                     param = (param[0], param[1][0])
                 param_dict.append(param)
         return dict(param_dict)
-    
+
     def get_args(self):
         """
         Processes the args and returns a tuple or (args, options) for passing
         to ``call_command``.
-        
+
         >>> job = Job(args="arg1 arg2 kwarg1='some value'")
         >>> job.get_args()
         (['arg1', 'arg2', "value'"], {'kwarg1': "'some"})
@@ -987,21 +987,21 @@ class Job(models.Model):
             else:
                 args.append(arg)
         return (args, options)
-    
+
     def is_due(self, **kwargs):
         """
         >>> job = Job(next_run=timezone.now())
         >>> job.is_due()
         True
-        
+
         >>> job = Job(next_run=timezone.now()+timedelta(seconds=60))
         >>> job.is_due()
         False
-        
+
         >>> job.force_run = True
         >>> job.is_due()
         True
-        
+
         >>> job = Job(next_run=timezone.now(), enabled=False)
         >>> job.is_due()
         False
@@ -1009,21 +1009,21 @@ class Job(models.Model):
         q = type(self).objects.due(job=self, **kwargs)
         return q.exists()
     is_due.boolean = True
-    
+
     def is_due_with_dependencies_met(self, running_ids=None):
         """
         Return true if job is scheduled to run and all dependencies
         are satisified.
         """
         return self.is_due() and self.dependencies_met(running_ids=running_ids)
-    
+
     def run(self, check_running=True, force_run=False, *args, **kwargs):
         """
         Runs this ``Job``.  A ``Log`` will be created if there is any output
         from either stdout or stderr.
-        
+
         Returns ``True`` if the ``Job`` ran, ``False`` otherwise.
-        
+
         The parameter check_running is sometimes given as False when
         the job was just started and we want to do a last minute check for
         dueness and don't want our current run status to give an incorrect
@@ -1050,7 +1050,7 @@ class Job(models.Model):
         else:
             print('Job disabled. Aborting run.')
         return False
-    
+
     def mark_running(self, lock_file=None):
         """
         Updates the record in the database to show it as running.
@@ -1069,8 +1069,8 @@ class Job(models.Model):
         Job.objects.filter(id=self.id).update(**kwargs)
         for name, value in iteritems(kwargs):
             setattr(self, name, value)
-        
-    
+
+
     def handle_run(self,
         update_heartbeat=True,
         stdout_queue=None,
@@ -1083,17 +1083,17 @@ class Job(models.Model):
         method.
         """
         print('Handling run...')
-        
+
         lock = threading.RLock()
         run_start_datetime = timezone.now()
         last_run_successful = False
         stdout_str = ''
         stderr_str = ''
-        
+
         original_pid = os.getpid()
-        
+
         try:
-    
+
             # Redirect output so that we can log and easily check for errors.
             stdout = utils.TeeFile(sys.stdout, auto_flush=True, queue=stdout_queue, local=self.log_stdout)
             stderr = utils.TeeFile(sys.stderr, auto_flush=True, queue=stderr_queue, local=self.log_stderr)
@@ -1101,9 +1101,9 @@ class Job(models.Model):
             ostderr = sys.stderr
             sys.stdout = stdout
             sys.stderr = stderr
-            
+
             args, options = self.get_args()
-            
+
             heartbeat = None
             if update_heartbeat:
                 heartbeat = JobHeartbeatThread(job_id=self.id, lock=lock)
@@ -1114,7 +1114,7 @@ class Job(models.Model):
 
             try:
                 with lock:
-    
+
                     # Fixes MySQL error "Commands out of sync"?
                     connection.close()
 
@@ -1131,7 +1131,7 @@ class Job(models.Model):
                 })
                 print(t.render(ctx), file=sys.stderr)
                 success = False
-            
+
             if heartbeat:
                 heartbeat.start()
             success = True
@@ -1147,15 +1147,15 @@ class Job(models.Model):
                         stderr=subprocess.PIPE,
                         shell=True,
                         universal_newlines=True)
-                        
+
                     _stdout_str, _stderr_str = p.communicate()
-                    
+
                     if self.log_stdout:
                         stdout_str = _stdout_str
-                        
+
                     if self.log_stderr:
                         stderr_str = _stderr_str
-                        
+
                     retcode = p.returncode
                 else:
                     logger.debug('command: %s %s %s', self.command, args, options)
@@ -1176,13 +1176,13 @@ class Job(models.Model):
                 })
                 print(t.render(ctx), file=sys.stderr)
                 success = False
-            
+
             # Stop the heartbeat
             if heartbeat:
                 logger.debug("Stopping heartbeat")
                 heartbeat.stop()
                 heartbeat.join()
-            
+
             # If this was a forced run, then don't update the
             # next_run date.
             #next_run = self.next_run.replace(tzinfo=None)
@@ -1195,10 +1195,10 @@ class Job(models.Model):
                 next_run = self.rrule.after(next_run)
                 print(_next_run, next_run)
                 assert next_run != _next_run, 'RRule failed to increment next run datetime.'
-            #next_run = next_run.replace(tzinfo=timezone.get_current_timezone()) 
+            #next_run = next_run.replace(tzinfo=timezone.get_current_timezone())
 
             last_run_successful = not bool(stderr.length)
-            
+
             try:
                 with lock:
                     Job.objects.update()
@@ -1224,21 +1224,21 @@ class Job(models.Model):
                 })
                 print(t.render(ctx), file=sys.stderr)
                 success = False
-                            
+
         finally:
-            
+
             if original_pid != os.getpid():
                 # We're a clone of the parent job, so exit immediately
                 # so we don't conflict.
                 return # pylint: disable=W0150
-            
+
             # Redirect output back to default
             sys.stdout = ostdout
             sys.stderr = ostderr
-            
+
             # Record run log.
             print('Recording log...')
-            
+
             if self.log_stdout:
                 if not stdout_str:
                     stdout_str = stdout.getvalue()
@@ -1246,7 +1246,7 @@ class Job(models.Model):
                     stdout_str = stdout_str.encode('utf-8', 'replace')
                 else:
                     stdout_str = six.text_type(stdout_str, 'utf-8', 'replace')
-            
+
             if self.log_stderr:
                 if not stderr_str:
                     stderr_str = stderr.getvalue()
@@ -1254,7 +1254,7 @@ class Job(models.Model):
                     stderr_str = stderr_str.encode('utf-8', 'replace')
                 else:
                     stderr_str = six.text_type(stderr_str, 'utf-8', 'replace')
-            
+
             run_end_datetime = timezone.now()
             duration_seconds = (run_end_datetime - run_start_datetime).total_seconds()
             log = Log.objects.create(
@@ -1267,7 +1267,7 @@ class Job(models.Model):
                 stderr=stderr_str,
                 success=last_run_successful,
             )
-            
+
             # Email subscribers.
             try:
                 if last_run_successful:
@@ -1278,7 +1278,7 @@ class Job(models.Model):
                         log.email_subscribers()
             except Exception as e:
                 print(e, file=sys.stderr)
-                
+
             # Call error callback.
             try:
                 if not last_run_successful and settings.CHRONIKER_JOB_ERROR_CALLBACK:
@@ -1286,7 +1286,7 @@ class Job(models.Model):
                     cb(self, stdout=stdout_str, stderr=stderr_str)
             except Exception as e:
                 print(e, file=sys.stderr)
-            
+
             # If an exception occurs above, ensure we unmark is_running.
             with lock:
                 Job.objects.update()
@@ -1296,9 +1296,9 @@ class Job(models.Model):
                     job.is_running = False
                     job.last_run_successful = False
                     job.save()
-            
+
             print('Job done.')
-    
+
     def check_is_running(self):
         """
         This function actually checks to ensure that a job is running.
@@ -1316,7 +1316,7 @@ class Job(models.Model):
                 # is dead.
                 if (time.time() - os.stat(self.lock_file).st_mtime) <= settings.CHRONIKER_LOCK_TIMEOUT:
                     return True
-            
+
             # This job isn't running; update it's info
             self.is_running = False
             self.lock_file = ""
@@ -1327,7 +1327,7 @@ class Job(models.Model):
             return self.is_running
     check_is_running.short_description = "is running"
     check_is_running.boolean = True
-    
+
     @classmethod
     def update_progress(cls, *args, **kwargs):
         heartbeat = get_current_heartbeat()
@@ -1341,45 +1341,45 @@ class Log(models.Model):
     """
     A record of stdout and stderr of a ``Job``.
     """
-    
+
     job = models.ForeignKey('chroniker.Job', related_name='logs')
-    
+
     run_start_datetime = models.DateTimeField(
         editable=False,
         db_index=True,
         default=timezone.now,
         blank=False,
         null=False)
-    
+
     run_end_datetime = models.DateTimeField(
         editable=False,
         db_index=True,
         blank=True,
         null=True)
-    
+
     duration_seconds = models.PositiveIntegerField(
         editable=False,
         db_index=True,
         verbose_name='duration (total seconds)',
         blank=True,
         null=True)
-    
+
     stdout = models.TextField(blank=True)
-    
+
     stderr = models.TextField(blank=True)
-    
+
     hostname = models.CharField(
         max_length=700,
         blank=True,
         null=True,
         editable=False,
         help_text=_('The hostname this job was executed on.'))
-    
+
     success = models.BooleanField(
         default=True,
         db_index=True,
         editable=False)
-        
+
     on_time = models.BooleanField(
         default=True,
         db_index=True,
@@ -1387,22 +1387,22 @@ class Log(models.Model):
         help_text=_('''If true, indicates job completed of its own accord.
             If false, the job exceeded a timeout threshold and was forcibly
             killed.'''))
-    
+
     class Meta:
         ordering = ('-run_start_datetime',)
-    
+
     def __unicode__(self):
         ret = "%s - %s" % (self.job.name, self.run_start_datetime)
         if not isinstance(ret, six.text_type):
             ret = u(ret)
         return ret
-        
+
     def __str__(self):
         if six.PY3:
             return self.__unicode__()
         else:
             return self.__unicode__().encode('utf8')
-        
+
     def save(self, *args, **kwargs):
         if self.run_start_datetime and self.run_end_datetime:
             assert self.run_start_datetime <= self.run_end_datetime, \
@@ -1410,7 +1410,7 @@ class Log(models.Model):
             time_diff = (self.run_end_datetime - self.run_start_datetime)
             self.duration_seconds = time_diff.total_seconds()
         super(Log, self).save(*args, **kwargs)
-    
+
     def duration_str(self):
         sec = timedelta(seconds=self.duration_seconds)
         d = datetime(1, 1, 1) + sec
@@ -1421,21 +1421,21 @@ class Log(models.Model):
         return '%02i:%02i:%02i:%02i' % (days, hours, minutes, seconds)
     duration_str.short_description = 'duration (days:hours:min:sec)'
     duration_str.allow_tags = True
-    
+
     def email_subscribers(self):
         current_site = Site.objects.get_current()
-        
+
         subscribers = []
         for user in self.job.subscribers.all():
             subscribers.append('"%s" <%s>' % \
                 (user.get_full_name(), user.email))
-        
+
         is_error = bool((self.stderr or '').strip())
         if is_error:
             subject_tmpl = settings.CHRONIKER_EMAIL_SUBJECT_ERROR
         else:
             subject_tmpl = settings.CHRONIKER_EMAIL_SUBJECT_SUCCESS
-        
+
         args = self.__dict__.copy()
         args['job'] = self.job
         args['stderr'] = self.stderr if self.job.is_monitor else None
@@ -1443,7 +1443,7 @@ class Log(models.Model):
             (current_site.domain, self.job.monitor_url_rendered))
         ctx = Context(args)
         subject = Template(subject_tmpl).render(ctx)
-        
+
         if is_error and self.job.is_monitor \
         and self.job.monitor_error_template:
             body = Template(self.job.monitor_error_template).render(ctx)
@@ -1461,11 +1461,11 @@ class Log(models.Model):
                 base_url = current_site.domain
             else:
                 base_url = 'http://' + current_site.domain
-        
+
         if base_url:
             admin_link = base_url + utils.get_admin_change_url(self.job)
             body = 'To manage this job please visit: ' + admin_link + '\n\n' + body
-        
+
         send_mail(
             from_email='"%s" <%s>' % (
                 settings.CHRONIKER_EMAIL_SENDER,
@@ -1475,7 +1475,7 @@ class Log(models.Model):
             recipient_list=subscribers,
             message=body,
         )
-    
+
     def stdout_sample(self):
         result = self.stdout or ''
         if len(result) > 40:
@@ -1487,7 +1487,7 @@ class Log(models.Model):
         if len(result) > 40:
             result = result[:40] + '...'
         return result or '(No errors)'
-    
+
     def stdout_long_sample(self):
         l = 10000
         result = self.stdout or ''
@@ -1505,7 +1505,7 @@ class Log(models.Model):
         result = result.replace('\n', '<br/>')
         return result or '(No output)'
     stderr_long_sample.allow_tags = True
-    
+
     @classmethod
     def cleanup(cls, time_ago=None):
         """
@@ -1530,15 +1530,15 @@ class Log(models.Model):
 
 
 class MonitorManager(models.Manager):
-    
+
     def all(self):
         q = super(MonitorManager, self).all()
         q = q.filter(is_monitor=True)
         return q
 
 class Monitor(Job):
-    
+
     objects = MonitorManager()
-    
+
     class Meta:
         proxy = True

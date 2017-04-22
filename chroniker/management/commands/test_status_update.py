@@ -11,14 +11,14 @@ from chroniker.models import Job
 class Command(BaseCommand):
     help = 'Incrementally updates status, to help testing transaction ' + \
         'behavior on different database backends.'
-    
+
     option_list = getattr(BaseCommand, 'option_list', ()) + (
         make_option('--seconds',
             dest='seconds',
             default=60,
             help='The number of total seconds to count up to.'),
         )
-        
+
     def create_parser(self, prog_name, subcommand):
         """
         For ``Django>=1.10``
@@ -37,7 +37,7 @@ class Command(BaseCommand):
                 help='The number of total seconds to count up to.')
             self.add_arguments(parser)
         return parser
-        
+
     def handle(self, *args, **options):
         seconds = int(options['seconds'])
         for i in range(seconds):

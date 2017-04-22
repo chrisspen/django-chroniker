@@ -7,12 +7,12 @@ from django.core.management.base import BaseCommand
 from chroniker.models import Job
 
 class Command(BaseCommand):
-    
+
     help = 'Runs a specific job. The job will only run if it is not ' + \
         'currently running.'
-        
+
     args = "job.id"
-    
+
     option_list = getattr(BaseCommand, 'option_list', ()) + (
         make_option('--update_heartbeat',
             dest='update_heartbeat',
@@ -20,7 +20,7 @@ class Command(BaseCommand):
             help='If given, launches a thread to asynchronously update ' + \
                 'job heartbeat status.'),
         )
-        
+
     def create_parser(self, prog_name, subcommand):
         """
         For ``Django>=1.10``
@@ -40,17 +40,16 @@ class Command(BaseCommand):
                     'job heartbeat status.')
             self.add_arguments(parser)
         return parser
-        
+
     def handle(self, *args, **options):
         for job_id in args:
-            
+
             try:
                 job = Job.objects.get(pk=int(job_id))
             except Job.DoesNotExist:
                 sys.stderr.write("The requested Job %s does not exist.\n" % job_id)
                 return
-            
+
             # Run the job and wait for it to finish
             print('Attempting to run job %i...' % (job.id,))
             job.handle_run(update_heartbeat=int(options['update_heartbeat']))
-            

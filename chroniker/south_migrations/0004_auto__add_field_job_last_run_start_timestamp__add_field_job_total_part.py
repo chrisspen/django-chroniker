@@ -8,7 +8,7 @@ from django.utils import timezone
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
-        
+
         # Adding field 'Job.last_run_start_timestamp'
         db.add_column('chroniker_job', 'last_run_start_timestamp', self.gf('django.db.models.fields.DateTimeField')(null=True, blank=True), keep_default=False)
 
@@ -20,7 +20,7 @@ class Migration(SchemaMigration):
 
 
     def backwards(self, orm):
-        
+
         # Deleting field 'Job.last_run_start_timestamp'
         db.delete_column('chroniker_job', 'last_run_start_timestamp')
 
