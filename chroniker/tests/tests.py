@@ -478,6 +478,8 @@ class JobTestCase(TestCase):
 
     def testErrorCallback(self):
 
+        job = Job.objects.all().update(enabled=False)
+
         while CALLBACK_ERRORS:
             CALLBACK_ERRORS.pop(0)
         self.assertFalse(CALLBACK_ERRORS)
@@ -489,9 +491,34 @@ class JobTestCase(TestCase):
         job.save()
 
         self.assertEqual(job.logs.all().count(), 0)
-        job.run(update_heartbeat=0)
+        #job.run(update_heartbeat=0)
+        call_command('cron', update_heartbeat=0, sync=1)
         self.assertEqual(job.logs.all().count(), 1)
         self.assertEqual(len(CALLBACK_ERRORS), 1)
+
+        # Simulate running the job 10 times.
+        for _ in range(10):
+            Job.objects.update()
+            job = Job.objects.get(id=6)
+            job.force_run = True
+            job.save()
+            call_command('cron', update_heartbeat=0, sync=1)
+        for log in job.logs.all():
+            print('log1:', log.id, log)
+        self.assertEqual(job.logs.all().count(), 11)
+
+        # Set max log entries to very low number, and confirm all old log entries are deleted.
+        Job.objects.update()
+        job = Job.objects.get(id=6)
+        job.force_run = True
+        job.maximum_log_entries = 1
+        job.save()
+        call_command('cron', update_heartbeat=0, sync=1)
+        Job.objects.update()
+        Log.objects.update()
+        for log in job.logs.all():
+            print('log2:', log.id, log)
+        self.assertEqual(job.logs.all().count(), 1)
 
     def testCronQueue(self):
 

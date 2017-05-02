@@ -848,8 +848,10 @@ class Job(models.Model):
 
         # Delete expired logs.
         if self.maximum_log_entries:
+            cutoff = self.maximum_log_entries - 1
             log_q = self.logs.all().order_by('-run_start_datetime')
-            for o in log_q[self.maximum_log_entries:]: # pylint: disable=invalid-slice-index
+            qs = Log.objects.filter(id__in=log_q.values_list('id', flat=True)[cutoff:])
+            for o in qs:
                 o.delete()
 
     def dependencies_met(self, running_ids=None):

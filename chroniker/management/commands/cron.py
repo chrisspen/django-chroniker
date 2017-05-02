@@ -297,7 +297,7 @@ class Command(BaseCommand):
         make_option('--sync',
             action='store_true',
             default=False,
-            help='If given, runs job one at a time.'),
+            help='If given, runs jobs one at a time.'),
     )
 
     def create_parser(self, prog_name, subcommand):
@@ -336,7 +336,7 @@ class Command(BaseCommand):
             parser.add_argument('--sync',
                 action='store_true',
                 default=False,
-                help='If given, runs job one at a time.')
+                help='If given, runs jobs one at a time.')
             self.add_arguments(parser)
         return parser
 
