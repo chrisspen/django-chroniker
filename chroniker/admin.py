@@ -321,7 +321,7 @@ class JobAdmin(admin.ModelAdmin):
             id=obj.id,
             count=q.count(),
         )
-        return '<a href="{url}?job={id}" target="_blank" class="button">View&nbsp;{count}</a>'\
+        return '<a href="{url}?job__id__exact={id}" target="_blank" class="button">View&nbsp;{count}</a>'\
             .format(**kwargs)
     view_logs_button.allow_tags = True
     view_logs_button.short_description = 'Logs'
@@ -511,6 +511,7 @@ class LogAdmin(admin.ModelAdmin):
     list_filter = (
         'success',
         'on_time',
+        'job',
     )
 
     search_fields = (

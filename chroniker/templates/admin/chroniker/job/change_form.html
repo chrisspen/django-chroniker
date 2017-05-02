@@ -5,7 +5,7 @@
 {% if change %}{% if not is_popup %}
   <ul class="object-tools">
     <li><a href="history/" class="historylink">{% trans "History" %}</a></li>
-    <li><a href="../../log/?job={{ object_id }}" class="historylink">{% trans "Logs" %}</a></li>
+    <li><a href="../../log/?job__id__exact={{ object_id }}" class="historylink">{% trans "Logs" %}</a></li>
     <li><a href="{% get_run_job_url object_id %}" class="viewsitelink">{% trans "Run Job" %}</a></li>
     <li><a href="{% url 'admin:chroniker_job_duration_graph' object_id %}" target="_blank" class="viewsitelink">{% trans "View Duration Graph" %}</a></li>
     {% if has_absolute_url %}
