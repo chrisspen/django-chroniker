@@ -11,11 +11,6 @@ from django.core.management import get_commands
 from django.core.urlresolvers import reverse, NoReverseMatch
 from django.db import models
 from django.forms import TextInput
-#if DJANGO_VERSION >= StrictVersion('1.8'):
-try:
-    from django.forms.utils import flatatt
-except ImportError:
-    from django.forms.util import flatatt
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.utils.encoding import force_text
@@ -31,7 +26,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from chroniker.models import Job, Log, JobDependency, Monitor
 from chroniker import utils
-from chroniker.widgets import ImproveRawIdFieldsFormTabularInline
+from chroniker.widgets import ImproveRawIdFieldsFormTabularInline, flatatt
 
 try:
     from admin_steroids.queryset import ApproxCountQuerySet
@@ -42,7 +37,7 @@ class HTMLWidget(forms.Widget):
     def __init__(self, rel=None, attrs=None):
         self.rel = rel
         super(HTMLWidget, self).__init__(attrs)
-    
+
     def render(self, name, value, attrs=None):
         if self.rel is not None:
             key = self.rel.get_related_field().name
@@ -52,7 +47,7 @@ class HTMLWidget(forms.Widget):
                 self.rel.to._meta.object_name.lower(),
                 value)
             value = "<a href='%s'>%s</a>" % (related_url, escape(obj))
-            
+
         final_attrs = self.build_attrs(attrs, name=name)
         return mark_safe("<div%s>%s</div>" % (
             flatatt(final_attrs),
@@ -62,23 +57,23 @@ class JobDependencyInline(ImproveRawIdFieldsFormTabularInline):
     model = JobDependency
     extra = 1
     fk_name = 'dependent'
-    
+
     readonly_fields = (
         'criteria_met',
     )
-    
+
     raw_id_fields = (
         'dependee',
     )
 
 class JobAdmin(admin.ModelAdmin):
-    
+
     formfield_overrides = {
         models.CharField: {
             'widget': TextInput(attrs={'size':'100',})
         },
     }
-    
+
     actions = (
         'enable_jobs',
         'disable_jobs',
@@ -104,7 +99,7 @@ class JobAdmin(admin.ModelAdmin):
         'stop_button',
         'view_logs_button',
     )
-    
+
     def job_type(self, obj=''):
         if not obj:
             return ''
@@ -112,7 +107,7 @@ class JobAdmin(admin.ModelAdmin):
             return 'monitor'
         return 'job'
     job_type.short_description = 'type'
-    
+
     readonly_fields = (
         #'check_is_running',
         'check_is_complete',
@@ -160,7 +155,7 @@ class JobAdmin(admin.ModelAdmin):
             'fields': (
                 'is_running',
                 'is_due',
-                'is_fresh', 
+                'is_fresh',
                 'last_run_successful',
                 'total_parts',
                 'total_parts_complete',
@@ -222,27 +217,27 @@ class JobAdmin(admin.ModelAdmin):
         'current_hostname',
         'current_pid',
     )
-    
+
     inlines = (
        JobDependencyInline,
     )
-    
+
     class Media:
         js = ("chroniker/js/dygraph-combined.js",)
-    
+
     def queryset(self, *args, **kwargs):
         qs = super(JobAdmin, self).queryset(*args, **kwargs)
         if ApproxCountQuerySet is not None:
             qs = qs._clone(klass=ApproxCountQuerySet)
         return qs
-    
+
     def get_readonly_fields(self, request, obj=None):
         fields = list(self.readonly_fields)
         # Allow manual clearing of is_running if the cron job has become stuck.
 #        if obj and obj.is_fresh():
 #            fields.append('is_running')
         return fields
-    
+
     def last_run_with_link(self, obj=None):
         if not obj or not obj.id:
             return ''
@@ -265,7 +260,7 @@ class JobAdmin(admin.ModelAdmin):
     last_run_with_link.admin_order_field = 'last_run'
     last_run_with_link.allow_tags = True
     last_run_with_link.short_description = 'Last run'
-    
+
     def check_is_complete(self, obj=None):
         if not obj or not obj.id:
             return ''
@@ -273,7 +268,7 @@ class JobAdmin(admin.ModelAdmin):
     check_is_complete.short_description = _('is complete')
     check_is_complete.boolean = True
     check_is_complete.admin_order_field = 'is_running'
-    
+
     def get_timeuntil(self, obj=None):
         if not obj or not obj.id or not obj.next_run:
             return ''
@@ -285,7 +280,7 @@ class JobAdmin(admin.ModelAdmin):
     get_timeuntil.admin_order_field = 'next_run'
     get_timeuntil.allow_tags = True
     get_timeuntil.short_description = _('next scheduled run')
-    
+
     def get_frequency(self, obj=None):
         if not obj or not obj.id:
             return ''
@@ -295,7 +290,7 @@ class JobAdmin(admin.ModelAdmin):
         return freq
     get_frequency.admin_order_field = 'frequency'
     get_frequency.short_description = 'Frequency'
-    
+
     def run_button(self, obj=None):
         if not obj or not obj.id:
             return ''
@@ -305,7 +300,7 @@ class JobAdmin(admin.ModelAdmin):
         return '<a href="{url}" class="button">Run</a>'.format(**kwargs)
     run_button.allow_tags = True
     run_button.short_description = 'Run'
-    
+
     def stop_button(self, obj=None):
         if not obj or not obj.id:
             return ''
@@ -316,7 +311,7 @@ class JobAdmin(admin.ModelAdmin):
         return s
     stop_button.allow_tags = True
     stop_button.short_description = 'Stop'
-    
+
     def view_logs_button(self, obj=None):
         if not obj or not obj.id:
             return ''
@@ -330,7 +325,7 @@ class JobAdmin(admin.ModelAdmin):
             .format(**kwargs)
     view_logs_button.allow_tags = True
     view_logs_button.short_description = 'Logs'
-    
+
     def run_job_view(self, request, job_id):
         """
         Runs the specified job.
@@ -347,7 +342,7 @@ class JobAdmin(admin.ModelAdmin):
         else:
             redirect = request.REQUEST.get('next', request.path + "../")
         return HttpResponseRedirect(redirect)
-    
+
     def stop_job_view(self, request, job_id):
         """
         Stop the specified job.
@@ -365,26 +360,26 @@ class JobAdmin(admin.ModelAdmin):
         else:
             redirect = request.REQUEST.get('next', request.path + "../")
         return HttpResponseRedirect(redirect)
-    
+
     def view_duration_graph(self, request, object_id):
-        
+
         model = self.model
         opts = model._meta
         object_id = int(object_id)
         obj = self.get_object(request, object_id)
-        
+
         q = obj.logs.all()
         q = q.order_by('run_start_datetime')
         q = q.only('duration_seconds', 'run_start_datetime')
-        
+
         max_duration = q.aggregate(
             models.Max('duration_seconds')
         )['duration_seconds__max']
-        
+
         errors = q.filter(success=False)
-        
+
         media = self.media
-        
+
         context = {
             'title': _('Change %s') % force_text(opts.verbose_name),
             #'adminform': adminForm,
@@ -401,11 +396,11 @@ class JobAdmin(admin.ModelAdmin):
             'errors': errors,
             'max_duration': max_duration,
         }
-        
+
         return render_to_response('admin/chroniker/job/duration_graph.html',
             context,
             context_instance=RequestContext(request))
-    
+
     def get_urls(self):
         urls = super(JobAdmin, self).get_urls()
         my_urls = [
@@ -420,7 +415,7 @@ class JobAdmin(admin.ModelAdmin):
                 name='chroniker_job_duration_graph'),
         ]
         return my_urls + urls
-    
+
     def run_selected_jobs(self, request, queryset):
         #rows_updated = queryset.update(next_run=timezone.now())
         rows_updated = queryset.update(force_run=True)
@@ -430,7 +425,7 @@ class JobAdmin(admin.ModelAdmin):
             message_bit = "%s jobs were" % rows_updated
         self.message_user(request, "%s successfully set to run." % message_bit)
     run_selected_jobs.short_description = "Force run selected jobs"
-    
+
     def clear_stalled(self, request, queryset):
         reset_count = 0
         for job in queryset:
@@ -441,7 +436,7 @@ class JobAdmin(admin.ModelAdmin):
         self.message_user(request, 'Cleared %i stalled jobs.' % (reset_count,))
     clear_stalled.short_description = \
         'Mark the selected stalled %(verbose_name_plural)s as not running'
-        
+
     def toggle_enabled(self, request, queryset):
         for row in queryset:
             row.enabled = not row.enabled
@@ -453,7 +448,7 @@ class JobAdmin(admin.ModelAdmin):
             message_bit = "%s jobs were toggled" % rows_updated
         self.message_user(request, message_bit)
     toggle_enabled.short_description = "Toggle enabled flag on selected jobs"
-    
+
     def disable_jobs(self, request, queryset):
         queryset.update(enabled=False)
         rows_updated = queryset.count()
@@ -463,7 +458,7 @@ class JobAdmin(admin.ModelAdmin):
             message_bit = "%s jobs were toggled" % rows_updated
         self.message_user(request, message_bit)
     disable_jobs.short_description = "Disable selected jobs"
-    
+
     def enable_jobs(self, request, queryset):
         queryset.update(enabled=True)
         rows_updated = queryset.count()
@@ -473,16 +468,16 @@ class JobAdmin(admin.ModelAdmin):
             message_bit = "%s jobs were toggled" % rows_updated
         self.message_user(request, message_bit)
     enable_jobs.short_description = "Enable selected jobs"
-    
+
     def formfield_for_dbfield(self, db_field, **kwargs):
         request = kwargs.pop("request", None)
-        
+
         # Add a select field of available commands
         if db_field.name == 'command':
             choices_dict = MultiValueDict()
             for command, app in get_commands().items():
                 choices_dict.appendlist(app, command)
-            
+
             choices = []
             for key in choices_dict.keys():
                 #if str(key).startswith('<'):
@@ -490,16 +485,16 @@ class JobAdmin(admin.ModelAdmin):
                 commands = choices_dict.getlist(key)
                 commands.sort()
                 choices.append([key, [[c, c] for c in commands]])
-            
+
             choices.insert(0, ('', '--- None ---'))
             kwargs['widget'] = forms.widgets.Select(choices=choices)
             return db_field.formfield(**kwargs)
-        
+
         kwargs['request'] = request
         return super(JobAdmin, self).formfield_for_dbfield(db_field, **kwargs)
 
 class LogAdmin(admin.ModelAdmin):
-    
+
     list_display = (
         'job_name',
         'run_start_datetime',
@@ -512,19 +507,19 @@ class LogAdmin(admin.ModelAdmin):
         #'stdout_sample',
         #'stderr_sample',
     )
-    
+
     list_filter = (
         'success',
         'on_time',
     )
-    
+
     search_fields = (
         'stdout',
         'stderr',
         'job__name',
         'job__command',
     )
-    
+
     readonly_fields = (
         'run_start_datetime',
         'run_end_datetime',
@@ -557,7 +552,7 @@ class LogAdmin(admin.ModelAdmin):
             )
         }),
     )
-    
+
     def queryset(self, *args, **kwargs):
         qs = super(LogAdmin, self).queryset(*args, **kwargs)
         qs = qs.only(
@@ -571,19 +566,19 @@ class LogAdmin(admin.ModelAdmin):
         if ApproxCountQuerySet is not None:
             qs = qs._clone(klass=ApproxCountQuerySet)
         return qs
-    
+
     def stdout_link(self, obj):
         return '<a href="%s">Download</a>' % (
             reverse("admin:chroniker_log_stdout", args=(obj.id,)),)
     stdout_link.allow_tags = True
     stdout_link.short_description = 'Stdout full'
-    
+
     def stderr_link(self, obj):
         return '<a href="%s">Download</a>' % (
             reverse("admin:chroniker_log_stderr", args=(obj.id,)),)
     stderr_link.allow_tags = True
     stderr_link.short_description = 'Stderr full'
-    
+
     def view_full_stdout(self, request, log_id):
         log = Log.objects.get(id=log_id)
         resp = HttpResponse(
@@ -592,7 +587,7 @@ class LogAdmin(admin.ModelAdmin):
         )
         resp['Content-Disposition'] = 'filename=log-%s-stdout.txt' % (log_id,)
         return resp
-    
+
     def view_full_stderr(self, request, log_id):
         log = Log.objects.get(id=log_id)
         resp = HttpResponse(
@@ -601,7 +596,7 @@ class LogAdmin(admin.ModelAdmin):
         )
         resp['Content-Disposition'] = 'filename=log-%s-stderr.txt' % (log_id,)
         return resp
-    
+
     def get_urls(self):
         urls = super(LogAdmin, self).get_urls()
         my_urls = [
@@ -615,7 +610,7 @@ class LogAdmin(admin.ModelAdmin):
             ),
         ]
         return my_urls + urls
-    
+
     def job_name(self, obj):
       return obj.job.name
     job_name.short_description = _('Name')
@@ -625,21 +620,21 @@ class LogAdmin(admin.ModelAdmin):
     job_success.short_description = _('OK')
     job_success.boolean = True
     job_success.admin_order_field = 'success'
-    
+
     def has_add_permission(self, request):
         return False
-    
+
     def formfield_for_dbfield(self, db_field, **kwargs):
         request = kwargs.pop("request", None)
-        
+
         if isinstance(db_field, models.TextField):
             kwargs['widget'] = HTMLWidget()
             return db_field.formfield(**kwargs)
-        
+
         if isinstance(db_field, models.ForeignKey):
             kwargs['widget'] = HTMLWidget(db_field.rel)
             return db_field.formfield(**kwargs)
-        
+
         return super(LogAdmin, self).formfield_for_dbfield(db_field, **kwargs)
 
 try:
@@ -668,7 +663,7 @@ class MonitorAdmin(admin.ModelAdmin):
         'status',
         'get_timeuntil',
     )
-    
+
     def get_timeuntil(self, obj):
         fmt = get_format('DATETIME_FORMAT')
         next_run = obj.next_run or timezone.now()
@@ -678,25 +673,25 @@ class MonitorAdmin(admin.ModelAdmin):
     get_timeuntil.admin_order_field = 'next_run'
     get_timeuntil.allow_tags = True
     get_timeuntil.short_description = _('next check')
-    
+
     def get_actions(self, request):
         actions = super(MonitorAdmin, self).get_actions(request)
         if 'delete_selected' in actions:
             del actions['delete_selected']
         return actions
-    
+
     def has_delete_permission(self, request, obj=None):
         return False
-    
+
     def has_add_permission(self, request):
-        return False 
-    
+        return False
+
     def queryset(self, request):
         qs = super(MonitorAdmin, self).queryset(request)
         qs = qs.filter(is_monitor=True)
         qs = qs.order_by('name')
         return qs
-    
+
     def name_str(self, obj):
         if obj.monitor_url:
             return '<a href="%s" target="_blank">%s</a>' % (obj.monitor_url_rendered, obj.name)
@@ -704,7 +699,7 @@ class MonitorAdmin(admin.ModelAdmin):
             return obj.name
     name_str.short_description = 'Name'
     name_str.allow_tags = True
-    
+
     def action_buttons(self, obj):
         buttons = []
         buttons.append('<a href="%s" class="button">Check now</a>' % '%d/run/?inline=1' % obj.id)
@@ -714,7 +709,7 @@ class MonitorAdmin(admin.ModelAdmin):
         return ' '.join(buttons)
     action_buttons.allow_tags = True
     action_buttons.short_description = 'Actions'
-    
+
     def status(self, obj):
         if obj.is_running:
             help_text = 'The monitor is currently being checked.'
@@ -729,7 +724,7 @@ class MonitorAdmin(admin.ModelAdmin):
             temp = '<img src="' + settings.STATIC_URL \
                 + 'admin/img/icon_error.gif" alt="%(help_text)s" title="%(help_text)s" />'
         return temp % dict(help_text=help_text)
-            
+
     status.allow_tags = True
 
     def changelist_view(self, request, extra_context=None):
@@ -757,7 +752,7 @@ class MonitorAdmin(admin.ModelAdmin):
         else:
             redirect = request.REQUEST.get('next', request.path + "../")
         return HttpResponseRedirect(redirect)
-    
+
     def get_urls(self):
         urls = super(MonitorAdmin, self).get_urls()
         my_urls = [

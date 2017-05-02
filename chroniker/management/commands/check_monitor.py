@@ -12,7 +12,7 @@ from chroniker.models import get_current_job
 
 class Command(BaseCommand):
     help = 'Runs a specific monitoring routine.'
-    
+
     option_list = getattr(BaseCommand, 'option_list', ()) + (
         make_option('--imports',
             dest='imports',
@@ -25,7 +25,7 @@ class Command(BaseCommand):
             default=False,
             help='If given, displays extra logging messages.'),
         )
-        
+
     def create_parser(self, prog_name, subcommand):
         """
         For ``Django>=1.10``
@@ -50,7 +50,7 @@ class Command(BaseCommand):
                 help='If given, displays extra logging messages.')
             self.add_arguments(parser)
         return parser
-        
+
     def handle(self, *args, **options):
         imports = options['imports']
         query = options['query']
@@ -73,12 +73,12 @@ class Command(BaseCommand):
         if verbose:
             print(query)
         q = eval(query, globals(), locals()) # pylint: disable=W0123
-        
+
         job = get_current_job()
         if job:
             job.monitor_records = q.count()
             job.save()
-        
+
         if q.count():
             print('%i records require attention.' % (q.count(),), file=sys.stderr)
         else:

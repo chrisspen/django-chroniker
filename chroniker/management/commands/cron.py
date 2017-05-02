@@ -54,23 +54,23 @@ def kill_stalled_processes(dryrun=True):
             print('PID does not exist.')
 
 class JobProcess(utils.TimedProcess):
-    
+
     def __init__(self, job, *args, **kwargs):
         super(JobProcess, self).__init__(*args, **kwargs)
         self.job = job
 
 def run_job(job, **kwargs):
-    
+
     update_heartbeat = kwargs.pop('update_heartbeat', None)
     stdout_queue = kwargs.pop('stdout_queue', None)
     stderr_queue = kwargs.pop('stderr_queue', None)
     force_run = kwargs.pop('force_run', False)
-    
+
     # TODO:causes UnicodeEncodeError: 'ascii' codec can't encode
     # character u'\xa0' in position 59: ordinal not in range(128)
     #print(u"Running Job: %i - '%s' with args: %s" \
     #    % (job.id, job, job.args))
-    
+
     # TODO:Fix? Remove multiprocess and just running all jobs serially?
     # Multiprocessing does not play well with Django's PostgreSQL
     # connection, as it seems Django's connection code is not thread-safe.
@@ -93,28 +93,28 @@ def run_job(job, **kwargs):
     #TODO:normalize job termination and cleanup outside of handle_run()?
 
 def run_cron(jobs=None, **kwargs):
-    
+
     update_heartbeat = kwargs.pop('update_heartbeat', True)
     force_run = kwargs.pop('force_run', False)
     dryrun = kwargs.pop('dryrun', False)
     clear_pid = kwargs.pop('clear_pid', False)
     sync = kwargs.pop('sync', False)
-    
+
     try:
-        
+
         # TODO: auto-kill inactive long-running cron processes whose
         # threads have stalled and not exited properly?
         # Check for 0 cpu usage.
         #ps -p <pid> -o %cpu
-        
+
         stdout_map = defaultdict(list) # {prod_id:[]}
         stderr_map = defaultdict(list) # {prod_id:[]}
         stdout_queue = Queue()
         stderr_queue = Queue()
-        
+
         if settings.CHRONIKER_AUTO_END_STALE_JOBS and not dryrun:
             Job.objects.end_all_stale()
-            
+
         # Check PID file to prevent conflicts with prior executions.
         # TODO: is this still necessary? deprecate? As long as jobs run by
         # JobProcess don't wait for other jobs, multiple instances of cron
@@ -142,7 +142,7 @@ def run_cron(jobs=None, **kwargs):
                     pass
             open(pid_fn, 'w').write(pid)
             clear_pid = True
-        
+
         procs = []
         if force_run:
             q = Job.objects.all()
@@ -150,10 +150,10 @@ def run_cron(jobs=None, **kwargs):
                 q = q.filter(id__in=jobs)
         else:
             q = Job.objects.due_with_met_dependencies_ordered(jobs=jobs)
-        
+
         running_ids = set()
         for job in q:
-            
+
             # This is necessary, otherwise we get the exception
             # DatabaseError: SSL error: sslv3 alert bad record mac
             # even through we're not using SSL...
@@ -161,7 +161,7 @@ def run_cron(jobs=None, **kwargs):
             # connections for each process by explicitly closing the
             # current connection.
             connection.close()
-            
+
             # Re-check dependencies to incorporate any previous iterations
             # that marked jobs as running, potentially causing dependencies
             # to become unmet.
@@ -171,7 +171,7 @@ def run_cron(jobs=None, **kwargs):
                 utils.smart_print(u'Job {} {} is due but has unmet dependencies.'\
                     .format(job.id, job))
                 continue
-            
+
             # Immediately mark the job as running so the next jobs can
             # update their dependency check.
             utils.smart_print(u'Running job {} {}.'.format(job.id, job))
@@ -180,7 +180,7 @@ def run_cron(jobs=None, **kwargs):
                 continue
             job.is_running = True
             Job.objects.filter(id=job.id).update(is_running=job.is_running)
-            
+
             # Launch job.
             if sync:
                 # Run job synchronously.
@@ -211,23 +211,23 @@ def run_cron(jobs=None, **kwargs):
                     ))
                 proc.start()
                 procs.append(proc)
-        
+
         if not dryrun:
             print("%d Jobs are due." % len(procs))
-            
+
             # Wait for all job processes to complete.
             while procs:
-                
+
                 while not stdout_queue.empty():
                     proc_id, proc_stdout = stdout_queue.get()
                     stdout_map[proc_id].append(proc_stdout)
-                    
+
                 while not stderr_queue.empty():
                     proc_id, proc_stderr = stderr_queue.get()
                     stderr_map[proc_id].append(proc_stderr)
-                    
+
                 for proc in list(procs):
-                    
+
                     if not proc.is_alive():
                         print('Process %s ended.' % (proc,))
                         procs.remove(proc)
@@ -237,7 +237,7 @@ def run_cron(jobs=None, **kwargs):
                         proc.terminate()
                         run_end_datetime = timezone.now()
                         procs.remove(proc)
-                        
+
                         connection.close()
                         Job.objects.update()
                         j = Job.objects.get(id=proc.job.id)
@@ -246,7 +246,7 @@ def run_cron(jobs=None, **kwargs):
                         proc.job.force_run = False
                         proc.job.force_stop = False
                         proc.job.save()
-                        
+
                         # Create log record since the job was killed before it had
                         # a chance to do so.
                         Log.objects.create(
@@ -259,7 +259,7 @@ def run_cron(jobs=None, **kwargs):
                             stdout=''.join(stdout_map[proc_id]),
                             stderr=''.join(stderr_map[proc_id]+['Job exceeded timeout\n']),
                         )
-                        
+
                 time.sleep(1)
             print('!'*80)
             print('All jobs complete!')
@@ -339,18 +339,18 @@ class Command(BaseCommand):
                 help='If given, runs job one at a time.')
             self.add_arguments(parser)
         return parser
-    
+
     def handle(self, *args, **options):
-        
+
         kill_stalled_processes(dryrun=False)
-        
+
         # Find specific job ids to run, if any.
         jobs = [
             int(_.strip())
             for _ in options.get('jobs', '').strip().split(',')
             if _.strip().isdigit()
         ]
-        
+
         run_cron(
             jobs,
             update_heartbeat=int(options['update_heartbeat']),

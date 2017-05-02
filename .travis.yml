@@ -1,7 +1,12 @@
+dist: trusty
+sudo: required
 language: python
 python:
 -   "3.5"
 install:
+-   sudo add-apt-repository -y ppa:fkrull/deadsnakes
+-   sudo apt-get -yq update
+-   sudo apt-get -yq install python3.6 python3.6-dev
 -   pip install -r requirements-test.txt
 script:
 -   ./pep8.sh

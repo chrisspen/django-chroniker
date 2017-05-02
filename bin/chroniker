@@ -43,14 +43,14 @@ if __name__ == "__main__":
         default='',
         help='A comma-delimited list of job ids to limit executions to.')
     args = parser.parse_args()
-    
+
     log_level = logging.INFO
     if args.quite:
         logging.disable(logging.CRITICAL)
         log_level = logging.CRITICAL
     elif args.loud:
         log_level = logging.DEBUG
-    
+
     logging.basicConfig(stream=sys.stdout, format="[%(levelname)-8s] %(message)s")
     logger.setLevel(log_level)
 
@@ -59,44 +59,44 @@ if __name__ == "__main__":
         virtualenv = os.path.abspath(args.virtualenv)
         assert os.path.isfile(virtualenv), 'Virtualenv file "%s" does not exist.' % virtualenv
         exec(open(virtualenv).read(), dict(__file__=virtualenv)) # pylint: disable=exec-used
-    
+
     # Now setup django
     project_dir = args.project_dir
     if project_dir:
         project_dir = os.path.abspath(args.project_dir)
         if not os.path.isdir(project_dir):
             logger.error("Error: Project directory does not exist: %s", project_dir)
-        
+
         # Make sure that the project is on the path
         sys.path.append(project_dir)
         sys.path.append(os.path.join(project_dir, '../'))
-        
+
     settings = args.settings
     if not settings and 'DJANGO_SETTINGS_MODULE' not in os.environ:
         if not project_dir:
             # Well, we can't do anything...
             logger.error(INVALID_SETTINGS_ERROR)
             sys.exit(0)
-        
+
         # We'll assume the settings file is in the project directory
         settings = "%s.settings" % os.path.basename(project_dir)
-    
+
     # Now assign the settings if necessary.
     if settings:
         os.environ['DJANGO_SETTINGS_MODULE'] = settings
-    
+
     jobs = args.jobs#(args.jobs or '').split(',')
-    
+
     logger.debug("Project dir: %s", project_dir)
     logger.debug("Settings mod: %s", settings)
-    
+
     # We should be good to go now
     import django
     DJANGO_VERSION = StrictVersion(django.get_version())
     if DJANGO_VERSION >= StrictVersion('1.7'):
         django.setup()
     from django.core.management import call_command
-    
+
     for extra_path in [None, '.', '..']:
         try:
             if extra_path:
@@ -110,5 +110,5 @@ if __name__ == "__main__":
                 sys.stderr.write(str(e))
                 sys.stderr.write(str('\n'))
                 sys.exit(0)
-    
+
     call_command('cron', jobs=jobs)

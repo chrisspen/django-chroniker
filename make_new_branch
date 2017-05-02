@@ -1,0 +1,26 @@
+#!/usr/bin/env python
+"""
+Creates a new branch and pushes it upstream for tracking.
+
+Usage:
+
+    ./make_new_branch <issue#>
+
+"""
+from __future__ import print_function
+import os
+import sys
+import re
+from commands import getoutput
+
+os.system('git checkout master')
+os.system('git pull')
+try:
+    ticket = re.findall(r'([0-9]+(?:\-[a-zA-Z0-9\-]+)?)', sys.argv[1])[0]
+    print('ticket:', ticket)
+except IndexError:
+    print('Usage:\n\n    ./make_new_branch xxxx\n')
+    sys.exit(1)
+assert getoutput('git rev-parse --abbrev-ref HEAD') == 'master', 'A branch should only be created from master.'
+os.system('git checkout -b %s' % ticket)
+os.system('git push -u origin %s' % ticket)

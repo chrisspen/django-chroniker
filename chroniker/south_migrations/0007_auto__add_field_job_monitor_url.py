@@ -8,13 +8,13 @@ from django.utils import timezone
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
-        
+
         # Adding field 'Job.monitor_url'
         db.add_column('chroniker_job', 'monitor_url', self.gf('django.db.models.fields.CharField')(max_length=255, null=True, blank=True), keep_default=False)
 
 
     def backwards(self, orm):
-        
+
         # Deleting field 'Job.monitor_url'
         db.delete_column('chroniker_job', 'monitor_url')
 

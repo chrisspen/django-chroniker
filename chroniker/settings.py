@@ -28,7 +28,7 @@ settings.CHRONIKER_EMAIL_SENDER = getattr(
 # The email address used to identify the email sender.
 settings.CHRONIKER_EMAIL_HOST_USER = getattr(
     settings,
-    'CHRONIKER_EMAIL_HOST_USER', 
+    'CHRONIKER_EMAIL_HOST_USER',
     getattr(
         settings,
         'EMAIL_HOST_USER',

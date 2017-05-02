@@ -8,7 +8,7 @@ from django.utils import timezone
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
-        
+
         # Adding model 'Job'
         db.create_table('chroniker_job', (
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
@@ -54,7 +54,7 @@ class Migration(SchemaMigration):
 
 
     def backwards(self, orm):
-        
+
         # Deleting model 'Job'
         db.delete_table('chroniker_job')
 

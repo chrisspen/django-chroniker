@@ -1,7 +1,7 @@
 
 # Fix AttributeError caused by conflict between Django<1.7 and Python>3.
 # http://stackoverflow.com/q/34827566/247542
-from django.utils.six.moves import html_parser as _html_parser    
+from django.utils.six.moves import html_parser as _html_parser
 try:
     HTMLParseError = _html_parser.HTMLParseError
 except AttributeError:
