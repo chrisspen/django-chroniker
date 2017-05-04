@@ -33,6 +33,7 @@ from django.test.client import Client
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.conf import settings
+from django.db.models import Max
 
 from chroniker.models import Job, Log
 # from chroniker.tests.commands import Sleeper, InfiniteWaiter, ErrorThrower
@@ -506,19 +507,24 @@ class JobTestCase(TestCase):
         for log in job.logs.all():
             print('log1:', log.id, log)
         self.assertEqual(job.logs.all().count(), 11)
+        max_dt0 = job.logs.all().aggregate(Max('run_start_datetime'))['run_start_datetime__max']
 
         # Set max log entries to very low number, and confirm all old log entries are deleted.
         Job.objects.update()
         job = Job.objects.get(id=6)
         job.force_run = True
-        job.maximum_log_entries = 1
+        job.maximum_log_entries = 3
         job.save()
         call_command('cron', update_heartbeat=0, sync=1)
         Job.objects.update()
         Log.objects.update()
         for log in job.logs.all():
             print('log2:', log.id, log)
-        self.assertEqual(job.logs.all().count(), 1)
+        self.assertEqual(job.logs.all().count(), 3)
+        max_dt1 = job.logs.all().aggregate(Max('run_start_datetime'))['run_start_datetime__max']
+        print('max_dt0:', max_dt0)
+        print('max_dt1:', max_dt1)
+        self.assertTrue(max_dt1 > max_dt0)
 
     def testCronQueue(self):
 
