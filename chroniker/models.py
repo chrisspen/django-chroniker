@@ -849,10 +849,12 @@ class Job(models.Model):
         # Delete expired logs.
         if self.maximum_log_entries:
             cutoff = self.maximum_log_entries - 1
-            log_q = self.logs.all().order_by('-run_start_datetime')
-            qs = Log.objects.filter(id__in=log_q.values_list('id', flat=True)[cutoff:])
-            for o in qs:
-                o.delete()
+            log_q = self.logs.all().order_by('-run_start_datetime')[cutoff:]
+            if log_q.exists():
+                cutoff_dt = log_q[0].run_start_datetime
+                qs = Log.objects.filter(run_start_datetime__lte=cutoff_dt)
+                for o in qs:
+                    o.delete()
 
     def dependencies_met(self, running_ids=None):
         """
