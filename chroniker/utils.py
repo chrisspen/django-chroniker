@@ -1,15 +1,16 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import errno
 import os
+import signal
 import sys
 import time
-import signal
 import warnings
-import errno
-from multiprocessing import Process, current_process
-from importlib import import_module
 from datetime import timedelta
+from importlib import import_module
+from multiprocessing import Process, current_process
+
 try:
     from io import StringIO
 except ImportError:
@@ -29,6 +30,7 @@ from six import print_, reraise, u
 
 from . import constants as c
 
+
 def get_etc(complete_parts, total_parts, start_datetime, current_datetime=None, as_seconds=False):
     """
     Estimates a job's expected time to completion.
@@ -42,7 +44,7 @@ def get_etc(complete_parts, total_parts, start_datetime, current_datetime=None, 
 
         # Estimate the total seconds the task will take to complete by using
         # a linear projection.
-        total_seconds = passed_seconds/complete_parts*total_parts
+        total_seconds = passed_seconds / complete_parts * total_parts
 
         # Estimate the expected time of completion by projecting the duration
         # onto the start time.
@@ -55,11 +57,13 @@ def get_etc(complete_parts, total_parts, start_datetime, current_datetime=None, 
 
         return etc
 
+
 def get_remaining_seconds(*args, **kwargs):
     kwargs['as_seconds'] = True
     return get_etc(*args, **kwargs)
 
-#def calculate_eta(start_datetime, start_count, current_count, total_count):
+
+# def calculate_eta(start_datetime, start_count, current_count, total_count):
 #    """
 #    Returns the datetime when the given process will likely complete, assuming
 #    a relatively linear projection of the current progress.
@@ -85,19 +89,22 @@ def get_admin_change_url(obj):
     change_url_name = 'admin:%s_%s_change' % (ct.app_label, ct.model)
     return reverse(change_url_name, args=(obj.id,))
 
+
 def get_admin_changelist_url(obj):
     ct = ContentType.objects.get_for_model(obj)
     list_url_name = 'admin:%s_%s_changelist' % (ct.app_label, ct.model)
     return reverse(list_url_name)
+
 
 class TeeFile(StringIO):
     """
     A helper class for allowing output to be stored in a StringIO instance
     while still be directed to a second file object, such as sys.stdout.
     """
-    def __init__(self, file, auto_flush=False, queue=None, local=True): # pylint: disable=W0622
+
+    def __init__(self, file, auto_flush=False, queue=None, local=True):  # pylint: disable=W0622
         super(TeeFile, self).__init__()
-        #StringIO.__init__(self)
+        # StringIO.__init__(self)
         self.file = file
         self.auto_flush = auto_flush
         self.length = 0
@@ -111,37 +118,38 @@ class TeeFile(StringIO):
 
     def write(self, s):
         try:
-            #import chardet
-            #encoding_opinion = chardet.detect(s)
-            #encoding = encoding_opinion['encoding']
-            #TODO:fix? not stripping out non-ascii characters result in error
-            #'ascii' codec can't encode character ? in position ?: ordinal not in range(128)
+            # import chardet
+            # encoding_opinion = chardet.detect(s)
+            # encoding = encoding_opinion['encoding']
+            # TODO:fix? not stripping out non-ascii characters result in error
+            # 'ascii' codec can't encode character ? in position ?: ordinal not in range(128)
             s = ''.join(_ for _ in s if ord(_) < 128)
-            #s = s.encode(encoding, 'ignore')
+            # s = s.encode(encoding, 'ignore')
         except ImportError:
             pass
         self.length += len(s)
         self.file.write(s)
         if self.local:
-            #super(TeeFile, self).write(s)
+            # super(TeeFile, self).write(s)
             StringIO.write(self, s)
         if self.auto_flush:
-            #self.file.flush()
+            # self.file.flush()
             self.flush()
         if self.queue is not None:
             self.queue_buffer.append(s)
 
     def flush(self):
         self.file.flush()
-        #super(TeeFile, self).flush()
+        # super(TeeFile, self).flush()
         StringIO.flush(self)
         if self.queue is not None:
-            data = (current_process().pid, ''.join(self.queue_buffer)) # pylint: disable=E1102
+            data = (current_process().pid, ''.join(self.queue_buffer))  # pylint: disable=E1102
             self.queue.put(data)
             self.queue_buffer = []
 
     def fileno(self):
         return self.file.fileno()
+
 
 # Based on:
 # http://djangosnippets.org/snippets/833/
@@ -197,11 +205,11 @@ class LockingManager(models.Manager):
         else:
             warnings.warn(
                 'Locking of database backend "%s" is not supported.'
-                    % (connection.settings_dict['ENGINE'],),
+                % (connection.settings_dict['ENGINE'],),
                 warnings.RuntimeWarning
             )
-        #row = cursor.fetchone()
-        #return row
+        # row = cursor.fetchone()
+        # return row
         return cursor
 
     def unlock(self):
@@ -213,12 +221,13 @@ class LockingManager(models.Manager):
         else:
             warnings.warn(
                 '(Un)Locking of database backend "%s" is not supported.'
-                    % (connection.settings_dict['ENGINE'],),
+                % (connection.settings_dict['ENGINE'],),
                 warnings.RuntimeWarning
             )
-        #row = cursor.fetchone()
-        #return row
+        # row = cursor.fetchone()
+        # return row
         return cursor
+
 
 def pid_exists(pid):
     """
@@ -235,18 +244,25 @@ def pid_exists(pid):
     else:
         return True
 
+
 def get_cpu_usage(pid, interval=1):
     """
     Returns the CPU usage, as reported by `ps`, of the process associated with
     the given PID.
     """
-#    cmd = ['ps', '-p', str(pid), '-o', '%cpu', '--no-headers']
-#    output = subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()[0]
-#    try:
-#        return float(output.strip().split('\n')[0])
-#    except ValueError:
-#        return
-    return psutil.Process(pid).get_cpu_times(interval=interval)
+    #    cmd = ['ps', '-p', str(pid), '-o', '%cpu', '--no-headers']
+    #    output = subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()[0]
+    #    try:
+    #        return float(output.strip().split('\n')[0])
+    #    except ValueError:
+    #        return
+    # Fix for psutil cross-version compatibility
+    try:
+        usage = psutil.Process(pid).get_cpu_times(interval=interval)
+    except AttributeError:
+        usage = psutil.Process(pid).cpu_times(interval=interval)
+    return usage
+
 
 def kill_process(pid):
     """
@@ -258,22 +274,22 @@ def kill_process(pid):
     try:
 
         # Try sending a keyboard interrupt.
-        os.kill(pid, signal.SIGINT) # 2
+        os.kill(pid, signal.SIGINT)  # 2
         if not pid_exists(pid):
             return True
 
         # Ask politely again.
-        os.kill(pid, signal.SIGABRT) # 6
+        os.kill(pid, signal.SIGABRT)  # 6
         if not pid_exists(pid):
             return True
 
         # Try once more.
-        os.kill(pid, signal.SIGTERM) # 15
+        os.kill(pid, signal.SIGTERM)  # 15
         if not pid_exists(pid):
             return True
 
         # We've asked nicely and we've been ignored, so just murder it.
-        os.kill(pid, signal.SIGKILL) # 9
+        os.kill(pid, signal.SIGKILL)  # 9
         if not pid_exists(pid):
             return True
 
@@ -281,6 +297,7 @@ def kill_process(pid):
         # Something strange happened.
         # Our user likely doesn't have permission to kill the process.
         return False
+
 
 class TimedProcess(Process):
     """
@@ -305,7 +322,7 @@ class TimedProcess(Process):
         self.check_freq = check_freq
         self.time_type = time_type
         self._p = None
-        self._process_times = {} # {pid:user_seconds}
+        self._process_times = {}  # {pid:user_seconds}
         self._last_duration_seconds = None
 
     def terminate(self, sig=15, *args, **kwargs):
@@ -315,15 +332,25 @@ class TimedProcess(Process):
         if self.is_alive() and self._p:
             # Explicitly kill children since the default terminate() doesn't
             # seem to do this very reliably.
-            for child in self._p.get_children():
-                # Do one last time check.
-                self._process_times[child.pid] = child.get_cpu_times().user
-                os.system('kill -%i %i' % (sig, child.pid,))
-            # Sum final time.
-            self._process_times[self._p.pid] = self._p.get_cpu_times().user
-            self._last_duration_seconds = sum(self._process_times.itervalues())
+            try:
+                for child in self._p.get_children():
+                    # Do one last time check.
+                    self._process_times[child.pid] = child.get_cpu_times().user
+                    os.system('kill -%i %i' % (sig, child.pid,))
+                # Sum final time.
+                self._process_times[self._p.pid] = self._p.get_cpu_times().user
+                self._last_duration_seconds = sum(self._process_times.itervalues())
+            except AttributeError:
+                for child in self._p.children():
+                    # Do one last time check.
+                    self._process_times[child.pid] = child.cpu_times().user
+                    os.system('kill -%i %i' % (sig, child.pid,))
+                # Sum final time.
+                self._process_times[self._p.pid] = self._p.cpu_times().user
+                self._last_duration_seconds = sum(self._process_times.values())
+                #
         os.system('kill -%i %i' % (sig, self._p.pid,))
-        #return super(TimedProcess, self).terminate(*args, **kwargs)
+        # return super(TimedProcess, self).terminate(*args, **kwargs)
 
     def get_duration_seconds_wall(self):
         if self.t1_objective is not None:
@@ -342,23 +369,47 @@ class TimedProcess(Process):
         # Note, we must store historical child times because child
         # processes may die, causing them to no longer be included in
         # future calculations, possibly corrupting the total time.
-        self._process_times[self._p.pid] = self._p.get_cpu_times().user
-        children = self._p.get_children(recursive=True)
-        for child in children:
-            self._process_times[child.pid] = child.get_cpu_times().user
-        #TODO:optimize by storing total sum and tracking incremental changes?
-        return sum(self._process_times.itervalues())
+        try:
+            self._process_times[self._p.pid] = self._p.get_cpu_times().user
+            children = self._p.get_children(recursive=True)
+            #
+            for child in children:
+                self._process_times[child.pid] = child.get_cpu_times().user
+            #
+            sum_proc_times = sum(self._process_times.itervalues())
+        except AttributeError:
+            self._process_times[self._p.pid] = self._p.cpu_times().user
+            children = self._p.children(recursive=True)
+            #
+            for child in children:
+                self._process_times[child.pid] = child.cpu_times().user
+            #
+            sum_proc_times = sum(self._process_times.values())
+        # TODO:optimize by storing total sum and tracking incremental changes?
+        return sum_proc_times
 
     def get_cpu_usage_recursive(self, interval=1):
         usage = 0
         try:
-            usage = self._p.get_cpu_percent(interval=interval)
-            children = self._p.get_children(recursive=True)
-            for child in children:
-                try:
-                    usage += child.get_cpu_percent(interval=interval)
-                except psutil._error.NoSuchProcess:
-                    pass
+            try:
+                usage = self._p.get_cpu_percent(interval=interval)
+                children = self._p.get_children(recursive=True)
+                #
+                for child in children:
+                    try:
+                        usage += child.get_cpu_percent(interval=interval)
+                    except psutil._error.NoSuchProcess:
+                        pass
+            except AttributeError:
+                usage = self._p.cpu_percent(interval=interval)
+                children = self._p.children(recursive=True)
+                #
+                for child in children:
+                    try:
+                        usage += child.cpu_percent(interval=interval)
+                    except psutil._error.NoSuchProcess:
+                        pass
+                        #
         except psutil._error.NoSuchProcess:
             pass
         return usage
@@ -419,24 +470,26 @@ class TimedProcess(Process):
             time.sleep(1)
             if verbose:
                 self.fout.write('\r\t%.0f seconds until timeout.' \
-                    % (self.seconds_until_timeout,))
+                                % (self.seconds_until_timeout,))
                 self.fout.flush()
             if not self.is_alive():
                 break
             elif self.is_expired:
                 if verbose:
                     print_('\nAttempting to terminate expired process %s...' \
-                        % (self.pid,), file=self.fout)
+                           % (self.pid,), file=self.fout)
                 timeout = True
                 self.terminate()
         self.t1 = time.clock()
         self.t1_objective = time.time()
         return timeout
 
+
 def make_naive(dt, tz):
     if timezone.is_aware(dt):
         return timezone.make_naive(dt, tz)
     return dt
+
 
 def make_aware(dt, tz):
     if dt is None:
@@ -452,14 +505,17 @@ def make_aware(dt, tz):
         else:
             return dt
 
+
 def localtime(dt):
     dt = make_aware(dt, settings.TIME_ZONE)
     return dt
+
 
 def write_lock(lock_file):
     lock_file.seek(0)
     lock_file.write(str(time.time()).encode('utf-8'))
     lock_file.flush()
+
 
 # Backportted from Django 1.7.
 def import_string(dotted_path):
@@ -469,7 +525,7 @@ def import_string(dotted_path):
     """
 
     try:
-        from django.utils.module_loading import import_string # pylint: disable=W0621
+        from django.utils.module_loading import import_string  # pylint: disable=W0621
         return import_string(dotted_path)
     except ImportError:
         pass
@@ -488,6 +544,7 @@ def import_string(dotted_path):
         msg = 'Module "%s" does not define a "%s" attribute/class' % (
             dotted_path, class_name)
         reraise(ImportError, ImportError(msg), sys.exc_info()[2])
+
 
 def smart_print(*args, **kwargs):
     """
