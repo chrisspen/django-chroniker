@@ -48,7 +48,7 @@ class HTMLWidget(forms.Widget):
                 value)
             value = "<a href='%s'>%s</a>" % (related_url, escape(obj))
 
-        final_attrs = self.build_attrs(attrs, name=name)
+        final_attrs = self.build_attrs({ name: name })
         return mark_safe("<div%s>%s</div>" % (
             flatatt(final_attrs),
             linebreaks(value)))
