@@ -1011,7 +1011,9 @@ class Job(models.Model):
         False
         """
         q = type(self).objects.due(job=self, **kwargs)
-        return q.exists()
+        with commit_on_success():
+            res = q.exists()
+        return res
     is_due.boolean = True
 
     def is_due_with_dependencies_met(self, running_ids=None):
