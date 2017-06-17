@@ -48,7 +48,7 @@ class HTMLWidget(forms.Widget):
                 value)
             value = "<a href='%s'>%s</a>" % (related_url, escape(obj))
 
-        final_attrs = self.build_attrs(attrs, name=name)
+        final_attrs = self.build_attrs({name: name})
         return mark_safe("<div%s>%s</div>" % (
             flatatt(final_attrs),
             linebreaks(value)))
@@ -715,15 +715,15 @@ class MonitorAdmin(admin.ModelAdmin):
         if obj.is_running:
             help_text = 'The monitor is currently being checked.'
             temp = '<img src="' + settings.STATIC_URL \
-                + 'admin/img/icon-unknown.gif" alt="%(help_text)s" title="%(help_text)s" />'
+                + 'admin/img/icon-unknown.svg" alt="%(help_text)s" title="%(help_text)s" />'
         elif obj.last_run_successful:
             help_text = 'All checks passed.'
             temp = '<img src="' + settings.STATIC_URL \
-                + 'admin/img/icon_success.gif" alt="%(help_text)s" title="%(help_text)s" />'
+                + 'admin/img/icon-yes.svg" alt="%(help_text)s" title="%(help_text)s" />'
         else:
             help_text = 'Requires attention.'
             temp = '<img src="' + settings.STATIC_URL \
-                + 'admin/img/icon_error.gif" alt="%(help_text)s" title="%(help_text)s" />'
+                + 'admin/img/icon-no.svg" alt="%(help_text)s" title="%(help_text)s" />'
         return temp % dict(help_text=help_text)
 
     status.allow_tags = True
