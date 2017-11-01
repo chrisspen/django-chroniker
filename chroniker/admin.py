@@ -340,7 +340,7 @@ class JobAdmin(admin.ModelAdmin):
         if 'inline' in request.GET:
             redirect = request.path + '../../'
         else:
-            redirect = request.REQUEST.get('next', request.path + "../")
+            redirect = request.GET.get('next', request.path + "../")
         return HttpResponseRedirect(redirect)
 
     def stop_job_view(self, request, job_id):
@@ -358,7 +358,7 @@ class JobAdmin(admin.ModelAdmin):
         if 'inline' in request.GET:
             redirect = request.path + '../../'
         else:
-            redirect = request.REQUEST.get('next', request.path + "../")
+            redirect = request.GET.get('next', request.path + "../")
         return HttpResponseRedirect(redirect)
 
     def view_duration_graph(self, request, object_id):
@@ -751,7 +751,7 @@ class MonitorAdmin(admin.ModelAdmin):
         if 'inline' in request.GET:
             redirect = request.path + '../../'
         else:
-            redirect = request.REQUEST.get('next', request.path + "../")
+            redirect = request.GET.get('next', request.path + "../")
         return HttpResponseRedirect(redirect)
 
     def get_urls(self):
