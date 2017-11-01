@@ -40,6 +40,7 @@ from chroniker.models import Job, Log
 # from chroniker.management.commands.cron import run_cron
 from chroniker import utils
 from chroniker import constants as c
+from chroniker import settings as _settings
 
 warnings.simplefilter('error', RuntimeWarning)
 
@@ -420,7 +421,7 @@ class JobTestCase(TestCase):
 
             Job.objects.all().delete()
 
-            settings.CHRONIKER_JOB_NK = ('name',)
+            _settings.CHRONIKER_JOB_NK = ('name',)
             call_command(
                 'loaddatanaturally',
                 'chroniker/tests/fixtures/jobs_by_name.json',
@@ -432,7 +433,7 @@ class JobTestCase(TestCase):
 
             Job.objects.all().delete()
 
-            settings.CHRONIKER_JOB_NK = ('command',)
+            _settings.CHRONIKER_JOB_NK = ('command',)
             call_command(
                 'loaddatanaturally',
                 'chroniker/tests/fixtures/jobs_by_command.json',
@@ -443,7 +444,7 @@ class JobTestCase(TestCase):
 
             Job.objects.all().delete()
 
-            settings.CHRONIKER_JOB_NK = ('command', 'args')
+            _settings.CHRONIKER_JOB_NK = ('command', 'args')
             call_command(
                 'loaddatanaturally',
                 'chroniker/tests/fixtures/jobs_by_command_args.json',
@@ -637,7 +638,7 @@ class JobTestCase(TestCase):
             job = Job.objects.get(id=1)
             job.mark_running()
             self.assertEqual(job.is_stale(), False)
-            timezone.now = lambda: _now() + timedelta(minutes=settings.CHRONIKER_STALE_MINUTES*2)
+            timezone.now = lambda: _now() + timedelta(minutes=_settings.CHRONIKER_STALE_MINUTES*2)
             self.assertEqual(job.is_stale(), True)
         finally:
             timezone.now = _now

@@ -41,7 +41,7 @@ from django.core.mail import send_mail
 from django.core.management import call_command
 from django.db import models, connection, transaction
 from django.db.models import Q
-from django.template import loader, Context, Template
+from django.template import loader, Template, Context
 # from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.encoding import smart_str
@@ -280,7 +280,7 @@ class JobManager(models.Manager):
     def get_by_natural_key(self, *args):
         kwargs = dict(
             (_name, _value)
-            for _name, _value in zip(settings.CHRONIKER_JOB_NK, args))
+            for _name, _value in zip(_settings.CHRONIKER_JOB_NK, args))
         return self.get(**kwargs)
 
     def due(self, job=None, check_running=True):
@@ -296,7 +296,7 @@ class JobManager(models.Manager):
         # Note, select_for_update() may not be supported, such as with MySQL.
         # Those backends will need to use an explicit backend-specific locking
         # mechanism.
-        if settings.CHRONIKER_SELECT_FOR_UPDATE:
+        if _settings.CHRONIKER_SELECT_FOR_UPDATE:
             q = self.select_for_update(nowait=False)
         else:
             q = self.all()
@@ -390,7 +390,7 @@ class JobManager(models.Manager):
         Returns a set of jobs that have been running without properly updating their health status
         indicating that they've likely crashed or hung and need to be forcibly killed.
         """
-        threshold = timezone.now() - timedelta(minutes=settings.CHRONIKER_STALE_MINUTES)
+        threshold = timezone.now() - timedelta(minutes=_settings.CHRONIKER_STALE_MINUTES)
         q = self.filter(is_running=True)
         q = q.filter(Q(last_heartbeat__isnull=True) | Q(last_heartbeat__lt=threshold))
         return q
@@ -670,7 +670,7 @@ class Job(models.Model):
             return self.__unicode__().encode('utf8')
 
     def natural_key(self):
-        return tuple(getattr(self, _name) for _name in settings.CHRONIKER_JOB_NK)
+        return tuple(getattr(self, _name) for _name in _settings.CHRONIKER_JOB_NK)
 #     natural_key.dependencies = []
 
     @property
@@ -1129,12 +1129,12 @@ class Job(models.Model):
             except Exception as e:
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
-                ctx = Context({
+                ctx = {
                     'exception': unicode(e),
                     'traceback': [
                         '\n'.join(traceback.format_exception(*sys.exc_info()))
                      ]
-                })
+                }
                 print(t.render(ctx), file=sys.stderr)
                 success = False
 
@@ -1174,12 +1174,12 @@ class Job(models.Model):
                     return
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
-                ctx = Context({
+                ctx = {
                   'exception': unicode(e),
                   'traceback': [
                       '\n'.join(traceback.format_exception(*sys.exc_info()))
                     ]
-                })
+                }
                 print(t.render(ctx), file=sys.stderr)
                 success = False
 
@@ -1222,12 +1222,12 @@ class Job(models.Model):
             except Exception as e:
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
-                ctx = Context({
+                ctx = {
                   'exception': unicode(e),
                   'traceback': [
                       '\n'.join(traceback.format_exception(*sys.exc_info()))
                     ]
-                })
+                }
                 print(t.render(ctx), file=sys.stderr)
                 success = False
 
@@ -1283,15 +1283,17 @@ class Job(models.Model):
                     if self.email_errors_to_subscribers:
                         log.email_subscribers()
             except Exception as e:
-                print(e, file=sys.stderr)
+                print('Error emailing subscribers: %s' % e, file=sys.stderr)
+                traceback.print_exc()
 
             # Call error callback.
             try:
-                if not last_run_successful and settings.CHRONIKER_JOB_ERROR_CALLBACK:
-                    cb = import_string(settings.CHRONIKER_JOB_ERROR_CALLBACK)
+                if not last_run_successful and _settings.CHRONIKER_JOB_ERROR_CALLBACK:
+                    cb = import_string(_settings.CHRONIKER_JOB_ERROR_CALLBACK)
                     cb(self, stdout=stdout_str, stderr=stderr_str)
             except Exception as e:
-                print(e, file=sys.stderr)
+                print('Error executing callback: %s' % e, file=sys.stderr)
+                traceback.print_exc()
 
             # If an exception occurs above, ensure we unmark is_running.
             with lock:
@@ -1311,8 +1313,7 @@ class Job(models.Model):
         Currently, it only supports `posix` systems.  On non-posix systems
         it returns the value of this job's ``is_running`` field.
         """
-        if settings.CHRONIKER_CHECK_LOCK_FILE \
-        and self.is_running and self.lock_file:
+        if _settings.CHRONIKER_CHECK_LOCK_FILE and self.is_running and self.lock_file:
             # The Job thinks that it is running, so lets actually check
             # NOTE: This will screw up the record if separate hosts
             # are processing and reading the jobs.
@@ -1320,7 +1321,7 @@ class Job(models.Model):
                 # The lock file exists, but if the file hasn't been modified
                 # in less than LOCK_TIMEOUT seconds ago, we assume the process
                 # is dead.
-                if (time.time() - os.stat(self.lock_file).st_mtime) <= settings.CHRONIKER_LOCK_TIMEOUT:
+                if (time.time() - os.stat(self.lock_file).st_mtime) <= _settings.CHRONIKER_LOCK_TIMEOUT:
                     return True
 
             # This job isn't running; update it's info
@@ -1438,24 +1439,21 @@ class Log(models.Model):
 
         is_error = bool((self.stderr or '').strip())
         if is_error:
-            subject_tmpl = settings.CHRONIKER_EMAIL_SUBJECT_ERROR
+            subject_tmpl = _settings.CHRONIKER_EMAIL_SUBJECT_ERROR
         else:
-            subject_tmpl = settings.CHRONIKER_EMAIL_SUBJECT_SUCCESS
+            subject_tmpl = _settings.CHRONIKER_EMAIL_SUBJECT_SUCCESS
 
         args = self.__dict__.copy()
         args['job'] = self.job
         args['stderr'] = self.stderr if self.job.is_monitor else None
-        args['url'] = mark_safe('http://%s%s' % \
-            (current_site.domain, self.job.monitor_url_rendered))
+        args['url'] = mark_safe('http://%s%s' % (current_site.domain, self.job.monitor_url_rendered))
         ctx = Context(args)
         subject = Template(subject_tmpl).render(ctx)
 
-        if is_error and self.job.is_monitor \
-        and self.job.monitor_error_template:
+        if is_error and self.job.is_monitor and self.job.monitor_error_template:
             body = Template(self.job.monitor_error_template).render(ctx)
         else:
-            body = "Ouput:\n%s\nError output:\n%s" \
-                % (self.stdout.decode('utf-8'), self.stderr.decode('utf-8'))
+            body = "Ouput:\n%s\nError output:\n%s" % (self.stdout.decode('utf-8'), self.stderr.decode('utf-8'))
 
         base_url = None
         if hasattr(settings, 'BASE_SECURE_URL'):
@@ -1473,10 +1471,7 @@ class Log(models.Model):
             body = 'To manage this job please visit: ' + admin_link + '\n\n' + body
 
         send_mail(
-            from_email='"%s" <%s>' % (
-                settings.CHRONIKER_EMAIL_SENDER,
-                settings.CHRONIKER_EMAIL_HOST_USER,
-            ),
+            from_email='"%s" <%s>' % (_settings.CHRONIKER_EMAIL_SENDER, _settings.CHRONIKER_EMAIL_HOST_USER),
             subject=subject,
             recipient_list=subscribers,
             message=body,

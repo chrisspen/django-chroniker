@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import socket
+import logging
 from functools import partial
 from optparse import make_option
 from collections import defaultdict
@@ -10,7 +11,7 @@ from multiprocessing import Queue
 from django.core.management.base import BaseCommand
 from django.db import connection
 import django
-from django.conf import settings
+#from django.conf import settings
 from django.utils import timezone
 
 import psutil
@@ -20,6 +21,7 @@ import psutil
 from chroniker.models import Job, Log
 # from chroniker import constants as c
 from chroniker import utils
+from chroniker import settings as _settings
 
 def kill_stalled_processes(dryrun=True):
     """
@@ -112,15 +114,15 @@ def run_cron(jobs=None, **kwargs):
         stdout_queue = Queue()
         stderr_queue = Queue()
 
-        if settings.CHRONIKER_AUTO_END_STALE_JOBS and not dryrun:
+        if _settings.CHRONIKER_AUTO_END_STALE_JOBS and not dryrun:
             Job.objects.end_all_stale()
 
         # Check PID file to prevent conflicts with prior executions.
         # TODO: is this still necessary? deprecate? As long as jobs run by
         # JobProcess don't wait for other jobs, multiple instances of cron
         # should be able to run simeltaneously without issue.
-        if settings.CHRONIKER_USE_PID:
-            pid_fn = settings.CHRONIKER_PID_FN
+        if _settings.CHRONIKER_USE_PID:
+            pid_fn = _settings.CHRONIKER_PID_FN
             pid = str(os.getpid())
             any_running = Job.objects.all_running().count()
             if not any_running:
@@ -264,8 +266,7 @@ def run_cron(jobs=None, **kwargs):
             print('!'*80)
             print('All jobs complete!')
     finally:
-        if settings.CHRONIKER_USE_PID and os.path.isfile(pid_fn) \
-        and clear_pid:
+        if _settings.CHRONIKER_USE_PID and os.path.isfile(pid_fn) and clear_pid:
             os.unlink(pid_fn)
 
 
@@ -298,6 +299,10 @@ class Command(BaseCommand):
             action='store_true',
             default=False,
             help='If given, runs jobs one at a time.'),
+        make_option('--verbose',
+            action='store_true',
+            default=False,
+            help='If given, shows debugging info.'),
     )
 
     def create_parser(self, prog_name, subcommand):
@@ -337,10 +342,17 @@ class Command(BaseCommand):
                 action='store_true',
                 default=False,
                 help='If given, runs jobs one at a time.')
+            parser.add_argument('--verbose',
+                action='store_true',
+                default=False,
+                help='If given, shows debugging info.')
             self.add_arguments(parser)
         return parser
 
     def handle(self, *args, **options):
+        verbose = options['verbose']
+        if verbose:
+            logging.basicConfig(level=logging.DEBUG)
 
         kill_stalled_processes(dryrun=False)
 

@@ -201,7 +201,7 @@ To run all [tests](http://tox.readthedocs.org/en/latest/):
 
 To run tests for a specific environment (e.g. Python 2.7 with Django 1.4):
     
-    export TESTNAME=; tox -e py27-django15
+    export TESTNAME=; tox -e py27-django111
 
 To run a specific test:
     

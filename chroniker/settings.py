@@ -10,13 +10,13 @@ def _get_name():
 
 # Number of seconds that a lock file must be "stale" for a Job to be considered
 # "dead".  Default is 1 minute (60 seconds)
-settings.CHRONIKER_LOCK_TIMEOUT = getattr(
+CHRONIKER_LOCK_TIMEOUT = settings.CHRONIKER_LOCK_TIMEOUT = getattr(
     settings,
     'CHRONIKER_LOCK_TIMEOUT',
     60)
 
 # The name used to identify the email sender.
-settings.CHRONIKER_EMAIL_SENDER = getattr(
+CHRONIKER_EMAIL_SENDER = settings.CHRONIKER_EMAIL_SENDER = getattr(
     settings,
     'CHRONIKER_EMAIL_SENDER',
     getattr(
@@ -26,7 +26,7 @@ settings.CHRONIKER_EMAIL_SENDER = getattr(
     ))
 
 # The email address used to identify the email sender.
-settings.CHRONIKER_EMAIL_HOST_USER = getattr(
+CHRONIKER_EMAIL_HOST_USER = settings.CHRONIKER_EMAIL_HOST_USER = getattr(
     settings,
     'CHRONIKER_EMAIL_HOST_USER',
     getattr(
@@ -35,17 +35,17 @@ settings.CHRONIKER_EMAIL_HOST_USER = getattr(
         _get_name()
     ))
 
-settings.CHRONIKER_EMAIL_SUBJECT_SUCCESS = getattr(
+CHRONIKER_EMAIL_SUBJECT_SUCCESS = settings.CHRONIKER_EMAIL_SUBJECT_SUCCESS = getattr(
     settings,
     'CHRONIKER_EMAIL_SUBJECT_SUCCESS',
     'Success: {{ job.name }}')
 
-settings.CHRONIKER_EMAIL_SUBJECT_ERROR = getattr(
+CHRONIKER_EMAIL_SUBJECT_ERROR = settings.CHRONIKER_EMAIL_SUBJECT_ERROR = getattr(
     settings,
     'CHRONIKER_EMAIL_SUBJECT_ERROR',
     'Error: {{ job.name }}')
 
-settings.CHRONIKER_PID_FN = getattr(
+CHRONIKER_PID_FN = settings.CHRONIKER_PID_FN = getattr(
     settings,
     'CHRONIKER_PID_FN',
     '/tmp/chroniker-cron.pid')
@@ -53,7 +53,7 @@ settings.CHRONIKER_PID_FN = getattr(
 # If true, uses a PID file to ensure the cron management command only runs
 # one at a time.
 # TODO: unnecessary? deprecate?
-settings.CHRONIKER_USE_PID = getattr(
+CHRONIKER_USE_PID = settings.CHRONIKER_USE_PID = getattr(
     settings,
     'CHRONIKER_USE_PID',
     False)
@@ -71,7 +71,7 @@ settings.CHRONIKER_USE_PID = getattr(
 # Only set this to True if you really need this functionality and
 # are certain transactions are properly maintained in all of your scheduled
 # commands.
-settings.CHRONIKER_SELECT_FOR_UPDATE = getattr(
+CHRONIKER_SELECT_FOR_UPDATE = settings.CHRONIKER_SELECT_FOR_UPDATE = getattr(
     settings,
     'CHRONIKER_SELECT_FOR_UPDATE',
     False)
@@ -82,14 +82,14 @@ settings.CHRONIKER_SELECT_FOR_UPDATE = getattr(
 # Recommend setting CHRONIKER_SELECT_FOR_UPDATE = True.
 # Only set this to true if only a single host will ever read and write
 # to the Job table.
-settings.CHRONIKER_CHECK_LOCK_FILE = getattr(
+CHRONIKER_CHECK_LOCK_FILE = settings.CHRONIKER_CHECK_LOCK_FILE = getattr(
     settings,
     'CHRONIKER_CHECK_LOCK_FILE',
     False)
 
 # The number of minutes a job can go without updating its database record
 # before it's considered stale.
-settings.CHRONIKER_STALE_MINUTES = getattr(
+CHRONIKER_STALE_MINUTES = settings.CHRONIKER_STALE_MINUTES = getattr(
     settings,
     'CHRONIKER_STALE_MINUTES',
     5)
@@ -97,17 +97,17 @@ settings.CHRONIKER_STALE_MINUTES = getattr(
 # If true, and a job becomes stale, it will be automatically marked
 # as not running, with a failed status and log entry noting that the
 # job unexpectedly crashed.
-settings.CHRONIKER_AUTO_END_STALE_JOBS = getattr(
+CHRONIKER_AUTO_END_STALE_JOBS = settings.CHRONIKER_AUTO_END_STALE_JOBS = getattr(
     settings,
     'CHRONIKER_AUTO_END_STALE_JOBS',
     True)
 
-settings.CHRONIKER_JOB_NK = getattr(
+CHRONIKER_JOB_NK = settings.CHRONIKER_JOB_NK = getattr(
     settings,
     'CHRONIKER_JOB_NK',
     ('name',))
 
-settings.CHRONIKER_JOB_ERROR_CALLBACK = getattr(
+CHRONIKER_JOB_ERROR_CALLBACK = settings.CHRONIKER_JOB_ERROR_CALLBACK = getattr(
     settings,
     'CHRONIKER_JOB_ERROR_CALLBACK',
     None)
