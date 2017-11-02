@@ -49,7 +49,14 @@ or directly from github with (warning, this may be less stable than the official
 
     pip install https://github.com/chrisspen/django-chroniker/tarball/master
     
-Add 'chroniker' and 'django.contrib.sites' to the INSTALLED_APPS list in your settings.py.
+Setup in your `INSTALLED_APPS` in settings.py.
+
+    INSTALLED_APPS = (
+    ...
+    'django.contrib.sites',
+    'chroniker',
+    ...
+    )
 
 If you're using Django 1.7 or higher (which you should be), install Chroniker's models by running:
 
