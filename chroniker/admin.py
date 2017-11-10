@@ -397,9 +397,7 @@ class JobAdmin(admin.ModelAdmin):
             'max_duration': max_duration,
         }
 
-        return render_to_response('admin/chroniker/job/duration_graph.html',
-            context,
-            context_instance=RequestContext(request))
+        return render_to_response('admin/chroniker/job/duration_graph.html', context, request)
 
     def get_urls(self):
         urls = super(JobAdmin, self).get_urls()
@@ -746,8 +744,7 @@ class MonitorAdmin(admin.ModelAdmin):
         job.save()
         self.message_user(
             request,
-            _('The monitor "%(job)s" will be checked.') \
-                % {'job': job})
+            _('The monitor "%(job)s" will be checked.') % {'job': job})
         if 'inline' in request.GET:
             redirect = request.path + '../../'
         else:

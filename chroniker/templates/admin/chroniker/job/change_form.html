@@ -1,18 +1,38 @@
 {% extends "admin/change_form.html" %}
-{#{% load url from future %}#}
-{% load i18n chroniker_tags %}
+{% load i18n chroniker_tags admin_urls %}
+
 {% block object-tools %}
-{% if change %}{% if not is_popup %}
+{% if change and not is_popup %}
   <ul class="object-tools">
-    <li><a href="history/" class="historylink">{% trans "History" %}</a></li>
-    <li><a href="../../log/?job__id__exact={{ object_id }}" class="historylink">{% trans "Logs" %}</a></li>
-    <li><a href="{% get_run_job_url object_id %}" class="viewsitelink">{% trans "Run Job" %}</a></li>
-    <li><a href="{% url 'admin:chroniker_job_duration_graph' object_id %}" target="_blank" class="viewsitelink">{% trans "View Duration Graph" %}</a></li>
+    <li>
+      {# History link #}
+      {% url opts|admin_urlname:'history' original.pk|admin_urlquote as history_url %}
+      <a href="{% add_preserved_filters history_url %}" class="historylink">
+        {% trans "History" %}
+      </a>
+    </li>
+    <li>
+      <a href="{% url 'admin:chroniker_log_changelist' %}?job__id__exact={{ object_id }}" class="historylink">
+        {% trans "Logs" %}
+      </a>
+    </li>
+    <li>
+      <a href="{% get_run_job_url object_id %}" class="viewsitelink">
+        {% trans "Run Job" %}
+      </a>
+    </li>
+    <li>
+      <a href="{% url 'admin:chroniker_job_duration_graph' object_id %}" target="_blank" class="viewsitelink">
+        {% trans "View Duration Graph" %}
+      </a>
+    </li>
     {% if has_absolute_url %}
-        <li><a href="../../../r/{{ content_type_id }}/{{ object_id }}/" class="viewsitelink">
-            {% trans "View on site" %}</a>
-        </li>
+      <li>
+        <a href="../../../r/{{ content_type_id }}/{{ object_id }}/" class="viewsitelink">
+          {% trans "View on site" %}
+        </a>
+      </li>
     {% endif%}
   </ul>
-{% endif %}{% endif %}
+{% endif %}
 {% endblock %}
