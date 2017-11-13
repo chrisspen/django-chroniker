@@ -12,7 +12,6 @@ from django.core.urlresolvers import reverse, NoReverseMatch
 from django.db import models
 from django.forms import TextInput
 from django.shortcuts import render_to_response
-from django.template import RequestContext
 from django.utils.encoding import force_text
 from django.http import HttpResponseRedirect, Http404, HttpResponse
 from django.template.defaultfilters import linebreaks
@@ -397,9 +396,7 @@ class JobAdmin(admin.ModelAdmin):
             'max_duration': max_duration,
         }
 
-        return render_to_response('admin/chroniker/job/duration_graph.html',
-            context,
-            context_instance=RequestContext(request))
+        return render_to_response('admin/chroniker/job/duration_graph.html', context, request)
 
     def get_urls(self):
         urls = super(JobAdmin, self).get_urls()
@@ -746,8 +743,7 @@ class MonitorAdmin(admin.ModelAdmin):
         job.save()
         self.message_user(
             request,
-            _('The monitor "%(job)s" will be checked.') \
-                % {'job': job})
+            _('The monitor "%(job)s" will be checked.') % {'job': job})
         if 'inline' in request.GET:
             redirect = request.path + '../../'
         else:
