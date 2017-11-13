@@ -113,6 +113,10 @@ Depending on your usage, there are a few options that could greatly help or harm
 *   If this is set to True, chroniker will check for a local lockfile to determine if the job is running or not.
 *   You should set this to True in a single-server environment, and False in a multi-server environment.
 
+`CHRONIKER_DISABLE_RAW_COMMAND`
+
+*   If this is set to True, chroniker will not run raw commands. This reduces the attack surface in case less trusted people have access to the admin interface.
+
 Maintenance
 -----------
 

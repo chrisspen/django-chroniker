@@ -1143,7 +1143,7 @@ class Job(models.Model):
             success = True
             try:
                 logger.debug("Calling command '%s'", self.command)
-                if self.raw_command:
+                if self.raw_command and not getattr(settings, 'CHRONIKER_DISABLE_RAW_COMMAND', False):
 
                     p = subprocess.Popen(
                         self.raw_command,
