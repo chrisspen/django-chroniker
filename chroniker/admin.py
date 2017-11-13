@@ -566,46 +566,32 @@ class LogAdmin(admin.ModelAdmin):
         return qs
 
     def stdout_link(self, obj):
-        return '<a href="%s">Download</a>' % (
-            reverse("admin:chroniker_log_stdout", args=(obj.id,)),)
+        return '<a href="%s">Download</a>' % (reverse("admin:chroniker_log_stdout", args=(obj.id,)),)
     stdout_link.allow_tags = True
     stdout_link.short_description = 'Stdout full'
 
     def stderr_link(self, obj):
-        return '<a href="%s">Download</a>' % (
-            reverse("admin:chroniker_log_stderr", args=(obj.id,)),)
+        return '<a href="%s">Download</a>' % (reverse("admin:chroniker_log_stderr", args=(obj.id,)),)
     stderr_link.allow_tags = True
     stderr_link.short_description = 'Stderr full'
 
     def view_full_stdout(self, request, log_id):
         log = Log.objects.get(id=log_id)
-        resp = HttpResponse(
-            log.stdout,
-            content_type='application/x-download',
-        )
+        resp = HttpResponse(log.stdout, content_type='application/x-download')
         resp['Content-Disposition'] = 'filename=log-%s-stdout.txt' % (log_id,)
         return resp
 
     def view_full_stderr(self, request, log_id):
         log = Log.objects.get(id=log_id)
-        resp = HttpResponse(
-            log.stderr,
-            content_type='application/x-download',
-        )
+        resp = HttpResponse(log.stderr, content_type='application/x-download')
         resp['Content-Disposition'] = 'filename=log-%s-stderr.txt' % (log_id,)
         return resp
 
     def get_urls(self):
         urls = super(LogAdmin, self).get_urls()
         my_urls = [
-            url(r'^(?P<log_id>[0-9]+)/stdout/?$',
-                self.admin_site.admin_view(self.view_full_stdout),
-                name='chroniker_log_stdout'
-            ),
-            url(r'^(?P<log_id>[0-9]+)/stderr/?$',
-                self.admin_site.admin_view(self.view_full_stderr),
-                name='chroniker_log_stderr'
-            ),
+            url(r'^(?P<log_id>[0-9]+)/stdout/?$', self.admin_site.admin_view(self.view_full_stdout), name='chroniker_log_stdout'),
+            url(r'^(?P<log_id>[0-9]+)/stderr/?$', self.admin_site.admin_view(self.view_full_stderr), name='chroniker_log_stderr'),
         ]
         return my_urls + urls
 
@@ -666,8 +652,7 @@ class MonitorAdmin(admin.ModelAdmin):
         fmt = get_format('DATETIME_FORMAT')
         next_run = obj.next_run or timezone.now()
         value = capfirst(dateformat.format(utils.localtime(next_run), fmt))
-        return "%s<br /><span class='mini'>(%s)</span>" \
-            % (value, obj.get_timeuntil())
+        return "%s<br /><span class='mini'>(%s)</span>" % (value, obj.get_timeuntil())
     get_timeuntil.admin_order_field = 'next_run'
     get_timeuntil.allow_tags = True
     get_timeuntil.short_description = _('next check')
@@ -693,17 +678,14 @@ class MonitorAdmin(admin.ModelAdmin):
     def name_str(self, obj):
         if obj.monitor_url:
             return '<a href="%s" target="_blank">%s</a>' % (obj.monitor_url_rendered, obj.name)
-        else:
-            return obj.name
+        return obj.name
     name_str.short_description = 'Name'
     name_str.allow_tags = True
 
     def action_buttons(self, obj):
         buttons = []
         buttons.append('<a href="%s" class="button">Check now</a>' % '%d/run/?inline=1' % obj.id)
-        buttons.append(
-            ('<a href="/admin/chroniker/job/%i/" target="_blank"'
-                ' class="button">Edit</a>') % (obj.id,))
+        buttons.append(('<a href="/admin/chroniker/job/%i/" target="_blank" class="button">Edit</a>') % (obj.id,))
         return ' '.join(buttons)
     action_buttons.allow_tags = True
     action_buttons.short_description = 'Actions'
@@ -711,23 +693,19 @@ class MonitorAdmin(admin.ModelAdmin):
     def status(self, obj):
         if obj.is_running:
             help_text = 'The monitor is currently being checked.'
-            temp = '<img src="' + settings.STATIC_URL \
-                + 'admin/img/icon-unknown.svg" alt="%(help_text)s" title="%(help_text)s" />'
+            temp = '<img src="' + settings.STATIC_URL + 'admin/img/icon-unknown.svg" alt="%(help_text)s" title="%(help_text)s" />'
         elif obj.last_run_successful:
             help_text = 'All checks passed.'
-            temp = '<img src="' + settings.STATIC_URL \
-                + 'admin/img/icon-yes.svg" alt="%(help_text)s" title="%(help_text)s" />'
+            temp = '<img src="' + settings.STATIC_URL + 'admin/img/icon-yes.svg" alt="%(help_text)s" title="%(help_text)s" />'
         else:
             help_text = 'Requires attention.'
-            temp = '<img src="' + settings.STATIC_URL \
-                + 'admin/img/icon-no.svg" alt="%(help_text)s" title="%(help_text)s" />'
+            temp = '<img src="' + settings.STATIC_URL + 'admin/img/icon-no.svg" alt="%(help_text)s" title="%(help_text)s" />'
         return temp % dict(help_text=help_text)
 
     status.allow_tags = True
 
     def changelist_view(self, request, extra_context=None):
-        return super(MonitorAdmin, self).changelist_view(
-            request, extra_context=dict(title='View monitors'))
+        return super(MonitorAdmin, self).changelist_view(request, extra_context=dict(title='View monitors'))
 
     def run_job_view(self, request, pk):
         """
@@ -741,9 +719,7 @@ class MonitorAdmin(admin.ModelAdmin):
         # simply force the Job to be run by the next cron job
         job.force_run = True
         job.save()
-        self.message_user(
-            request,
-            _('The monitor "%(job)s" will be checked.') % {'job': job})
+        self.message_user(request, _('The monitor "%(job)s" will be checked.') % {'job': job})
         if 'inline' in request.GET:
             redirect = request.path + '../../'
         else:
@@ -753,9 +729,7 @@ class MonitorAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super(MonitorAdmin, self).get_urls()
         my_urls = [
-            url(r'^(.+)/run/$',
-                self.admin_site.admin_view(self.run_job_view),
-                name="chroniker_job_run"),
+            url(r'^(.+)/run/$', self.admin_site.admin_view(self.run_job_view), name="chroniker_job_run"),
 #            url(r'^(.+)/stop/$',
 #                self.admin_site.admin_view(self.stop_job_view),
 #                name="chroniker_job_stop"),

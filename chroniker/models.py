@@ -666,8 +666,7 @@ class Job(models.Model):
     def __str__(self):
         if six.PY3:
             return self.__unicode__()
-        else:
-            return self.__unicode__().encode('utf8')
+        return self.__unicode__().encode('utf8')
 
     def natural_key(self):
         return tuple(getattr(self, _name) for _name in _settings.CHRONIKER_JOB_NK)
@@ -1407,8 +1406,7 @@ class Log(models.Model):
     def __str__(self):
         if six.PY3:
             return self.__unicode__()
-        else:
-            return self.__unicode__().encode('utf8')
+        return self.__unicode__().encode('utf8')
 
     def save(self, *args, **kwargs):
         if self.run_start_datetime and self.run_end_datetime:
@@ -1434,8 +1432,7 @@ class Log(models.Model):
 
         subscribers = []
         for user in self.job.subscribers.all():
-            subscribers.append('"%s" <%s>' % \
-                (user.get_full_name(), user.email))
+            subscribers.append('"%s" <%s>' % (user.get_full_name(), user.email))
 
         is_error = bool((self.stderr or '').strip())
         if is_error:
