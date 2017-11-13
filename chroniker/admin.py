@@ -12,7 +12,6 @@ from django.core.urlresolvers import reverse, NoReverseMatch
 from django.db import models
 from django.forms import TextInput
 from django.shortcuts import render_to_response
-from django.template import RequestContext
 from django.utils.encoding import force_text
 from django.http import HttpResponseRedirect, Http404, HttpResponse
 from django.template.defaultfilters import linebreaks
