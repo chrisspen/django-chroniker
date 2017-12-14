@@ -789,7 +789,7 @@ class Job(models.Model):
         cmd2 = (self.raw_command or '').strip()
         if cmd2 and getattr(settings, 'CHRONIKER_DISABLE_RAW_COMMAND', False):
             raise ValidationError({
-                'raw_command':[
+                'command':[
                     'Specify command, raw commands are disabled.',
                 ],
                 'raw_command':[
