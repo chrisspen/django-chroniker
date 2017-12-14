@@ -787,7 +787,16 @@ class Job(models.Model):
 
         cmd1 = (self.command or '').strip()
         cmd2 = (self.raw_command or '').strip()
-        if cmd1 and cmd2:
+        if cmd2 and getattr(settings, 'CHRONIKER_DISABLE_RAW_COMMAND', False):
+            raise ValidationError({
+                'raw_command':[
+                    'Specify command, raw commands are disabled.',
+                ],
+                'raw_command':[
+                    'Specify command, raw commands are disabled.',
+                ]
+            })
+        elif cmd1 and cmd2:
             raise ValidationError({
                 'command':[
                     'Either specify command or raw command, but not both.',
