@@ -691,7 +691,7 @@ class JobTestCase(TestCase):
             log_stderr=True,
             email_errors_to_subscribers=True,
         )
-        while len(mail.outbox):
+        while mail.outbox:
             mail.outbox.pop(0)
         self.assertEqual(len(mail.outbox), 0)
         job.subscribers.add(user)
@@ -702,7 +702,7 @@ class JobTestCase(TestCase):
         call_command('cron', update_heartbeat=0, sync=1)
 
         # Confirm an error email was not sent.
-        if len(mail.outbox):
+        if mail.outbox:
             print(mail.outbox[0].body)
         self.assertEqual(len(mail.outbox), 0)
         Job.objects.update()

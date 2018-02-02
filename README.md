@@ -49,7 +49,14 @@ or directly from github with (warning, this may be less stable than the official
 
     pip install https://github.com/chrisspen/django-chroniker/tarball/master
     
-Add 'chroniker' and 'django.contrib.sites' to the INSTALLED_APPS list in your settings.py.
+Add 'chroniker' and 'django.contrib.sites' to the `INSTALLED_APPS` list in your `settings.py` like:
+
+    INSTALLED_APPS = (
+    ...
+    'django.contrib.sites',
+    'chroniker',
+    ...
+    )
 
 If you're using Django 1.7 or higher (which you should be), install Chroniker's models by running:
 
@@ -195,7 +202,7 @@ Development
 
 To run unittests across multiple Python versions, install:
 
-    sudo add-apt-repository ppa:fkrull/deadsnakes
+    sudo add-apt-repository ppa:deadsnakes/ppa
     sudo apt-get update
     sudo apt-get install python-dev python3-dev python3.3-minimal python3.3-dev python3.4-minimal python3.4-dev python3.5-minimal python3.5-dev python3.6 python3.6-dev
 

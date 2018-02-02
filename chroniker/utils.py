@@ -475,13 +475,11 @@ def make_aware(dt, tz):
     elif settings.USE_TZ:
         if timezone.is_aware(dt):
             return dt
-        else:
-            return timezone.make_aware(dt, tz)
+        return timezone.make_aware(dt, tz)
     else:
         if timezone.is_aware(dt):
             return timezone.make_naive(dt)
-        else:
-            return dt
+        return dt
 
 def localtime(dt):
     dt = make_aware(dt, settings.TIME_ZONE)
