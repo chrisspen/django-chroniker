@@ -7,3 +7,5 @@ synotna (Antony Seedhouse): Various bug fixes and Python3 compatibility.
 phihos: Various bug fixes.
 
 raistlin7447: Fixed a timezone-awareness bug.
+
+recnes (Sencer Hamarat): Django2 compatibility.
