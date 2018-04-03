@@ -228,7 +228,7 @@ class JobDependency(models.Model):
         'chroniker.Job',
         related_name='dependents',
         help_text='The thing that has other jobs waiting on it to complete.',
-        on_delete = models.CASCADE
+        on_delete=models.CASCADE
     )
 
     wait_for_completion = models.BooleanField(
