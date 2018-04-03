@@ -7,6 +7,7 @@ import chroniker
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 
+
 def get_reqs(*fns):
     lst = []
     for fn in fns:
@@ -16,6 +17,7 @@ def get_reqs(*fns):
                 continue
             lst.append(package.strip())
     return lst
+
 
 setup(
     name="django-chroniker",
@@ -39,7 +41,7 @@ setup(
     description="Easily control cron jobs via Django's admin.",
     license="BSD",
     url="https://github.com/chrisspen/django-chroniker",
-    #https://pypi.python.org/pypi?%3Aaction=list_classifiers
+    # https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
         'Development Status :: 6 - Mature',
         'Environment :: Web Environment',
@@ -47,8 +49,6 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Framework :: Django',

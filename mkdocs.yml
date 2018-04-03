@@ -1,8 +1,8 @@
 site_name: Django Chroniker
 
-site_author: Chris Spencer
+site_author: Sencer Hamarat
 
-repo_url: https://github.com/chrisspen/django-chroniker
+repo_url: https://github.com/RecNes/django-chroniker
 
 theme: readthedocs
 
