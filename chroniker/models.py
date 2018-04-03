@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 #     from cStringIO import StringIO
 
 import threading
+
 try:
     try:
         import _thread as thread
@@ -61,7 +62,7 @@ import chroniker.constants as c
 from chroniker import utils
 from chroniker.utils import import_string
 
-from . import settings as _settings # pylint: disable=unused-import
+from . import settings as _settings  # pylint: disable=unused-import
 
 try:
     # >= Django 1.8
@@ -70,12 +71,13 @@ except AttributeError:
     # < Django 1.8
     commit_on_success = transaction.commit_on_success
 
-unicode = six.text_type # pylint: disable=W0622
+unicode = six.text_type  # pylint: disable=W0622
 
 logger = logging.getLogger('chroniker.models')
 
-_state = {} # {thread_ident:job_id}
-_state_heartbeat = {} # {thread_ident:heartbeat thread object}
+_state = {}  # {thread_ident:job_id}
+_state_heartbeat = {}  # {thread_ident:heartbeat thread object}
+
 
 def get_current_job():
     """
@@ -89,9 +91,11 @@ def get_current_job():
         except Job.DoesNotExist:
             return
 
+
 def get_current_heartbeat():
     thread_ident = thread.get_ident()
     return _state_heartbeat.get(thread_ident, None)
+
 
 def set_current_job(job):
     """
@@ -107,6 +111,7 @@ def set_current_job(job):
     if thread_ident not in _state:
         _state[thread_ident] = job_id
 
+
 def set_current_heartbeat(obj):
     """
     Associates a heartbeat with the current thread.
@@ -115,13 +120,15 @@ def set_current_heartbeat(obj):
     if thread_ident not in _state_heartbeat:
         _state_heartbeat[thread_ident] = obj
 
+
 def hostname_help_text_setter():
     return _('If given, ensures the job is only run on the server ' + \
              'with the equivalent host name.<br/>Not setting any hostname ' + \
              'will cause the job to be run on the first server that ' + \
              'processes pending jobs.<br/> ' + \
              'e.g. The hostname of this server is <b>%s</b>.') \
-             % socket.gethostname()
+           % socket.gethostname()
+
 
 class JobHeartbeatThread(threading.Thread):
     """
@@ -204,6 +211,7 @@ class JobHeartbeatThread(threading.Thread):
                 total_parts_complete=total_parts_complete,
             )
 
+
 class JobDependency(models.Model):
     """
     Represents a scheduling dependency between two jobs.
@@ -212,58 +220,63 @@ class JobDependency(models.Model):
     dependent = models.ForeignKey(
         'chroniker.Job',
         related_name='dependencies',
-        help_text='The thing that cannot run until another job completes.')
+        help_text='The thing that cannot run until another job completes.',
+        on_delete=models.CASCADE
+    )
 
     dependee = models.ForeignKey(
         'chroniker.Job',
         related_name='dependents',
-        help_text='The thing that has other jobs waiting on it to complete.')
+        help_text='The thing that has other jobs waiting on it to complete.',
+        on_delete=models.CASCADE
+    )
 
     wait_for_completion = models.BooleanField(
         default=True,
         help_text='If checked, the dependent job will not run until ' + \
-            'the dependee job has completed.')
+                  'the dependee job has completed.')
 
     wait_for_success = models.BooleanField(
         default=True,
         help_text='If checked, the dependent job will not run until ' + \
-            'the dependee job has completed successfully.')
+                  'the dependee job has completed successfully.')
 
     wait_for_next_run = models.BooleanField(
         default=True,
         help_text='If checked, the dependent job will not run until ' + \
-            'the dependee job has a next_run greater than its next_run.')
+                  'the dependee job has a next_run greater than its next_run.')
 
     def criteria_met(self, running_ids=None):
         if running_ids is None:
             running_ids = set()
         if self.wait_for_completion \
-        and (self.dependee.is_running or self.dependee.id in running_ids):
+                and (self.dependee.is_running or self.dependee.id in running_ids):
             # Don't run until our dependency completes.
-#            print('"%s": Dependee "%s" is still running.' \
-#                % (self.dependent.name, self.dependee.name,))
+            #            print('"%s": Dependee "%s" is still running.' \
+            #                % (self.dependent.name, self.dependee.name,))
             return False
         if self.wait_for_success and not self.dependee.last_run_successful:
             # Don't run until our dependency completes successfully.
-#            print('"%s": Dependee "%s" failed its last run.' \
-#                % (self.dependent.name, self.dependee.name,))
+            #            print('"%s": Dependee "%s" failed its last run.' \
+            #                % (self.dependent.name, self.dependee.name,))
             return False
         if self.wait_for_next_run:
             # Don't run until our dependency is scheduled until after
             # our next run.
             if not self.dependent.next_run:
-#                print('"%s": Our next scheduled run has not been set.' \
-#                    % (self.dependent.name,))
+                #                print('"%s": Our next scheduled run has not been set.' \
+                #                    % (self.dependent.name,))
                 return False
             if not self.dependee.next_run:
-#                print('"%s": Dependee "%s" has not been scheduled to run.' \
-#                    % (self.dependent.name, self.dependee.name,))
+                #                print('"%s": Dependee "%s" has not been scheduled to run.' \
+                #                    % (self.dependent.name, self.dependee.name,))
                 return False
             if self.dependee.next_run < self.dependent.next_run:
-#                print('"%s": Dependee "%s" has not yet run before us.' \
-#                    % (self.dependent.name, self.dependee.name,))
+                #                print('"%s": Dependee "%s" has not yet run before us.' \
+                #                    % (self.dependent.name, self.dependee.name,))
                 return False
         return True
+
     criteria_met.boolean = True
 
     class Meta:
@@ -275,8 +288,8 @@ class JobDependency(models.Model):
     def __unicode__(self):
         return unicode(self.dependent) + ' -> ' + unicode(self.dependee)
 
-class JobManager(models.Manager):
 
+class JobManager(models.Manager):
     def get_by_natural_key(self, *args):
         kwargs = dict(
             (_name, _value)
@@ -336,28 +349,28 @@ class JobManager(models.Manager):
             valid = True
 
             if job.check_is_running():
-                #print('Skipping job %i (%s) which is already running.' % (job.id, job))
+                # print('Skipping job %i (%s) which is already running.' % (job.id, job))
                 continue
 
             failed_dep = None
             for dep in deps:
                 if dep.dependee.id in skipped_job_ids:
                     continue
-                #elif dep.wait_for_completion and dep.dependee.is_due():
+                # elif dep.wait_for_completion and dep.dependee.is_due():
                 elif not dep.criteria_met():
                     valid = False
                     failed_dep = dep
                     break
 
             if not valid:
-                #print('Skipping job %i (%s) which is dependent on a due job %i (%s).' \
+                # print('Skipping job %i (%s) which is dependent on a due job %i (%s).' \
                 #    % (job.id, job, failed_dep.dependee.id, failed_dep.dependee))
                 skipped_job_ids.add(job.id)
                 continue
 
-            #TODO:remove? redundant?
+            # TODO:remove? redundant?
             if not job.dependencies_met():
-                #print('Skipping job %i (%s) which has unmet dependencies.' % (job.id, job))
+                # print('Skipping job %i (%s) which has unmet dependencies.' % (job.id, job))
                 skipped_job_ids.add(job.id)
                 continue
 
@@ -413,7 +426,7 @@ class JobManager(models.Manager):
                 if utils.pid_exists(job.current_pid):
                     print('Killing process {}...'.format(job.current_pid))
                     utils.kill_process(job.current_pid)
-                    #TODO:record log entry
+                    # TODO:record log entry
                 else:
                     print('Process with PID {} is not running.'.format(job.current_pid))
             else:
@@ -442,10 +455,10 @@ class JobManager(models.Manager):
             print('Checking stale job {}: {}'.format(job.id, job))
 
             kill_job(job)
-            #transaction.commit()
+            # transaction.commit()
 
             create_log(job)
-            #transaction.commit()
+            # transaction.commit()
 
 
 class Job(models.Model):
@@ -504,7 +517,7 @@ class Job(models.Model):
         blank=True,
         null=True,
         help_text=_("If you don't set this it will"
-            " be determined automatically"))
+                    " be determined automatically"))
 
     last_run_start_timestamp = models.DateTimeField(
         _("last run start timestamp"),
@@ -539,17 +552,17 @@ class Job(models.Model):
         settings.AUTH_USER_MODEL,
         related_name='subscribed_jobs',
         blank=True,
-        limit_choices_to={'is_staff':True})
+        limit_choices_to={'is_staff': True})
 
     email_errors_to_subscribers = models.BooleanField(
         default=True,
         help_text=_('If checked, the stdout and stderr of a job will ' + \
-            'be emailed to the subscribers if an error occur.'))
+                    'be emailed to the subscribers if an error occur.'))
 
     email_success_to_subscribers = models.BooleanField(
         default=False,
         help_text=_('If checked, the stdout of a job will ' + \
-            'be emailed to the subscribers if not errors occur.'))
+                    'be emailed to the subscribers if not errors occur.'))
 
     lock_file = models.CharField(
         max_length=255,
@@ -619,8 +632,8 @@ class Job(models.Model):
         blank=True, null=True,
         default=c.DEFAULT_MONITOR_ERROR_TEMPLATE,
         help_text=_('If this is a monitor, this is the template used ' + \
-            'to compose the error text email.<br/>' + \
-            'Available variables: {{ job }} {{ stderr }} {{ url }}'))
+                    'to compose the error text email.<br/>' + \
+                    'Available variables: {{ job }} {{ stderr }} {{ url }}'))
 
     monitor_description = models.TextField(
         blank=True, null=True,
@@ -629,14 +642,14 @@ class Job(models.Model):
     monitor_records = models.IntegerField(
         blank=True,
         null=True,
-        #verbose_name='records',
+        # verbose_name='records',
         editable=False,
         help_text=_('The number of records that need attention.'))
 
     maximum_log_entries = models.PositiveIntegerField(
         default=1000,
         help_text='The maximum number of most recent log entries to keep.' + \
-            '<br/>A value of 0 keeps all log entries.')
+                  '<br/>A value of 0 keeps all log entries.')
 
     log_stdout = models.BooleanField(
         default=True,
@@ -651,14 +664,14 @@ class Job(models.Model):
     class Meta:
         ordering = (
             'name',
-            #'enabled', 'next_run',
+            # 'enabled', 'next_run',
         )
 
     def __unicode__(self):
         if self.enabled:
             ret = u"{} - {} - {}".format(self.id, self.name, self.timeuntil)
         else:
-            ret = u"{id} - {name} - disabled".format(**{'name': self.name, 'id':self.id})
+            ret = u"{id} - {name} - disabled".format(**{'name': self.name, 'id': self.id})
         if not isinstance(ret, six.text_type):
             ret = u(ret)
         return ret
@@ -670,7 +683,8 @@ class Job(models.Model):
 
     def natural_key(self):
         return tuple(getattr(self, _name) for _name in _settings.CHRONIKER_JOB_NK)
-#     natural_key.dependencies = []
+
+    #     natural_key.dependencies = []
 
     @property
     def monitor_url_rendered(self):
@@ -678,7 +692,7 @@ class Job(models.Model):
             return
         t = Template('{% load chroniker_tags %}' + self.monitor_url)
         ctx = Context(dict(
-            #date=timezone.now(),#.strftime('%Y-%m-%d'),
+            # date=timezone.now(),#.strftime('%Y-%m-%d'),
         ))
         url = t.render(ctx)
         url = url.replace(' ', '+')
@@ -692,20 +706,21 @@ class Job(models.Model):
     def progress_ratio(self):
         if not self.total_parts_complete and not self.total_parts:
             return
-        return self.total_parts_complete/float(self.total_parts)
+        return self.total_parts_complete / float(self.total_parts)
 
     @property
     def progress_percent(self):
         progress = self.progress_ratio
         if progress is None:
             return
-        return min(progress*100, 100)
+        return min(progress * 100, 100)
 
     def progress_percent_str(self):
         progress = self.progress_percent
         if progress is None:
             return ''
         return '%.0f%%' % (progress,)
+
     progress_percent_str.short_description = 'Progress'
 
     def get_chained_jobs(self):
@@ -714,9 +729,9 @@ class Job(models.Model):
         Retrieves jobs recursively, stopping if it detects cycles.
         """
         priors = set([self.id])
-        pending = list(self.dependents.all()\
-            .filter(dependent__enabled=True, wait_for_completion=True)\
-            .values_list('dependent_id', flat=True))
+        pending = list(self.dependents.all() \
+                       .filter(dependent__enabled=True, wait_for_completion=True) \
+                       .values_list('dependent_id', flat=True))
         chained = set()
         while pending:
             job_id = pending.pop(0)
@@ -725,24 +740,24 @@ class Job(models.Model):
             priors.add(job_id)
             job = Job.objects.only('id').get(id=job_id)
             chained.add(job)
-            pending.extend(job.dependents.all()\
-                .filter(dependent__enabled=True, wait_for_completion=True)\
-                .values_list('dependent_id', flat=True))
+            pending.extend(job.dependents.all() \
+                           .filter(dependent__enabled=True, wait_for_completion=True) \
+                           .values_list('dependent_id', flat=True))
         return chained
 
     def get_run_length_estimate(self, samples=20):
         """
         Returns the average run length in seconds.
         """
-        q = sorted(list(self.logs.all()\
-            .values_list('duration_seconds', flat=True)\
-            .order_by('-run_end_datetime')[:samples]))
+        q = sorted(list(self.logs.all() \
+                        .values_list('duration_seconds', flat=True) \
+                        .order_by('-run_end_datetime')[:samples]))
         if len(q) >= 3:
             # Drop the upper and lower extremes.
             q = q[1:-1]
         if not q:
             return
-        return int(round(sum(q)/float(len(q))))
+        return int(round(sum(q) / float(len(q))))
 
     @property
     def estimated_seconds_to_completion(self):
@@ -760,7 +775,7 @@ class Job(models.Model):
         td = timezone.now() - self.last_run_start_timestamp
         if not progress_ratio:
             return
-        total_sec = td.total_seconds()/progress_ratio
+        total_sec = td.total_seconds() / progress_ratio
         remaining_sec = total_sec - td.total_seconds()
         return remaining_sec
 
@@ -776,6 +791,7 @@ class Job(models.Model):
         if ecdt is None:
             return ''
         return ecdt.replace(microsecond=0)
+
     estimated_completion_datetime_str.short_description = 'ETC'
     estimated_completion_datetime_str.help_text = \
         'Estimated time of completion'
@@ -806,7 +822,7 @@ class Job(models.Model):
         super(Job, self).clean(*args, **kwargs)
 
     def full_clean(self,
-        exclude=None, validate_unique=None, *args, **kwargs):
+                   exclude=None, validate_unique=None, *args, **kwargs):
         return self.clean(*args, **kwargs)
 
     def save(self, *args, **kwargs):
@@ -869,6 +885,7 @@ class Job(models.Model):
 
     def is_fresh(self):
         return not self.is_stale()
+
     is_fresh.boolean = True
 
     def get_timeuntil(self):
@@ -898,10 +915,11 @@ class Job(models.Model):
             count = lambda n: ungettext('second', 'seconds', n)
             return ugettext(
                 '%(number)d %(type)s') % {
-                    'number': delta.seconds,
-                    'type': count(delta.seconds)
-                }
+                       'number': delta.seconds,
+                       'type': count(delta.seconds)
+                   }
         return timeuntil(self.next_run)
+
     get_timeuntil.short_description = _('time until next run')
     timeuntil = property(get_timeuntil)
 
@@ -913,6 +931,7 @@ class Job(models.Model):
         frequency = getattr(rrule, self.frequency)
         return rrule.rrule(
             frequency, dtstart=self.next_run, **self.get_params())
+
     rrule = property(get_rrule)
 
     def param_to_int(self, param_value):
@@ -953,7 +972,7 @@ class Job(models.Model):
         param_dict = []
         for param in params:
             if param.strip() == "":
-                continue # skip blanks
+                continue  # skip blanks
             param = param.split(':')
             if len(param) == 2:
                 param = (
@@ -981,7 +1000,7 @@ class Job(models.Model):
         options = {}
         for arg in self.args.split():
             if arg.find('=') > -1:
-                #key, value = arg.split('=')
+                # key, value = arg.split('=')
                 parts = arg.split('=')
                 key = parts[0]
                 value = '='.join(parts[1:])
@@ -1012,6 +1031,7 @@ class Job(models.Model):
         with commit_on_success():
             res = q.exists()
         return res
+
     is_due.boolean = True
 
     def is_due_with_dependencies_met(self, running_ids=None):
@@ -1040,15 +1060,15 @@ class Job(models.Model):
             if not self.dependencies_met():
                 # Note, this will cause the job to be re-checked
                 # the next time cron runs.
-                print('Job "{}" has unmet dependencies. Aborting run.'\
-                    .format(self.name))
+                print('Job "{}" has unmet dependencies. Aborting run.' \
+                      .format(self.name))
             elif check_running and self.check_is_running():
-                print('Job "{}" already running. Aborting run.'\
-                    .format(self.name))
+                print('Job "{}" already running. Aborting run.' \
+                      .format(self.name))
             elif not self.is_due(check_running=check_running):
                 print('Job "{}" not due. Aborting run.'.format(self.name))
             else:
-                #call_command('run_job', str(self.pk)) # Calls handle_run().
+                # call_command('run_job', str(self.pk)) # Calls handle_run().
                 self.handle_run(*args, **kwargs)
                 return True
         else:
@@ -1074,12 +1094,11 @@ class Job(models.Model):
         for name, value in iteritems(kwargs):
             setattr(self, name, value)
 
-
     def handle_run(self,
-        update_heartbeat=True,
-        stdout_queue=None,
-        stderr_queue=None,
-        *args, **kwargs):
+                   update_heartbeat=True,
+                   stdout_queue=None,
+                   stderr_queue=None,
+                   *args, **kwargs):
         """
         This method implements the code to actually run a ``Job``.  This is
         meant to be run, primarily, by the `run_job` management command as a
@@ -1131,7 +1150,7 @@ class Job(models.Model):
                     'exception': unicode(e),
                     'traceback': [
                         '\n'.join(traceback.format_exception(*sys.exc_info()))
-                     ]
+                    ]
                 }
                 print(t.render(ctx), file=sys.stderr)
                 success = False
@@ -1145,8 +1164,8 @@ class Job(models.Model):
 
                     p = subprocess.Popen(
                         self.raw_command,
-#                         stdout=sys.stdout,
-#                         stderr=sys.stderr,
+                        #                         stdout=sys.stdout,
+                        #                         stderr=sys.stderr,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                         shell=True,
@@ -1173,9 +1192,9 @@ class Job(models.Model):
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
                 ctx = {
-                  'exception': unicode(e),
-                  'traceback': [
-                      '\n'.join(traceback.format_exception(*sys.exc_info()))
+                    'exception': unicode(e),
+                    'traceback': [
+                        '\n'.join(traceback.format_exception(*sys.exc_info()))
                     ]
                 }
                 print(t.render(ctx), file=sys.stderr)
@@ -1189,7 +1208,7 @@ class Job(models.Model):
 
             # If this was a forced run, then don't update the
             # next_run date.
-            #next_run = self.next_run.replace(tzinfo=None)
+            # next_run = self.next_run.replace(tzinfo=None)
             next_run = self.next_run
             if not self.force_run:
                 print("Determining 'next_run' for job {}...".format(self.id))
@@ -1199,7 +1218,7 @@ class Job(models.Model):
                 next_run = self.rrule.after(next_run)
                 print(_next_run, next_run)
                 assert next_run != _next_run, 'RRule failed to increment next run datetime.'
-            #next_run = next_run.replace(tzinfo=timezone.get_current_timezone())
+            # next_run = next_run.replace(tzinfo=timezone.get_current_timezone())
 
             last_run_successful = not bool(stderr.length)
 
@@ -1207,7 +1226,7 @@ class Job(models.Model):
                 with lock:
                     Job.objects.update()
                     job = Job.objects.only('id', 'total_parts', 'last_run_successful').get(id=self.id)
-                    tpc = (job.last_run_successful and job.total_parts) or 0 # pylint: disable=E0601
+                    tpc = (job.last_run_successful and job.total_parts) or 0  # pylint: disable=E0601
                     Job.objects.filter(id=self.id).update(
                         is_running=False,
                         lock_file='',
@@ -1221,9 +1240,9 @@ class Job(models.Model):
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
                 ctx = {
-                  'exception': unicode(e),
-                  'traceback': [
-                      '\n'.join(traceback.format_exception(*sys.exc_info()))
+                    'exception': unicode(e),
+                    'traceback': [
+                        '\n'.join(traceback.format_exception(*sys.exc_info()))
                     ]
                 }
                 print(t.render(ctx), file=sys.stderr)
@@ -1234,7 +1253,7 @@ class Job(models.Model):
             if original_pid != os.getpid():
                 # We're a clone of the parent job, so exit immediately
                 # so we don't conflict.
-                return # pylint: disable=W0150
+                return  # pylint: disable=W0150
 
             # Redirect output back to default
             sys.stdout = ostdout
@@ -1330,6 +1349,7 @@ class Job(models.Model):
         else:
             # We assume the database record is definitive.
             return self.is_running
+
     check_is_running.short_description = "is running"
     check_is_running.boolean = True
 
@@ -1339,15 +1359,16 @@ class Job(models.Model):
         if heartbeat:
             return heartbeat.update_progress(*args, **kwargs)
         else:
-            #print('Unable to update progress. No heartbeat found.')
+            # print('Unable to update progress. No heartbeat found.')
             pass
+
 
 class Log(models.Model):
     """
     A record of stdout and stderr of a ``Job``.
     """
 
-    job = models.ForeignKey('chroniker.Job', related_name='logs')
+    job = models.ForeignKey('chroniker.Job', related_name='logs', on_delete=models.CASCADE)
 
     run_start_datetime = models.DateTimeField(
         editable=False,
@@ -1418,11 +1439,12 @@ class Log(models.Model):
     def duration_str(self):
         sec = timedelta(seconds=self.duration_seconds)
         d = datetime(1, 1, 1) + sec
-        days = d.day-1
+        days = d.day - 1
         hours = d.hour
         minutes = d.minute
         seconds = d.second
         return '%02i:%02i:%02i:%02i' % (days, hours, minutes, seconds)
+
     duration_str.short_description = 'duration (days:hours:min:sec)'
     duration_str.allow_tags = True
 
@@ -1488,19 +1510,21 @@ class Log(models.Model):
     def stdout_long_sample(self):
         l = 10000
         result = self.stdout or ''
-        if len(result) > l*3:
+        if len(result) > l * 3:
             result = result[:l] + '\n...\n' + result[-l:]
         result = result.replace('\n', '<br/>')
         return result or '(No output)'
+
     stdout_long_sample.allow_tags = True
 
     def stderr_long_sample(self):
         l = 10000
         result = self.stderr or ''
-        if len(result) > l*3:
+        if len(result) > l * 3:
             result = result[:l] + '\n...\n' + result[-l:]
         result = result.replace('\n', '<br/>')
         return result or '(No output)'
+
     stderr_long_sample.allow_tags = True
 
     @classmethod
@@ -1514,27 +1538,26 @@ class Log(models.Model):
         q.delete()
 
 
-#class SubscribedJob(models.Model):
+# class SubscribedJob(models.Model):
 #    """
 #    A Many-To-Many field table to link Subcribers to Jobs
 #    """
 #    user = models.ForeignKey(settings.AUTH_USER_MODEL,
-#                             db_column='user_id')
-#    job = models.ForeignKey(Job)
+#                             db_column='user_id', on_delete=models.CASCADE)
+#    job = models.ForeignKey(Job, on_delete=models.CASCADE)
 #
 #    class Meta:
 #        db_table = 'chroniker_job_subscribers'
 
 
 class MonitorManager(models.Manager):
-
     def all(self):
         q = super(MonitorManager, self).all()
         q = q.filter(is_monitor=True)
         return q
 
-class Monitor(Job):
 
+class Monitor(Job):
     objects = MonitorManager()
 
     class Meta:

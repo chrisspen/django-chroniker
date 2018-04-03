@@ -1,8 +1,15 @@
 from django.contrib import admin
 from django.contrib.admin.sites import site
 from django.contrib.admin.widgets import ManyToManyRawIdWidget, ForeignKeyRawIdWidget
-from django.core.urlresolvers import reverse
+from django import VERSION
+
+if VERSION >= (2, 0, 0):
+    from django.urls import reverse
+else:
+    from django.core.urlresolvers import reverse
+
 from django.forms.widgets import Select, TextInput
+
 try:
     from django.forms.widgets import flatatt
 except ImportError:
@@ -31,19 +38,21 @@ import six
 
 from .utils import get_admin_change_url, get_admin_changelist_url
 
+
 class LinkedSelect(Select):
     def render(self, name, value, attrs=None, *args, **kwargs):
         output = super(LinkedSelect, self).render(name, value, attrs=attrs, *args, **kwargs)
         model = self.choices.field.queryset.model
         to_field_name = self.choices.field.to_field_name or 'id'
         try:
-            kwargs = {to_field_name:value}
+            kwargs = {to_field_name: value}
             obj = model.objects.get(**kwargs)
             view_url = get_admin_change_url(obj)
             output += mark_safe('&nbsp;<a href="%s" target="_blank">view</a>&nbsp;' % (view_url,))
         except model.DoesNotExist:
             pass
         return output
+
 
 class ForeignKeyTextInput(TextInput):
     """
@@ -87,9 +96,10 @@ class ForeignKeyTextInput(TextInput):
             url=get_admin_change_url(self._instance),
             changelist_url=get_admin_changelist_url(self._model_class),
             instance=self._instance))
-        return  mark_safe(t.render(c))
+        return mark_safe(t.render(c))
 
-#http://djangosnippets.org/snippets/2217/
+
+# http://djangosnippets.org/snippets/2217/
 
 class VerboseForeignKeyRawIdWidget(ForeignKeyRawIdWidget):
     def label_for_value(self, value):
@@ -101,9 +111,10 @@ class VerboseForeignKeyRawIdWidget(ForeignKeyRawIdWidget):
                 args=(obj.pk,)
             )
             return '&nbsp;<strong><a href="%s" target="_blank">%s</a></strong>' \
-                % (change_url, escape(obj))
+                   % (change_url, escape(obj))
         except (ValueError, self.rel.to.DoesNotExist):
             return ''
+
 
 class VerboseManyToManyRawIdWidget(ManyToManyRawIdWidget):
     def label_for_value(self, value):
@@ -119,10 +130,11 @@ class VerboseManyToManyRawIdWidget(ManyToManyRawIdWidget):
                     args=(obj.pk,)
                 )
                 str_values += ['<strong><a href="%s" target="_blank">%s</a></strong>' \
-                    % (change_url, escape(x))]
+                               % (change_url, escape(x))]
             except self.rel.to.DoesNotExist:
                 str_values += ['???']
         return ', '.join(str_values)
+
 
 class ImproveRawIdFieldsForm(admin.ModelAdmin):
     def formfield_for_dbfield(self, db_field, **kwargs):
@@ -136,6 +148,7 @@ class ImproveRawIdFieldsForm(admin.ModelAdmin):
             return db_field.formfield(**kwargs)
         return super(ImproveRawIdFieldsForm, self).formfield_for_dbfield(db_field, **kwargs)
 
+
 class ImproveRawIdFieldsFormTabularInline(admin.TabularInline):
     def formfield_for_dbfield(self, db_field, **kwargs):
         if db_field.name in self.raw_id_fields:
@@ -146,5 +159,5 @@ class ImproveRawIdFieldsFormTabularInline(admin.TabularInline):
             elif typ == "ManyToManyRel":
                 kwargs['widget'] = VerboseManyToManyRawIdWidget(db_field.rel, site)
             return db_field.formfield(**kwargs)
-        return super(ImproveRawIdFieldsFormTabularInline, self)\
+        return super(ImproveRawIdFieldsFormTabularInline, self) \
             .formfield_for_dbfield(db_field, **kwargs)
