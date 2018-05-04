@@ -130,9 +130,9 @@ class ImproveRawIdFieldsForm(admin.ModelAdmin):
             kwargs.pop("request", None)
             typ = db_field.remote_field.__class__.__name__
             if typ == "ManyToOneRel":
-                kwargs['widget'] = VerboseForeignKeyRawIdWidget(db_field.rel, site)
+                kwargs['widget'] = VerboseForeignKeyRawIdWidget(db_field.remote_field, site)
             elif typ == "ManyToManyRel":
-                kwargs['widget'] = VerboseManyToManyRawIdWidget(db_field.rel, site)
+                kwargs['widget'] = VerboseManyToManyRawIdWidget(db_field.remote_field, site)
             return db_field.formfield(**kwargs)
         return super(ImproveRawIdFieldsForm, self).formfield_for_dbfield(db_field, **kwargs)
 
@@ -142,9 +142,9 @@ class ImproveRawIdFieldsFormTabularInline(admin.TabularInline):
             kwargs.pop("request", None)
             typ = db_field.remote_field.__class__.__name__
             if typ == "ManyToOneRel":
-                kwargs['widget'] = VerboseForeignKeyRawIdWidget(db_field.rel, site)
+                kwargs['widget'] = VerboseForeignKeyRawIdWidget(db_field.remote_field, site)
             elif typ == "ManyToManyRel":
-                kwargs['widget'] = VerboseManyToManyRawIdWidget(db_field.rel, site)
+                kwargs['widget'] = VerboseManyToManyRawIdWidget(db_field.remote_field, site)
             return db_field.formfield(**kwargs)
         return super(ImproveRawIdFieldsFormTabularInline, self)\
             .formfield_for_dbfield(db_field, **kwargs)
