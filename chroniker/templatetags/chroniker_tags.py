@@ -1,5 +1,5 @@
 from django import template
-from django.core.urlresolvers import reverse, NoReverseMatch
+from django.urls import reverse, NoReverseMatch
 from django.utils import timezone
 from django.conf import settings
 
