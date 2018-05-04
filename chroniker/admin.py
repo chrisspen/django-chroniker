@@ -8,7 +8,7 @@ from django.conf import settings
 from django.conf.urls import url
 from django.contrib import admin
 from django.core.management import get_commands
-from django.core.urlresolvers import reverse, NoReverseMatch
+from django.urls import reverse, NoReverseMatch
 from django.db import models
 from django.forms import TextInput
 from django.shortcuts import render_to_response
