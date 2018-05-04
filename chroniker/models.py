@@ -211,11 +211,13 @@ class JobDependency(models.Model):
 
     dependent = models.ForeignKey(
         'chroniker.Job',
+        on_delete=models.DO_NOTHING,
         related_name='dependencies',
         help_text='The thing that cannot run until another job completes.')
 
     dependee = models.ForeignKey(
         'chroniker.Job',
+        on_delete=models.DO_NOTHING,
         related_name='dependents',
         help_text='The thing that has other jobs waiting on it to complete.')
 
@@ -1347,7 +1349,7 @@ class Log(models.Model):
     A record of stdout and stderr of a ``Job``.
     """
 
-    job = models.ForeignKey('chroniker.Job', related_name='logs')
+    job = models.ForeignKey('chroniker.Job', on_delete=models.CASCADE, related_name='logs')
 
     run_start_datetime = models.DateTimeField(
         editable=False,
