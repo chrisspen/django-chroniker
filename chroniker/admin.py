@@ -235,6 +235,8 @@ class JobAdmin(admin.ModelAdmin):
         # Allow manual clearing of is_running if the cron job has become stuck.
 #        if obj and obj.is_fresh():
 #            fields.append('is_running')
+        if getattr(settings, 'CHRONIKER_DISABLE_RAW_COMMAND', False):
+            fields.append('raw_command')
         return fields
 
     def last_run_with_link(self, obj=None):

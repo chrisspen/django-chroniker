@@ -784,26 +784,25 @@ class Job(models.Model):
 
         self.frequency = self.frequency or c.DAILY
 
+        disable_raw_command = getattr(settings, 'CHRONIKER_DISABLE_RAW_COMMAND', False)
+        errors = {}
+
         cmd1 = (self.command or '').strip()
         cmd2 = (self.raw_command or '').strip()
-        if cmd1 and cmd2:
-            raise ValidationError({
-                'command':[
-                    'Either specify command or raw command, but not both.',
-                ],
-                'raw_command':[
-                    'Either specify command or raw command, but not both.',
-                ]
-            })
+        if cmd2 and disable_raw_command:
+            errors['command'] = 'Specify command, raw commands are disabled.'
+            raise ValidationError(errors)
+        elif cmd1 and cmd2:
+            errors['command'] = 'Either specify command or raw command, but not both.'
+            if not disable_raw_command:
+                errors['raw_command'] = errors['command']
+            raise ValidationError(errors)
         elif not cmd1 and not cmd2:
-            raise ValidationError({
-                'command':[
-                    'Either command or raw command must be specified.',
-                ],
-                'raw_command':[
-                    'Either command or raw command must be specified.',
-                ]
-            })
+            errors = {}
+            errors['command'] = 'Either command or raw command must be specified.'
+            if not disable_raw_command:
+                errors['raw_command'] = errors['command']
+            raise ValidationError(errors)
         super(Job, self).clean(*args, **kwargs)
 
     def full_clean(self,
@@ -1142,7 +1141,7 @@ class Job(models.Model):
             success = True
             try:
                 logger.debug("Calling command '%s'", self.command)
-                if self.raw_command:
+                if self.raw_command and not getattr(settings, 'CHRONIKER_DISABLE_RAW_COMMAND', False):
 
                     p = subprocess.Popen(
                         self.raw_command,
