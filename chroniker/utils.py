@@ -16,7 +16,10 @@ except ImportError:
     from cStringIO import StringIO
 
 from django.contrib.contenttypes.models import ContentType
-from django.core.urlresolvers import reverse
+try:
+    from django.core.urlresolvers import reverse
+except ImportError:
+    from django.urls import reverse
 from django.db import models
 from django.db import connection
 from django.utils import timezone

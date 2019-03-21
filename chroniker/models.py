@@ -2,20 +2,13 @@ from __future__ import print_function
 
 import logging
 import os
-# import re
 import socket
 import subprocess
 import sys
 import tempfile
 import time
 import traceback
-# from functools import cmp_to_key
 from datetime import datetime, timedelta
-
-# try:
-#     from io import StringIO
-# except ImportError:
-#     from cStringIO import StringIO
 
 import threading
 try:
@@ -34,7 +27,6 @@ from dateutil import rrule
 import six
 from six import u, iteritems
 
-# import django
 from django.conf import settings
 from django.contrib.sites.models import Site
 from django.core.mail import send_mail
@@ -42,17 +34,11 @@ from django.core.management import call_command
 from django.db import models, connection, transaction
 from django.db.models import Q
 from django.template import loader, Template, Context
-# from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.encoding import smart_str
 from django.utils.safestring import mark_safe
 from django.utils.timesince import timeuntil
 from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
-# try:
-#     from django.contrib.sites.models import get_current_site
-# except ImportError:
-#     # >= Django 1.7?
-#     from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import ValidationError
 
 from toposort import toposort_flatten
@@ -212,11 +198,13 @@ class JobDependency(models.Model):
     dependent = models.ForeignKey(
         'chroniker.Job',
         related_name='dependencies',
+        on_delete=models.CASCADE,
         help_text='The thing that cannot run until another job completes.')
 
     dependee = models.ForeignKey(
         'chroniker.Job',
         related_name='dependents',
+        on_delete=models.CASCADE,
         help_text='The thing that has other jobs waiting on it to complete.')
 
     wait_for_completion = models.BooleanField(
@@ -1250,6 +1238,8 @@ class Job(models.Model):
                     stdout_str = stdout_str.encode('utf-8', 'replace')
                 else:
                     stdout_str = six.text_type(stdout_str, 'utf-8', 'replace')
+                if isinstance(stdout_str, bytes):
+                    stdout_str = stdout_str.decode('utf-8')
 
             if self.log_stderr:
                 if not stderr_str:
@@ -1258,6 +1248,8 @@ class Job(models.Model):
                     stderr_str = stderr_str.encode('utf-8', 'replace')
                 else:
                     stderr_str = six.text_type(stderr_str, 'utf-8', 'replace')
+                if isinstance(stderr_str, bytes):
+                    stderr_str = stderr_str.decode('utf-8')
 
             run_end_datetime = timezone.now()
             duration_seconds = (run_end_datetime - run_start_datetime).total_seconds()
@@ -1347,7 +1339,10 @@ class Log(models.Model):
     A record of stdout and stderr of a ``Job``.
     """
 
-    job = models.ForeignKey('chroniker.Job', related_name='logs')
+    job = models.ForeignKey(
+        'chroniker.Job',
+        related_name='logs',
+        on_delete=models.CASCADE)
 
     run_start_datetime = models.DateTimeField(
         editable=False,
@@ -1449,7 +1444,17 @@ class Log(models.Model):
         if is_error and self.job.is_monitor and self.job.monitor_error_template:
             body = Template(self.job.monitor_error_template).render(ctx)
         else:
-            body = "Ouput:\n%s\nError output:\n%s" % (self.stdout.decode('utf-8'), self.stderr.decode('utf-8'))
+            stdout_str = self.stdout
+            try:
+                stdout_str = self.stdout.decode('utf-8')
+            except AttributeError:
+                pass
+            stderr_str = self.stderr
+            try:
+                stderr_str = self.stderr.decode('utf-8')
+            except AttributeError:
+                pass
+            body = "Ouput:\n%s\nError output:\n%s" % (stdout_str, stderr_str)
 
         base_url = None
         if hasattr(settings, 'BASE_SECURE_URL'):
@@ -1512,18 +1517,6 @@ class Log(models.Model):
         if time_ago:
             q = q.filter(run_start_datetime__lte=time_ago)
         q.delete()
-
-
-#class SubscribedJob(models.Model):
-#    """
-#    A Many-To-Many field table to link Subcribers to Jobs
-#    """
-#    user = models.ForeignKey(settings.AUTH_USER_MODEL,
-#                             db_column='user_id')
-#    job = models.ForeignKey(Job)
-#
-#    class Meta:
-#        db_table = 'chroniker_job_subscribers'
 
 
 class MonitorManager(models.Manager):

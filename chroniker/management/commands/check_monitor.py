@@ -3,10 +3,10 @@ from __future__ import print_function
 import sys
 from optparse import make_option
 
+import six
+
 import django
 from django.core.management.base import BaseCommand
-
-import six
 
 from chroniker.models import get_current_job
 

@@ -1,7 +1,10 @@
 from django.contrib import admin
 from django.contrib.admin.sites import site
 from django.contrib.admin.widgets import ManyToManyRawIdWidget, ForeignKeyRawIdWidget
-from django.core.urlresolvers import reverse
+try:
+    from django.core.urlresolvers import reverse
+except ImportError:
+    from django.urls import reverse
 from django.forms.widgets import Select, TextInput
 try:
     from django.forms.widgets import flatatt
@@ -16,16 +19,6 @@ except ImportError:
     from django.utils.encoding import smart_text
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
-
-# try:
-#     from django.utils.encoding import StrAndUnicode
-# except ImportError:
-#     from django.utils.encoding import python_2_unicode_compatible
-#
-#     @python_2_unicode_compatible
-#     class StrAndUnicode:
-#         def __str__(self):
-#             return self.code
 
 import six
 

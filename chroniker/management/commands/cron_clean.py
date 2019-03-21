@@ -20,12 +20,12 @@ class Command(BaseCommand):
             unit = str(args[0])
             if unit not in ['weeks', 'days', 'hours', 'minutes']:
                 sys.stderr.write('Valid units are weeks, days, hours or minutes.\n')
-                return 1
+                return
             try:
                 amount = int(args[1])
             except ValueError:
                 sys.stderr.write('Interval must be an integer.\n')
-                return 1
+                return
         kwargs = {unit: amount}
         time_ago = timezone.now() - timedelta(**kwargs)
         Log.cleanup(time_ago)
