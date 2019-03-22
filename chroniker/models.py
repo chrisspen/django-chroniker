@@ -1315,7 +1315,7 @@ class Job(models.Model):
             self.is_running = False
             self.lock_file = ""
             self.save()
-            return False    
+            return False
         # We assume the database record is definitive.
         return self.is_running
     check_is_running.short_description = "is running"
