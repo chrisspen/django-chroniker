@@ -22,10 +22,10 @@ except ImportError:
     except ImportError:
         import dummy_thread as thread
 
-from dateutil import rrule
-
 import six
 from six import u, iteritems
+
+from dateutil import rrule
 
 from django.conf import settings
 from django.contrib.sites.models import Site
@@ -357,7 +357,7 @@ class JobManager(models.Manager):
         all their dependees.
         """
         data = dict(
-            (j.id, set([_.dependee.id for _ in j.dependencies.all()]))
+            (j.id, set(_.dependee.id for _ in j.dependencies.all()))
             for j in self.due_with_met_dependencies(jobs=jobs))
         lst = toposort_flatten(data)
         lst = [Job.objects.get(id=_) for _ in lst]
@@ -368,7 +368,7 @@ class JobManager(models.Manager):
         Orders the given jobs so that all dependents are ordered after their dependencies.
         """
         jobs = jobs or []
-        data = dict((j.id, set([_.dependee.id for _ in j.dependencies.all()])) for j in jobs)
+        data = dict((j.id, set(_.dependee.id for _ in j.dependencies.all())) for j in jobs)
         lst = toposort_flatten(data)
         lst = [Job.objects.get(id=_) for _ in lst]
         return lst
@@ -780,12 +780,12 @@ class Job(models.Model):
         if cmd2 and disable_raw_command:
             errors['command'] = 'Specify command, raw commands are disabled.'
             raise ValidationError(errors)
-        elif cmd1 and cmd2:
+        if cmd1 and cmd2:
             errors['command'] = 'Either specify command or raw command, but not both.'
             if not disable_raw_command:
                 errors['raw_command'] = errors['command']
             raise ValidationError(errors)
-        elif not cmd1 and not cmd2:
+        if not cmd1 and not cmd2:
             errors = {}
             errors['command'] = 'Either command or raw command must be specified.'
             if not disable_raw_command:

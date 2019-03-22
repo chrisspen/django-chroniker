@@ -16,16 +16,17 @@ class Command(BaseCommand):
                 'Command requires two arguments. '
                 'Unit (weeks, days, hours or minutes) and interval.\n')
             return
-        else:
-            unit = str(args[0])
-            if unit not in ['weeks', 'days', 'hours', 'minutes']:
-                sys.stderr.write('Valid units are weeks, days, hours or minutes.\n')
-                return
-            try:
-                amount = int(args[1])
-            except ValueError:
-                sys.stderr.write('Interval must be an integer.\n')
-                return
+
+        unit = str(args[0])
+        if unit not in ['weeks', 'days', 'hours', 'minutes']:
+            sys.stderr.write('Valid units are weeks, days, hours or minutes.\n')
+            return
+        try:
+            amount = int(args[1])
+        except ValueError:
+            sys.stderr.write('Interval must be an integer.\n')
+            return
+
         kwargs = {unit: amount}
         time_ago = timezone.now() - timedelta(**kwargs)
         Log.cleanup(time_ago)
