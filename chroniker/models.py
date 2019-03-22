@@ -882,7 +882,7 @@ class Job(models.Model):
             if self.check_is_running():
                 return _('running')
             return _('due')
-        elif delta.seconds < 60:
+        if delta.seconds < 60:
             # Adapted from django.utils.timesince
             count = lambda n: ungettext('second', 'seconds', n)
             return ugettext(
@@ -1025,19 +1025,15 @@ class Job(models.Model):
         if force_run:
             self.handle_run(*args, **kwargs)
             return True
-        elif self.enabled:
+        if self.enabled:
             if not self.dependencies_met():
-                # Note, this will cause the job to be re-checked
-                # the next time cron runs.
-                print('Job "{}" has unmet dependencies. Aborting run.'\
-                    .format(self.name))
+                # Note, this will cause the job to be re-checked the next time cron runs.
+                print('Job "{}" has unmet dependencies. Aborting run.'.format(self.name))
             elif check_running and self.check_is_running():
-                print('Job "{}" already running. Aborting run.'\
-                    .format(self.name))
+                print('Job "{}" already running. Aborting run.'.format(self.name))
             elif not self.is_due(check_running=check_running):
                 print('Job "{}" not due. Aborting run.'.format(self.name))
             else:
-                #call_command('run_job', str(self.pk)) # Calls handle_run().
                 self.handle_run(*args, **kwargs)
                 return True
         else:
@@ -1319,10 +1315,9 @@ class Job(models.Model):
             self.is_running = False
             self.lock_file = ""
             self.save()
-            return False
-        else:
-            # We assume the database record is definitive.
-            return self.is_running
+            return False    
+        # We assume the database record is definitive.
+        return self.is_running
     check_is_running.short_description = "is running"
     check_is_running.boolean = True
 
@@ -1331,9 +1326,7 @@ class Job(models.Model):
         heartbeat = get_current_heartbeat()
         if heartbeat:
             return heartbeat.update_progress(*args, **kwargs)
-        else:
-            #print('Unable to update progress. No heartbeat found.')
-            pass
+
 
 class Log(models.Model):
     """
