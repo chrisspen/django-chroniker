@@ -15,17 +15,20 @@ try:
 except ImportError:
     from cStringIO import StringIO
 
+import psutil
+
+from six import print_, reraise, u
+
 from django.contrib.contenttypes.models import ContentType
-from django.core.urlresolvers import reverse
+try:
+    from django.core.urlresolvers import reverse
+except ImportError:
+    from django.urls import reverse
 from django.db import models
 from django.db import connection
 from django.utils import timezone
 from django.conf import settings
 from django.utils.encoding import smart_str
-
-import psutil
-
-from six import print_, reraise, u
 
 from . import constants as c
 
@@ -414,14 +417,13 @@ class TimedProcess(Process):
         if self.is_alive():
             if self.time_type == c.WALL_CLOCK_TIME:
                 return self.get_duration_seconds_wall()
-            elif self.time_type == c.CPU_TIME:
+            if self.time_type == c.CPU_TIME:
                 return self.get_duration_seconds_cpu()
-            elif self.time_type == c.RECURSIVE_CPU_TIME:
+            if self.time_type == c.RECURSIVE_CPU_TIME:
                 return self.get_duration_seconds_cpu_recursive()
-            elif self.time_type == c.MAX_TIME:
+            if self.time_type == c.MAX_TIME:
                 return self.get_duration_seconds_max()
-            else:
-                raise NotImplementedError
+            raise NotImplementedError
 
     @property
     def is_expired(self):
@@ -472,14 +474,13 @@ def make_naive(dt, tz):
 def make_aware(dt, tz):
     if dt is None:
         return
-    elif settings.USE_TZ:
+    if settings.USE_TZ:
         if timezone.is_aware(dt):
             return dt
         return timezone.make_aware(dt, tz)
-    else:
-        if timezone.is_aware(dt):
-            return timezone.make_naive(dt)
-        return dt
+    if timezone.is_aware(dt):
+        return timezone.make_naive(dt)
+    return dt
 
 def localtime(dt):
     dt = make_aware(dt, settings.TIME_ZONE)

@@ -8,13 +8,13 @@ from optparse import make_option
 from collections import defaultdict
 from multiprocessing import Queue
 
+import psutil
+
 from django.core.management.base import BaseCommand
 from django.db import connection
 import django
 #from django.conf import settings
 from django.utils import timezone
-
-import psutil
 
 # from six import u
 

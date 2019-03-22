@@ -2,20 +2,13 @@ from __future__ import print_function
 
 import logging
 import os
-# import re
 import socket
 import subprocess
 import sys
 import tempfile
 import time
 import traceback
-# from functools import cmp_to_key
 from datetime import datetime, timedelta
-
-# try:
-#     from io import StringIO
-# except ImportError:
-#     from cStringIO import StringIO
 
 import threading
 try:
@@ -29,12 +22,11 @@ except ImportError:
     except ImportError:
         import dummy_thread as thread
 
-from dateutil import rrule
-
 import six
 from six import u, iteritems
 
-# import django
+from dateutil import rrule
+
 from django.conf import settings
 from django.contrib.sites.models import Site
 from django.core.mail import send_mail
@@ -42,17 +34,11 @@ from django.core.management import call_command
 from django.db import models, connection, transaction
 from django.db.models import Q
 from django.template import loader, Template, Context
-# from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.encoding import smart_str
 from django.utils.safestring import mark_safe
 from django.utils.timesince import timeuntil
 from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
-# try:
-#     from django.contrib.sites.models import get_current_site
-# except ImportError:
-#     # >= Django 1.7?
-#     from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import ValidationError
 
 from toposort import toposort_flatten
@@ -212,11 +198,13 @@ class JobDependency(models.Model):
     dependent = models.ForeignKey(
         'chroniker.Job',
         related_name='dependencies',
+        on_delete=models.CASCADE,
         help_text='The thing that cannot run until another job completes.')
 
     dependee = models.ForeignKey(
         'chroniker.Job',
         related_name='dependents',
+        on_delete=models.CASCADE,
         help_text='The thing that has other jobs waiting on it to complete.')
 
     wait_for_completion = models.BooleanField(
@@ -369,7 +357,7 @@ class JobManager(models.Manager):
         all their dependees.
         """
         data = dict(
-            (j.id, set([_.dependee.id for _ in j.dependencies.all()]))
+            (j.id, set(_.dependee.id for _ in j.dependencies.all()))
             for j in self.due_with_met_dependencies(jobs=jobs))
         lst = toposort_flatten(data)
         lst = [Job.objects.get(id=_) for _ in lst]
@@ -380,7 +368,7 @@ class JobManager(models.Manager):
         Orders the given jobs so that all dependents are ordered after their dependencies.
         """
         jobs = jobs or []
-        data = dict((j.id, set([_.dependee.id for _ in j.dependencies.all()])) for j in jobs)
+        data = dict((j.id, set(_.dependee.id for _ in j.dependencies.all())) for j in jobs)
         lst = toposort_flatten(data)
         lst = [Job.objects.get(id=_) for _ in lst]
         return lst
@@ -792,12 +780,12 @@ class Job(models.Model):
         if cmd2 and disable_raw_command:
             errors['command'] = 'Specify command, raw commands are disabled.'
             raise ValidationError(errors)
-        elif cmd1 and cmd2:
+        if cmd1 and cmd2:
             errors['command'] = 'Either specify command or raw command, but not both.'
             if not disable_raw_command:
                 errors['raw_command'] = errors['command']
             raise ValidationError(errors)
-        elif not cmd1 and not cmd2:
+        if not cmd1 and not cmd2:
             errors = {}
             errors['command'] = 'Either command or raw command must be specified.'
             if not disable_raw_command:
@@ -805,8 +793,9 @@ class Job(models.Model):
             raise ValidationError(errors)
         super(Job, self).clean(*args, **kwargs)
 
-    def full_clean(self,
-        exclude=None, validate_unique=None, *args, **kwargs):
+    def full_clean(self, *args, **kwargs):
+        kwargs.pop('exclude', None)
+        kwargs.pop('validate_unique', None)
         return self.clean(*args, **kwargs)
 
     def save(self, *args, **kwargs):
@@ -893,7 +882,7 @@ class Job(models.Model):
             if self.check_is_running():
                 return _('running')
             return _('due')
-        elif delta.seconds < 60:
+        if delta.seconds < 60:
             # Adapted from django.utils.timesince
             count = lambda n: ungettext('second', 'seconds', n)
             return ugettext(
@@ -1036,19 +1025,15 @@ class Job(models.Model):
         if force_run:
             self.handle_run(*args, **kwargs)
             return True
-        elif self.enabled:
+        if self.enabled:
             if not self.dependencies_met():
-                # Note, this will cause the job to be re-checked
-                # the next time cron runs.
-                print('Job "{}" has unmet dependencies. Aborting run.'\
-                    .format(self.name))
+                # Note, this will cause the job to be re-checked the next time cron runs.
+                print('Job "{}" has unmet dependencies. Aborting run.'.format(self.name))
             elif check_running and self.check_is_running():
-                print('Job "{}" already running. Aborting run.'\
-                    .format(self.name))
+                print('Job "{}" already running. Aborting run.'.format(self.name))
             elif not self.is_due(check_running=check_running):
                 print('Job "{}" not due. Aborting run.'.format(self.name))
             else:
-                #call_command('run_job', str(self.pk)) # Calls handle_run().
                 self.handle_run(*args, **kwargs)
                 return True
         else:
@@ -1250,6 +1235,8 @@ class Job(models.Model):
                     stdout_str = stdout_str.encode('utf-8', 'replace')
                 else:
                     stdout_str = six.text_type(stdout_str, 'utf-8', 'replace')
+                if isinstance(stdout_str, bytes):
+                    stdout_str = stdout_str.decode('utf-8')
 
             if self.log_stderr:
                 if not stderr_str:
@@ -1258,6 +1245,8 @@ class Job(models.Model):
                     stderr_str = stderr_str.encode('utf-8', 'replace')
                 else:
                     stderr_str = six.text_type(stderr_str, 'utf-8', 'replace')
+                if isinstance(stderr_str, bytes):
+                    stderr_str = stderr_str.decode('utf-8')
 
             run_end_datetime = timezone.now()
             duration_seconds = (run_end_datetime - run_start_datetime).total_seconds()
@@ -1327,9 +1316,8 @@ class Job(models.Model):
             self.lock_file = ""
             self.save()
             return False
-        else:
-            # We assume the database record is definitive.
-            return self.is_running
+        # We assume the database record is definitive.
+        return self.is_running
     check_is_running.short_description = "is running"
     check_is_running.boolean = True
 
@@ -1338,16 +1326,17 @@ class Job(models.Model):
         heartbeat = get_current_heartbeat()
         if heartbeat:
             return heartbeat.update_progress(*args, **kwargs)
-        else:
-            #print('Unable to update progress. No heartbeat found.')
-            pass
+
 
 class Log(models.Model):
     """
     A record of stdout and stderr of a ``Job``.
     """
 
-    job = models.ForeignKey('chroniker.Job', related_name='logs')
+    job = models.ForeignKey(
+        'chroniker.Job',
+        related_name='logs',
+        on_delete=models.CASCADE)
 
     run_start_datetime = models.DateTimeField(
         editable=False,
@@ -1449,7 +1438,17 @@ class Log(models.Model):
         if is_error and self.job.is_monitor and self.job.monitor_error_template:
             body = Template(self.job.monitor_error_template).render(ctx)
         else:
-            body = "Ouput:\n%s\nError output:\n%s" % (self.stdout.decode('utf-8'), self.stderr.decode('utf-8'))
+            stdout_str = self.stdout
+            try:
+                stdout_str = self.stdout.decode('utf-8')
+            except AttributeError:
+                pass
+            stderr_str = self.stderr
+            try:
+                stderr_str = self.stderr.decode('utf-8')
+            except AttributeError:
+                pass
+            body = "Ouput:\n%s\nError output:\n%s" % (stdout_str, stderr_str)
 
         base_url = None
         if hasattr(settings, 'BASE_SECURE_URL'):
@@ -1512,18 +1511,6 @@ class Log(models.Model):
         if time_ago:
             q = q.filter(run_start_datetime__lte=time_ago)
         q.delete()
-
-
-#class SubscribedJob(models.Model):
-#    """
-#    A Many-To-Many field table to link Subcribers to Jobs
-#    """
-#    user = models.ForeignKey(settings.AUTH_USER_MODEL,
-#                             db_column='user_id')
-#    job = models.ForeignKey(Job)
-#
-#    class Meta:
-#        db_table = 'chroniker_job_subscribers'
 
 
 class MonitorManager(models.Manager):

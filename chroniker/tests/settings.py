@@ -28,7 +28,7 @@ MEDIA_ROOT = os.path.join(PROJECT_DIR, 'media')
 
 # Disable migrations.
 # http://stackoverflow.com/a/28560805/247542
-class DisableMigrations(object):
+class DisableMigrations(object): # pylint: disable=useless-object-inheritance
 
     def __contains__(self, item):
         return True
@@ -53,7 +53,7 @@ BASE_SECURE_URL = 'https://localhost'
 
 BASE_URL = 'http://localhost'
 
-MIDDLEWARE_CLASSES = (
+MIDDLEWARE_CLASSES = MIDDLEWARE = (
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
