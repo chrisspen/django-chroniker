@@ -15,6 +15,10 @@ try:
 except ImportError:
     from cStringIO import StringIO
 
+import psutil
+
+from six import print_, reraise, u
+
 from django.contrib.contenttypes.models import ContentType
 try:
     from django.core.urlresolvers import reverse
@@ -25,10 +29,6 @@ from django.db import connection
 from django.utils import timezone
 from django.conf import settings
 from django.utils.encoding import smart_str
-
-import psutil
-
-from six import print_, reraise, u
 
 from . import constants as c
 

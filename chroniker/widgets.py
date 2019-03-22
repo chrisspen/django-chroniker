@@ -1,3 +1,6 @@
+
+import six
+
 from django.contrib import admin
 from django.contrib.admin.sites import site
 from django.contrib.admin.widgets import ManyToManyRawIdWidget, ForeignKeyRawIdWidget
@@ -19,8 +22,6 @@ except ImportError:
     from django.utils.encoding import smart_text
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
-
-import six
 
 from .utils import get_admin_change_url, get_admin_changelist_url
 
