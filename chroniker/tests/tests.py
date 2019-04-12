@@ -462,13 +462,10 @@ class JobTestCase(TestCase):
 
         caused by various Django+Python versions having incompatible migration representations.
         """
-        #TODO:support Py3+Django2?
-        if django.VERSION > (1, 7, 0) and django.VERSION < (2, 1, 7):
-            ran = False
+        if (1, 7, 0) < django.VERSION < (2, 0, 0):
             for stdout_cls in (BytesIO, StringIO):
                 stdout = stdout_cls()
                 try:
-                    # call_command('makemigrations', 'chroniker', traceback=True, stdout=stdout)
                     call_command('migrate', 'chroniker', traceback=True, stdout=stdout)
                 except TypeError:
                     continue
@@ -479,6 +476,10 @@ class JobTestCase(TestCase):
                 self.assertFalse('Your models have changes' in stdout)
                 break
             self.assertTrue(ran)
+        else:
+            stdout = StringIO()
+            call_command('migrate', 'chroniker', traceback=True, stdout=stdout)
+            self.assertIn('No migrations to apply', stdout.getvalue())
 
     def testErrorCallback(self):
 
@@ -591,7 +592,8 @@ class JobTestCase(TestCase):
         # Initial next_run should be one-hour from now.
         td = next_run0 - timezone.now().astimezone(pytz.utc)
         print('td:', td)
-        self.assertTrue(abs(td.total_seconds() -3600) <= 5)
+        result = abs(td.total_seconds() - 3600)
+        self.assertTrue(result <= 5, result)
 
         call_command('cron', update_heartbeat=0, sync=1)
 
