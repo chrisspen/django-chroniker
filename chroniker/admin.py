@@ -40,13 +40,17 @@ class HTMLWidget(forms.Widget):
         self.rel = rel
         super(HTMLWidget, self).__init__(attrs)
 
-    def render(self, name, value, attrs=None):
+    def render(self, name, value, attrs=None, renderer=None):
         if self.rel is not None:
             key = self.rel.get_related_field().name
-            obj = self.rel.to._default_manager.get(**{key: value})
+            if hasattr(self.rel, 'related_model'):
+                related_model = self.rel.related_model
+            else:
+                related_model = self.rel.to
+            obj = related_model._default_manager.get(**{key: value})
             related_url = '../../../%s/%s/%d/' % (
-                self.rel.to._meta.app_label,
-                self.rel.to._meta.object_name.lower(),
+                related_model._meta.app_label,
+                related_model._meta.object_name.lower(),
                 value)
             value = "<a href='%s'>%s</a>" % (related_url, escape(obj))
 
