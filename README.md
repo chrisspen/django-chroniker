@@ -210,13 +210,13 @@ To run all [tests](http://tox.readthedocs.org/en/latest/):
 
     export TESTNAME=; tox
 
-To run tests for a specific environment (e.g. Python 2.7 with Django 1.4):
+To run tests for a specific environment (e.g. Python 2.7 with Django 1.11):
     
     export TESTNAME=; tox -e py27-django111
 
 To run a specific test:
     
-    export TESTNAME=.testTimezone2; tox -e py27-django15
+    export TESTNAME=.testTimezone2; tox -e py36-django21
 
 To run the [documentation server](http://www.mkdocs.org/#getting-started) locally:
 
