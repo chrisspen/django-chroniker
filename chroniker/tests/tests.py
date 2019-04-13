@@ -36,6 +36,7 @@ from django.conf import settings
 from django.db.models import Max
 
 from chroniker.models import Job, Log
+from chroniker.admin import HTMLWidget
 # from chroniker.tests.commands import Sleeper, InfiniteWaiter, ErrorThrower
 # from chroniker.management.commands.cron import run_cron
 from chroniker import utils
@@ -720,3 +721,24 @@ class JobTestCase(TestCase):
     def test_widgets(self):
         print('django.version:', django.VERSION)
         from chroniker import widgets # pylint: disable=unused-import
+
+    def test_widget_render_simple(self):
+        widget = HTMLWidget()
+        self.assertEqual(
+            widget.render('myname', 'myvalue'),
+            u'<div myname="myname"><p>myvalue</p></div>')
+
+    def test_widget_render_with_rel(self):
+        job = Job.objects.create(
+            name='command',
+            frequency=c.MINUTELY,
+            raw_command='echo "hello"',
+            enabled=True,
+            force_run=True,
+        )
+        field_obj = Job._meta.get_field('subscribers')
+        rel = field_obj.remote_field
+        widget = HTMLWidget(rel=rel)
+        self.assertTrue(
+            str(job).replace('\xc2', '').replace('\xa0', ' ') in
+            widget.render('name', job.id).replace(u'\xa0', u' '))

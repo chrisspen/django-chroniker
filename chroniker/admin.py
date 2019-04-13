@@ -40,13 +40,17 @@ class HTMLWidget(forms.Widget):
         self.rel = rel
         super(HTMLWidget, self).__init__(attrs)
 
-    def render(self, name, value, attrs=None):
+    def render(self, name, value, attrs=None, renderer=None):
         if self.rel is not None:
             key = self.rel.get_related_field().name
-            obj = self.rel.to._default_manager.get(**{key: value})
+            if hasattr(self.rel, 'related_model'):
+                related_model = self.rel.related_model
+            else:
+                related_model = self.rel.to
+            obj = related_model._default_manager.get(**{key: value})
             related_url = '../../../%s/%s/%d/' % (
-                self.rel.to._meta.app_label,
-                self.rel.to._meta.object_name.lower(),
+                related_model._meta.app_label,
+                related_model._meta.object_name.lower(),
                 value)
             value = "<a href='%s'>%s</a>" % (related_url, escape(obj))
 
@@ -621,7 +625,11 @@ class LogAdmin(admin.ModelAdmin):
             return db_field.formfield(**kwargs)
 
         if isinstance(db_field, models.ForeignKey):
-            kwargs['widget'] = HTMLWidget(db_field.rel)
+            if hasattr(db_field, 'remote_field'):
+                remote_field = db_field.remote_field
+            else:
+                remote_field = db_field.rel
+            kwargs['widget'] = HTMLWidget(remote_field)
             return db_field.formfield(**kwargs)
 
         return super(LogAdmin, self).formfield_for_dbfield(db_field, **kwargs)

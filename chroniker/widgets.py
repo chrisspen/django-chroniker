@@ -122,11 +122,15 @@ class ImproveRawIdFieldsForm(admin.ModelAdmin):
     def formfield_for_dbfield(self, db_field, **kwargs):
         if db_field.name in self.raw_id_fields:
             kwargs.pop("request", None)
-            typ = db_field.rel.__class__.__name__
+            if hasattr(db_field, 'remote_field'):
+                remote_field = db_field.remote_field
+            else:
+                remote_field = db_field.rel
+            typ = remote_field.__class__.__name__
             if typ == "ManyToOneRel":
-                kwargs['widget'] = VerboseForeignKeyRawIdWidget(db_field.rel, site)
+                kwargs['widget'] = VerboseForeignKeyRawIdWidget(remote_field, site)
             elif typ == "ManyToManyRel":
-                kwargs['widget'] = VerboseManyToManyRawIdWidget(db_field.rel, site)
+                kwargs['widget'] = VerboseManyToManyRawIdWidget(remote_field, site)
             return db_field.formfield(**kwargs)
         return super(ImproveRawIdFieldsForm, self).formfield_for_dbfield(db_field, **kwargs)
 
@@ -134,11 +138,15 @@ class ImproveRawIdFieldsFormTabularInline(admin.TabularInline):
     def formfield_for_dbfield(self, db_field, **kwargs):
         if db_field.name in self.raw_id_fields:
             kwargs.pop("request", None)
-            typ = db_field.rel.__class__.__name__
+            if hasattr(db_field, 'remote_field'):
+                remote_field = db_field.remote_field
+            else:
+                remote_field = db_field.rel
+            typ = remote_field.__class__.__name__
             if typ == "ManyToOneRel":
-                kwargs['widget'] = VerboseForeignKeyRawIdWidget(db_field.rel, site)
+                kwargs['widget'] = VerboseForeignKeyRawIdWidget(remote_field, site)
             elif typ == "ManyToManyRel":
-                kwargs['widget'] = VerboseManyToManyRawIdWidget(db_field.rel, site)
+                kwargs['widget'] = VerboseManyToManyRawIdWidget(remote_field, site)
             return db_field.formfield(**kwargs)
         return super(ImproveRawIdFieldsFormTabularInline, self)\
             .formfield_for_dbfield(db_field, **kwargs)
