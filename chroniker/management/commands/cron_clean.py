@@ -1,32 +1,21 @@
 from datetime import timedelta
-import sys
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from chroniker.models import Log
 
+
 class Command(BaseCommand):
     help = 'Deletes old job logs.'
 
+    def add_arguments(self, parser):
+        parser.add_argument('unit', choices=['minutes', 'hours', 'days', 'weeks'])
+        parser.add_argument('amount', type=int)
+
     def handle(self, *args, **options):
-
-        if len(args) != 2:
-            sys.stderr.write(
-                'Command requires two arguments. '
-                'Unit (weeks, days, hours or minutes) and interval.\n')
-            return
-
-        unit = str(args[0])
-        if unit not in ['weeks', 'days', 'hours', 'minutes']:
-            sys.stderr.write('Valid units are weeks, days, hours or minutes.\n')
-            return
-        try:
-            amount = int(args[1])
-        except ValueError:
-            sys.stderr.write('Interval must be an integer.\n')
-            return
-
+        unit = options['unit']
+        amount = options['amount']
         kwargs = {unit: amount}
         time_ago = timezone.now() - timedelta(**kwargs)
         Log.cleanup(time_ago)
