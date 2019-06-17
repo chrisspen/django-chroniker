@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import time
 from optparse import make_option
 
@@ -7,6 +5,7 @@ import django
 from django.core.management.base import BaseCommand
 
 from chroniker.models import Job
+
 
 class Command(BaseCommand):
     help = 'Incrementally updates status, to help testing transaction ' + \

@@ -10,18 +10,16 @@ from multiprocessing import Queue
 
 import psutil
 
+from django import get_version, VERSION
 from django.core.management.base import BaseCommand
 from django.db import connection
-import django
-#from django.conf import settings
 from django.utils import timezone
 
-# from six import u
 
 from chroniker.models import Job, Log
-# from chroniker import constants as c
 from chroniker import utils
 from chroniker import settings as _settings
+
 
 def kill_stalled_processes(dryrun=True):
     """
@@ -314,7 +312,7 @@ class Command(BaseCommand):
         from distutils.version import StrictVersion # pylint: disable=E0611
         parser = super(Command, self).create_parser(prog_name, subcommand)
         version_threshold = StrictVersion('1.10')
-        current_version = StrictVersion(django.get_version(django.VERSION))
+        current_version = StrictVersion(get_version(VERSION))
         if current_version >= version_threshold:
             parser.add_argument('--update_heartbeat',
                 dest='update_heartbeat',

@@ -1,4 +1,3 @@
-
 import logging
 import sys
 from datetime import datetime
@@ -9,7 +8,9 @@ from django.core.management.base import BaseCommand
 from django.core.management import call_command
 from django.utils.translation import ugettext_lazy as _
 
+
 logger = logging.getLogger('chroniker.commands.cronserver')
+
 
 class CronThread(Thread):
     daemon = True
@@ -17,6 +18,7 @@ class CronThread(Thread):
     def run(self):
         logger.info("Running due jobs...")
         call_command('cron')
+
 
 class Command(BaseCommand):
     args = "time"

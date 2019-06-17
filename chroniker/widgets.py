@@ -1,13 +1,9 @@
-
 import six
 
 from django.contrib import admin
 from django.contrib.admin.sites import site
 from django.contrib.admin.widgets import ManyToManyRawIdWidget, ForeignKeyRawIdWidget
-try:
-    from django.core.urlresolvers import reverse
-except ImportError:
-    from django.urls import reverse
+from django.urls import reverse
 from django.forms.widgets import Select, TextInput
 try:
     from django.forms.widgets import flatatt
@@ -24,6 +20,7 @@ from django.utils.html import escape
 from django.utils.safestring import mark_safe
 
 from .utils import get_admin_change_url, get_admin_changelist_url
+
 
 class LinkedSelect(Select):
     def render(self, name, value, attrs=None, *args, **kwargs):

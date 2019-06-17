@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand
 
 from chroniker.models import Job
 
+
 class Command(BaseCommand):
 
     help = 'Runs a specific job. The job will only run if it is not ' + \

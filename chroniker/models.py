@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import logging
 import os
 import socket
@@ -49,12 +47,8 @@ from chroniker.utils import import_string
 
 from . import settings as _settings # pylint: disable=unused-import
 
-try:
-    # >= Django 1.8
-    commit_on_success = transaction.atomic
-except AttributeError:
-    # < Django 1.8
-    commit_on_success = transaction.commit_on_success
+
+commit_on_success = transaction.atomic
 
 unicode = six.text_type # pylint: disable=W0622
 
@@ -62,6 +56,7 @@ logger = logging.getLogger('chroniker.models')
 
 _state = {} # {thread_ident:job_id}
 _state_heartbeat = {} # {thread_ident:heartbeat thread object}
+
 
 def get_current_job():
     """
@@ -393,7 +388,7 @@ class JobManager(models.Manager):
         the alotted threshold.
         """
 
-        @commit_on_success
+        @transaction.atomic
         def kill_job(job):
             # If we know the PID and it's running locally, and the process
             # appears inactive, then attempt to forcibly kill the job.
@@ -411,7 +406,7 @@ class JobManager(models.Manager):
             job.last_run_successful = False
             job.save()
 
-        @commit_on_success
+        @transaction.atomic
         def create_log(job):
             Log.objects.create(
                 job=job,
@@ -998,7 +993,7 @@ class Job(models.Model):
         False
         """
         q = type(self).objects.due(job=self, **kwargs)
-        with commit_on_success():
+        with transaction.atomic():
             res = q.exists()
         return res
     is_due.boolean = True
