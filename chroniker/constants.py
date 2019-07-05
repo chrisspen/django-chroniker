@@ -1,5 +1,6 @@
 from django.utils.translation import ugettext_lazy as _
 
+
 YEARLY = 'YEARLY'
 MONTHLY = 'MONTHLY'
 WEEKLY = 'WEEKLY'

@@ -1,6 +1,3 @@
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import os
 import sys
 import time
@@ -20,10 +17,7 @@ import psutil
 from six import print_, reraise, u
 
 from django.contrib.contenttypes.models import ContentType
-try:
-    from django.core.urlresolvers import reverse
-except ImportError:
-    from django.urls import reverse
+from django.urls import reverse
 from django.db import models
 from django.db import connection
 from django.utils import timezone
@@ -62,26 +56,6 @@ def get_remaining_seconds(*args, **kwargs):
     kwargs['as_seconds'] = True
     return get_etc(*args, **kwargs)
 
-#def calculate_eta(start_datetime, start_count, current_count, total_count):
-#    """
-#    Returns the datetime when the given process will likely complete, assuming
-#    a relatively linear projection of the current progress.
-#    """
-#    assert start_count >= 0, 'Invalid start_count: %s' % (start_count,)
-#    assert current_count >= 0, 'Invalid current_count: %s' % (current_count,)
-#    assert total_count >= 0, 'Invalid total_count: %s' % (total_count,)
-#    assert isinstance(start_datetime, datetime)
-#    if not total_count:
-#        return
-#    now_datetime = datetime.now()
-#    ran_parts = current_count - start_count
-#    ran_seconds = (now_datetime - start_datetime).total_seconds()
-#    remaining_parts = total_count - current_count - start_count
-#    if not ran_parts:
-#        return
-#    remaining_seconds = ran_seconds/float(ran_parts)*remaining_parts
-#    eta = now_datetime + timedelta(seconds=remaining_seconds)
-#    return eta
 
 def get_admin_change_url(obj):
     ct = ContentType.objects.get_for_model(obj)
@@ -126,17 +100,14 @@ class TeeFile(StringIO):
         self.length += len(s)
         self.file.write(s)
         if self.local:
-            #super(TeeFile, self).write(s)
             StringIO.write(self, s)
         if self.auto_flush:
-            #self.file.flush()
             self.flush()
         if self.queue is not None:
             self.queue_buffer.append(s)
 
     def flush(self):
         self.file.flush()
-        #super(TeeFile, self).flush()
         StringIO.flush(self)
         if self.queue is not None:
             data = (current_process().pid, ''.join(self.queue_buffer)) # pylint: disable=E1102

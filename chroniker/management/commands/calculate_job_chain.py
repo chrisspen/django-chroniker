@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import sys
 from optparse import make_option
 
@@ -9,6 +7,7 @@ from django.core.management.base import BaseCommand
 from chroniker.models import Job, JobDependency
 
 from criticalpath import Node
+
 
 class Command(BaseCommand):
     help = 'Calculates the total time a series of chained jobs will take.'

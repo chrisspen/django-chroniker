@@ -1,12 +1,10 @@
 from django import template
-try:
-    from django.core.urlresolvers import reverse, NoReverseMatch
-except ImportError:
-    from django.urls import reverse, NoReverseMatch
+from django.urls import reverse, NoReverseMatch
 from django.utils import timezone
 from django.conf import settings
 
 register = template.Library()
+
 
 class RunJobURLNode(template.Node):
     def __init__(self, object_id):
