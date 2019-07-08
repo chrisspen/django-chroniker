@@ -84,26 +84,26 @@ class ForeignKeyTextInput(TextInput):
 
 class VerboseForeignKeyRawIdWidget(ForeignKeyRawIdWidget):
     def label_for_value(self, value):
-        key = self.rel.get_related_field().name
+        key = self.remote_field.get_related_field().name
         try:
-            obj = self.rel.to._default_manager.using(self.db).get(**{key: value})
+            obj = self.remote_field.model._default_manager.using(self.db).get(**{key: value})
             change_url = reverse(
                 "admin:%s_%s_change" % (obj._meta.app_label, obj._meta.object_name.lower()),
                 args=(obj.pk,)
             )
             return '&nbsp;<strong><a href="%s" target="_blank">%s</a></strong>' \
                 % (change_url, escape(obj))
-        except (ValueError, self.rel.to.DoesNotExist):
+        except (ValueError, self.remote_field.model.DoesNotExist):
             return ''
 
 class VerboseManyToManyRawIdWidget(ManyToManyRawIdWidget):
     def label_for_value(self, value):
         values = value.split(',')
         str_values = []
-        key = self.rel.get_related_field().name
+        key = self.remote_field.get_related_field().name
         for v in values:
             try:
-                obj = self.rel.to._default_manager.using(self.db).get(**{key: v})
+                obj = self.remote_field.model._default_manager.using(self.db).get(**{key: v})
                 x = smart_text(obj)
                 change_url = reverse(
                     "admin:%s_%s_change" % (obj._meta.app_label, obj._meta.object_name.lower()),
@@ -111,7 +111,7 @@ class VerboseManyToManyRawIdWidget(ManyToManyRawIdWidget):
                 )
                 str_values += ['<strong><a href="%s" target="_blank">%s</a></strong>' \
                     % (change_url, escape(x))]
-            except self.rel.to.DoesNotExist:
+            except self.remote_field.model.DoesNotExist:
                 str_values += ['???']
         return ', '.join(str_values)
 

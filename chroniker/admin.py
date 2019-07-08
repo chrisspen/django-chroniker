@@ -30,16 +30,16 @@ except ImportError:
 
 class HTMLWidget(forms.Widget):
     def __init__(self, rel=None, attrs=None):
-        self.rel = rel
+        self.remote_field = rel
         super(HTMLWidget, self).__init__(attrs)
 
     def render(self, name, value, attrs=None, renderer=None):
-        if self.rel is not None:
-            key = self.rel.get_related_field().name
-            if hasattr(self.rel, 'related_model'):
-                related_model = self.rel.related_model
+        if self.remote_field is not None:
+            key = self.remote_field.get_related_field().name
+            if hasattr(self.remote_field, 'related_model'):
+                related_model = self.remote_field.related_model
             else:
-                related_model = self.rel.to
+                related_model = self.remote_field.model
             obj = related_model._default_manager.get(**{key: value})
             related_url = '../../../%s/%s/%d/' % (
                 related_model._meta.app_label,
@@ -607,7 +607,7 @@ class LogAdmin(admin.ModelAdmin):
             if hasattr(db_field, 'remote_field'):
                 remote_field = db_field.remote_field
             else:
-                remote_field = db_field.rel
+                remote_field = db_field.remote_field
             kwargs['widget'] = HTMLWidget(remote_field)
             return db_field.formfield(**kwargs)
 
