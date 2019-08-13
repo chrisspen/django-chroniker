@@ -6,7 +6,7 @@ python:
 install:
 -   sudo add-apt-repository -y ppa:deadsnakes/ppa
 -   sudo apt-get -yq update
--   sudo apt-get -yq install python3.6 python3.6-dev
+-   sudo apt-get -yq install python3.6 python3.6-dev python3.7 python3.7-dev
 -   pip install -r requirements-test.txt
 script:
 -   ./pep8.sh
