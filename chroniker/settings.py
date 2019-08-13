@@ -1,7 +1,5 @@
-#from distutils.version import StrictVersion
 from django.conf import settings
 
-#DJANGO_VERSION = StrictVersion(django.get_version())
 
 def _get_name():
     from socket import gethostname

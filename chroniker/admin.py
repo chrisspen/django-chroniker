@@ -1,17 +1,9 @@
-from __future__ import print_function
-
-#from distutils.version import StrictVersion
-
-#DJANGO_VERSION = StrictVersion(django.get_version())
 from django import forms
 from django.conf import settings
 from django.conf.urls import url
 from django.contrib import admin
 from django.core.management import get_commands
-try:
-    from django.core.urlresolvers import reverse, NoReverseMatch
-except ImportError:
-    from django.urls import reverse, NoReverseMatch
+from django.urls import reverse, NoReverseMatch
 from django.db import models
 from django.forms import TextInput
 from django.shortcuts import render_to_response
@@ -35,18 +27,19 @@ try:
 except ImportError:
     ApproxCountQuerySet = None
 
+
 class HTMLWidget(forms.Widget):
     def __init__(self, rel=None, attrs=None):
-        self.rel = rel
+        self.remote_field = rel
         super(HTMLWidget, self).__init__(attrs)
 
     def render(self, name, value, attrs=None, renderer=None):
-        if self.rel is not None:
-            key = self.rel.get_related_field().name
-            if hasattr(self.rel, 'related_model'):
-                related_model = self.rel.related_model
+        if self.remote_field is not None:
+            key = self.remote_field.get_related_field().name
+            if hasattr(self.remote_field, 'related_model'):
+                related_model = self.remote_field.related_model
             else:
-                related_model = self.rel.to
+                related_model = self.remote_field.model
             obj = related_model._default_manager.get(**{key: value})
             related_url = '../../../%s/%s/%d/' % (
                 related_model._meta.app_label,
@@ -97,7 +90,6 @@ class JobAdmin(admin.ModelAdmin):
         'enabled',
         'check_is_complete',
         'is_fresh',
-        #'is_monitor',
         'last_run_successful',
         'progress_percent_str',
         'estimated_completion_datetime_str',
@@ -115,7 +107,6 @@ class JobAdmin(admin.ModelAdmin):
     job_type.short_description = 'type'
 
     readonly_fields = (
-        #'check_is_running',
         'check_is_complete',
         'view_logs_button',
         'last_run_successful',
@@ -239,9 +230,6 @@ class JobAdmin(admin.ModelAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         fields = list(self.readonly_fields)
-        # Allow manual clearing of is_running if the cron job has become stuck.
-#        if obj and obj.is_fresh():
-#            fields.append('is_running')
         if getattr(settings, 'CHRONIKER_DISABLE_RAW_COMMAND', False):
             fields.append('raw_command')
         return fields
@@ -390,16 +378,12 @@ class JobAdmin(admin.ModelAdmin):
 
         context = {
             'title': _('Change %s') % force_text(opts.verbose_name),
-            #'adminform': adminForm,
             'object_id': object_id,
             'original': obj,
             'is_popup': False,
             'media': media,
-            #'inline_admin_formsets': inline_admin_formsets,
-            #'errors': helpers.AdminErrorList(form, formsets),
             'app_label': opts.app_label,
             'opts': opts,
-            #'preserved_filters': self.get_preserved_filters(request),
             'q': q,
             'errors': errors,
             'max_duration': max_duration,
@@ -423,7 +407,6 @@ class JobAdmin(admin.ModelAdmin):
         return my_urls + urls
 
     def run_selected_jobs(self, request, queryset):
-        #rows_updated = queryset.update(next_run=timezone.now())
         rows_updated = queryset.update(force_run=True)
         if rows_updated == 1:
             message_bit = "1 job was"
@@ -486,8 +469,6 @@ class JobAdmin(admin.ModelAdmin):
 
             choices = []
             for key in choices_dict.keys():
-                #if str(key).startswith('<'):
-                #    key = str(key)
                 commands = choices_dict.getlist(key)
                 commands.sort()
                 choices.append([key, [[c, c] for c in commands]])
@@ -499,8 +480,8 @@ class JobAdmin(admin.ModelAdmin):
         kwargs['request'] = request
         return super(JobAdmin, self).formfield_for_dbfield(db_field, **kwargs)
 
-class LogAdmin(admin.ModelAdmin):
 
+class LogAdmin(admin.ModelAdmin):
     list_display = (
         'job_name',
         'run_start_datetime',
@@ -509,9 +490,7 @@ class LogAdmin(admin.ModelAdmin):
         'duration_str',
         'job_success',
         'on_time',
-        'hostname',
-        #'stdout_sample',
-        #'stderr_sample',
+        'hostname'
     )
 
     list_filter = (
@@ -628,11 +607,12 @@ class LogAdmin(admin.ModelAdmin):
             if hasattr(db_field, 'remote_field'):
                 remote_field = db_field.remote_field
             else:
-                remote_field = db_field.rel
+                remote_field = db_field.remote_field
             kwargs['widget'] = HTMLWidget(remote_field)
             return db_field.formfield(**kwargs)
 
         return super(LogAdmin, self).formfield_for_dbfield(db_field, **kwargs)
+
 
 try:
     admin.site.register(Job, JobAdmin)
@@ -640,6 +620,7 @@ except admin.sites.AlreadyRegistered:
     pass
 
 admin.site.register(Log, LogAdmin)
+
 
 class MonitorAdmin(admin.ModelAdmin):
     list_display = (
@@ -743,10 +724,8 @@ class MonitorAdmin(admin.ModelAdmin):
         urls = super(MonitorAdmin, self).get_urls()
         my_urls = [
             url(r'^(.+)/run/$', self.admin_site.admin_view(self.run_job_view), name="chroniker_job_run"),
-#            url(r'^(.+)/stop/$',
-#                self.admin_site.admin_view(self.stop_job_view),
-#                name="chroniker_job_stop"),
         ]
         return my_urls + urls
+
 
 admin.site.register(Monitor, MonitorAdmin)
