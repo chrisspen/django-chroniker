@@ -29,6 +29,7 @@ from django.db import connection
 from django.utils import timezone
 from django.conf import settings
 from django.utils.encoding import smart_str
+from django.utils.html import format_html
 
 from . import constants as c
 
@@ -533,3 +534,13 @@ def smart_print(*args, **kwargs):
             print(smart_str(s, encoding=encoding), **kwargs)
         except TypeError:
             print(s, **kwargs)
+
+
+def clean_samples(result):
+    max_l = 10000
+    if len(result) > max_l*3:
+        result = result[:max_l] + '\n...\n' + result[-max_l:]
+    result = result.replace('{', '	&#123;')
+    result = result.replace('}', '&#125;')
+    result = result.replace('\n', '<br/>')
+    return format_html(result)

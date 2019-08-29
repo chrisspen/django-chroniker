@@ -35,6 +35,7 @@ try:
 except ImportError:
     ApproxCountQuerySet = None
 
+
 class HTMLWidget(forms.Widget):
     def __init__(self, rel=None, attrs=None):
         self.rel = rel
@@ -59,6 +60,7 @@ class HTMLWidget(forms.Widget):
             flatatt(final_attrs),
             linebreaks(value)))
 
+
 class JobDependencyInline(ImproveRawIdFieldsFormTabularInline):
     model = JobDependency
     extra = 1
@@ -72,8 +74,8 @@ class JobDependencyInline(ImproveRawIdFieldsFormTabularInline):
         'dependee',
     )
 
-class JobAdmin(admin.ModelAdmin):
 
+class JobAdmin(admin.ModelAdmin):
     formfield_overrides = {
         models.CharField: {
             'widget': TextInput(attrs={'size':'100',})
@@ -501,8 +503,8 @@ class JobAdmin(admin.ModelAdmin):
         kwargs['request'] = request
         return super(JobAdmin, self).formfield_for_dbfield(db_field, **kwargs)
 
-class LogAdmin(admin.ModelAdmin):
 
+class LogAdmin(admin.ModelAdmin):
     list_display = (
         'job_name',
         'run_start_datetime',
@@ -603,9 +605,11 @@ class LogAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super(LogAdmin, self).get_urls()
         my_urls = [
-            url(r'^(?P<log_id>[0-9]+)/stdout/?$', self.admin_site.admin_view(self.view_full_stdout),
+            url(r'^(?P<log_id>[0-9]+)/stdout/?$',
+                self.admin_site.admin_view(self.view_full_stdout),
                 name='chroniker_log_stdout'),
-            url(r'^(?P<log_id>[0-9]+)/stderr/?$', self.admin_site.admin_view(self.view_full_stderr),
+            url(r'^(?P<log_id>[0-9]+)/stderr/?$',
+                self.admin_site.admin_view(self.view_full_stderr),
                 name='chroniker_log_stderr'),
         ]
         return my_urls + urls
@@ -640,12 +644,14 @@ class LogAdmin(admin.ModelAdmin):
 
         return super(LogAdmin, self).formfield_for_dbfield(db_field, **kwargs)
 
+
 try:
     admin.site.register(Job, JobAdmin)
 except admin.sites.AlreadyRegistered:
     pass
 
 admin.site.register(Log, LogAdmin)
+
 
 class MonitorAdmin(admin.ModelAdmin):
     list_display = (
@@ -705,11 +711,11 @@ class MonitorAdmin(admin.ModelAdmin):
 
     def action_buttons(self, obj):
         buttons = []
-        buttons.append(format_html('<a href="%s" class="button">Check now</a>'
-                                   % '%d/run/?inline=1' % obj.id))
-        buttons.append(format_html(('<a href="/admin/chroniker/job/%i/"'
-                                    'target="_blank" class="button">Edit</a>') % (obj.id,)))
-        return ' '.join(buttons)
+        buttons.append('<a href="%s" class="button">Check now</a>'
+                       % '%d/run/?inline=1' % obj.id)
+        buttons.append('<a href="/chroniker/job/%i/"'
+                       'target="_blank" class="button">Edit</a>' % (obj.id,))
+        return format_html(' '.join(buttons))
     action_buttons.allow_tags = True
     action_buttons.short_description = 'Actions'
 
@@ -723,7 +729,7 @@ class MonitorAdmin(admin.ModelAdmin):
         else:
             help_text = 'Requires attention.'
             temp = '<img src="' + settings.STATIC_URL + 'admin/img/icon-no.svg" alt="%(help_text)s" title="%(help_text)s" />'
-        return temp % dict(help_text=help_text)
+        return format_html(temp % dict(help_text=help_text))
 
     status.allow_tags = True
 
@@ -758,5 +764,6 @@ class MonitorAdmin(admin.ModelAdmin):
 #                name="chroniker_job_stop"),
         ]
         return my_urls + urls
+
 
 admin.site.register(Monitor, MonitorAdmin)
