@@ -7,6 +7,13 @@ import chroniker
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 
+try:
+    with open(path.join(CURRENT_DIR, 'README.md'), encoding='utf-8') as f:
+        long_description = f.read()
+except TypeError:
+    with open(path.join(CURRENT_DIR, 'README.md')) as f:
+        long_description = f.read()
+
 
 def get_reqs(*fns):
     lst = []
@@ -39,6 +46,8 @@ setup(
     author="Chris Spencer",
     author_email="chrisspen@gmail.com",
     description="Easily control cron jobs via Django's admin.",
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     license="BSD",
     url="https://github.com/chrisspen/django-chroniker",
     #https://pypi.python.org/pypi?%3Aaction=list_classifiers
