@@ -29,6 +29,7 @@ except ImportError:
 
 
 class HTMLWidget(forms.Widget):
+
     def __init__(self, rel=None, attrs=None):
         self.remote_field = rel
         super(HTMLWidget, self).__init__(attrs)
@@ -41,16 +42,11 @@ class HTMLWidget(forms.Widget):
             else:
                 related_model = self.remote_field.model
             obj = related_model._default_manager.get(**{key: value})
-            related_url = '../../../%s/%s/%d/' % (
-                related_model._meta.app_label,
-                related_model._meta.object_name.lower(),
-                value)
+            related_url = '../../../%s/%s/%d/' % (related_model._meta.app_label, related_model._meta.object_name.lower(), value)
             value = format_html("<a href='%s'>%s</a>" % (related_url, escape(obj)))
 
         final_attrs = self.build_attrs({name: name})
-        return mark_safe("<div%s>%s</div>" % (
-            flatatt(final_attrs),
-            linebreaks(value)))
+        return mark_safe("<div%s>%s</div>" % (flatatt(final_attrs), linebreaks(value)))
 
 
 class JobDependencyInline(ImproveRawIdFieldsFormTabularInline):
@@ -58,19 +54,17 @@ class JobDependencyInline(ImproveRawIdFieldsFormTabularInline):
     extra = 1
     fk_name = 'dependent'
 
-    readonly_fields = (
-        'criteria_met',
-    )
+    readonly_fields = ('criteria_met',)
 
-    raw_id_fields = (
-        'dependee',
-    )
+    raw_id_fields = ('dependee',)
 
 
 class JobAdmin(admin.ModelAdmin):
     formfield_overrides = {
         models.CharField: {
-            'widget': TextInput(attrs={'size':'100',})
+            'widget': TextInput(attrs={
+                'size': '100',
+            })
         },
     }
 
@@ -105,6 +99,7 @@ class JobAdmin(admin.ModelAdmin):
         if obj.is_monitor:
             return 'monitor'
         return 'job'
+
     job_type.short_description = 'type'
 
     readonly_fields = (
@@ -125,7 +120,7 @@ class JobAdmin(admin.ModelAdmin):
         'job_type',
         'is_due',
     )
-    list_display_links = ('name', )
+    list_display_links = ('name',)
     list_filter = (
         'frequency',
         'enabled',
@@ -148,22 +143,24 @@ class JobAdmin(admin.ModelAdmin):
                 'current_pid',
             )
         }),
-        ('Status', {
-            'classes': ('wide',),
-            'fields': (
-                'is_running',
-                'is_due',
-                'is_fresh',
-                'last_run_successful',
-                'total_parts',
-                'total_parts_complete',
-                'progress_percent_str',
-                'estimated_completion_datetime_str',
-                'last_heartbeat',
-                'last_run_start_timestamp',
-                'last_run',
-            )
-        }),
+        (
+            'Status', {
+                'classes': ('wide',),
+                'fields': (
+                    'is_running',
+                    'is_due',
+                    'is_fresh',
+                    'last_run_successful',
+                    'total_parts',
+                    'total_parts_complete',
+                    'progress_percent_str',
+                    'estimated_completion_datetime_str',
+                    'last_heartbeat',
+                    'last_run_start_timestamp',
+                    'last_run',
+                )
+            }
+        ),
         ('Flags', {
             'classes': ('wide',),
             'fields': (
@@ -216,9 +213,7 @@ class JobAdmin(admin.ModelAdmin):
         'current_pid',
     )
 
-    inlines = (
-       JobDependencyInline,
-    )
+    inlines = (JobDependencyInline,)
 
     class Media:
         js = ("chroniker/js/dygraph-combined.js",)
@@ -254,6 +249,7 @@ class JobAdmin(admin.ModelAdmin):
             return format_html('<a href="%s">%s</a>' % (u, value))
         except Exception:
             return value
+
     last_run_with_link.admin_order_field = 'last_run'
     last_run_with_link.allow_tags = True
     last_run_with_link.short_description = 'Last run'
@@ -262,6 +258,7 @@ class JobAdmin(admin.ModelAdmin):
         if not obj or not obj.id:
             return ''
         return not obj.check_is_running()
+
     check_is_complete.short_description = _('is complete')
     check_is_complete.boolean = True
     check_is_complete.admin_order_field = 'is_running'
@@ -273,8 +270,8 @@ class JobAdmin(admin.ModelAdmin):
         dt = obj.next_run
         dt = utils.localtime(dt)
         value = capfirst(dateformat.format(dt, fmt))
-        return format_html("%s<br /><span class='mini'>(%s)</span>"
-                           % (value, obj.get_timeuntil()))
+        return format_html("%s<br /><span class='mini'>(%s)</span>" % (value, obj.get_timeuntil()))
+
     get_timeuntil.admin_order_field = 'next_run'
     get_timeuntil.allow_tags = True
     get_timeuntil.short_description = _('next scheduled run')
@@ -286,16 +283,16 @@ class JobAdmin(admin.ModelAdmin):
         if obj.params:
             return "%s (%s)" % (freq, obj.params)
         return freq
+
     get_frequency.admin_order_field = 'frequency'
     get_frequency.short_description = 'Frequency'
 
     def run_button(self, obj=None):
         if not obj or not obj.id:
             return ''
-        kwargs = dict(
-            url='%d/run/?inline=1' % obj.id,
-        )
+        kwargs = dict(url='%d/run/?inline=1' % obj.id,)
         return format_html('<a href="{url}" class="button">Run</a>'.format(**kwargs))
+
     run_button.allow_tags = True
     run_button.short_description = 'Run'
 
@@ -307,6 +304,7 @@ class JobAdmin(admin.ModelAdmin):
             kwargs['disabled'] = 'disabled'
         s = '<a href="{url}" class="button" {disabled}>Stop</a>'.format(**kwargs)
         return format_html(s)
+
     stop_button.allow_tags = True
     stop_button.short_description = 'Stop'
 
@@ -319,9 +317,8 @@ class JobAdmin(admin.ModelAdmin):
             id=obj.id,
             count=q.count(),
         )
-        return format_html('<a href="{url}?job__id__exact={id}"'
-                           ' target="_blank" class="button">View&nbsp;{count}</a>'
-                           .format(**kwargs))
+        return format_html('<a href="{url}?job__id__exact={id}"' ' target="_blank" class="button">View&nbsp;{count}</a>'.format(**kwargs))
+
     view_logs_button.allow_tags = True
     view_logs_button.short_description = 'Logs'
 
@@ -333,9 +330,7 @@ class JobAdmin(admin.ModelAdmin):
             force_run=True,
             force_stop=False,
         )
-        self.message_user(
-            request,
-            _('Job %(job)s has been signalled to start running immediately.') % {'job': job_id})
+        self.message_user(request, _('Job %(job)s has been signalled to start running immediately.') % {'job': job_id})
         if 'inline' in request.GET:
             redirect = request.path + '../../'
         else:
@@ -371,9 +366,7 @@ class JobAdmin(admin.ModelAdmin):
         q = q.order_by('run_start_datetime')
         q = q.only('duration_seconds', 'run_start_datetime')
 
-        max_duration = q.aggregate(
-            models.Max('duration_seconds')
-        )['duration_seconds__max']
+        max_duration = q.aggregate(models.Max('duration_seconds'))['duration_seconds__max']
 
         errors = q.filter(success=False)
 
@@ -397,15 +390,9 @@ class JobAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super(JobAdmin, self).get_urls()
         my_urls = [
-            url(r'^(.+)/run/$',
-                self.admin_site.admin_view(self.run_job_view),
-                name="chroniker_job_run"),
-            url(r'^(.+)/stop/$',
-                self.admin_site.admin_view(self.stop_job_view),
-                name="chroniker_job_stop"),
-            url(r'^(.+)/graph/duration/$',
-                self.admin_site.admin_view(self.view_duration_graph),
-                name='chroniker_job_duration_graph'),
+            url(r'^(.+)/run/$', self.admin_site.admin_view(self.run_job_view), name="chroniker_job_run"),
+            url(r'^(.+)/stop/$', self.admin_site.admin_view(self.stop_job_view), name="chroniker_job_stop"),
+            url(r'^(.+)/graph/duration/$', self.admin_site.admin_view(self.view_duration_graph), name='chroniker_job_duration_graph'),
         ]
         return my_urls + urls
 
@@ -416,6 +403,7 @@ class JobAdmin(admin.ModelAdmin):
         else:
             message_bit = "%s jobs were" % rows_updated
         self.message_user(request, "%s successfully set to run." % message_bit)
+
     run_selected_jobs.short_description = "Force run selected jobs"
 
     def clear_stalled(self, request, queryset):
@@ -439,6 +427,7 @@ class JobAdmin(admin.ModelAdmin):
         else:
             message_bit = "%s jobs were toggled" % rows_updated
         self.message_user(request, message_bit)
+
     toggle_enabled.short_description = "Toggle enabled flag on selected jobs"
 
     def disable_jobs(self, request, queryset):
@@ -449,6 +438,7 @@ class JobAdmin(admin.ModelAdmin):
         else:
             message_bit = "%s jobs were toggled" % rows_updated
         self.message_user(request, message_bit)
+
     disable_jobs.short_description = "Disable selected jobs"
 
     def enable_jobs(self, request, queryset):
@@ -459,6 +449,7 @@ class JobAdmin(admin.ModelAdmin):
         else:
             message_bit = "%s jobs were toggled" % rows_updated
         self.message_user(request, message_bit)
+
     enable_jobs.short_description = "Enable selected jobs"
 
     def formfield_for_dbfield(self, db_field, **kwargs):
@@ -485,16 +476,7 @@ class JobAdmin(admin.ModelAdmin):
 
 
 class LogAdmin(admin.ModelAdmin):
-    list_display = (
-        'job_name',
-        'run_start_datetime',
-        'run_end_datetime',
-        'duration_seconds',
-        'duration_str',
-        'job_success',
-        'on_time',
-        'hostname'
-    )
+    list_display = ('job_name', 'run_start_datetime', 'run_end_datetime', 'duration_seconds', 'duration_str', 'job_success', 'on_time', 'hostname')
 
     list_filter = (
         'success',
@@ -557,14 +539,14 @@ class LogAdmin(admin.ModelAdmin):
         return qs
 
     def stdout_link(self, obj):
-        return format_html('<a href="%s">Download</a>'
-                           % (reverse("admin:chroniker_log_stdout", args=(obj.id,)),))
+        return format_html('<a href="%s">Download</a>' % (reverse("admin:chroniker_log_stdout", args=(obj.id,)),))
+
     stdout_link.allow_tags = True
     stdout_link.short_description = 'Stdout full'
 
     def stderr_link(self, obj):
-        return format_html('<a href="%s">Download</a>'
-                           % (reverse("admin:chroniker_log_stderr", args=(obj.id,)),))
+        return format_html('<a href="%s">Download</a>' % (reverse("admin:chroniker_log_stderr", args=(obj.id,)),))
+
     stderr_link.allow_tags = True
     stderr_link.short_description = 'Stderr full'
 
@@ -583,21 +565,19 @@ class LogAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super(LogAdmin, self).get_urls()
         my_urls = [
-            url(r'^(?P<log_id>[0-9]+)/stdout/?$',
-                self.admin_site.admin_view(self.view_full_stdout),
-                name='chroniker_log_stdout'),
-            url(r'^(?P<log_id>[0-9]+)/stderr/?$',
-                self.admin_site.admin_view(self.view_full_stderr),
-                name='chroniker_log_stderr'),
+            url(r'^(?P<log_id>[0-9]+)/stdout/?$', self.admin_site.admin_view(self.view_full_stdout), name='chroniker_log_stdout'),
+            url(r'^(?P<log_id>[0-9]+)/stderr/?$', self.admin_site.admin_view(self.view_full_stderr), name='chroniker_log_stderr'),
         ]
         return my_urls + urls
 
     def job_name(self, obj):
-      return obj.job.name
+        return obj.job.name
+
     job_name.short_description = _('Name')
 
     def job_success(self, obj):
         return obj.success
+
     job_success.short_description = _('OK')
     job_success.boolean = True
     job_success.admin_order_field = 'success'
@@ -640,9 +620,7 @@ class MonitorAdmin(admin.ModelAdmin):
         'enabled',
         'action_buttons',
     )
-    list_filter = (
-        'last_run_successful',
-    )
+    list_filter = ('last_run_successful',)
     readonly_fields = (
         'name_str',
         'monitor_records',
@@ -655,8 +633,8 @@ class MonitorAdmin(admin.ModelAdmin):
         fmt = get_format('DATETIME_FORMAT')
         next_run = obj.next_run or timezone.now()
         value = capfirst(dateformat.format(utils.localtime(next_run), fmt))
-        return format_html("%s<br /><span class='mini'>(%s)</span>"
-                           % (value, obj.get_timeuntil()))
+        return format_html("%s<br /><span class='mini'>(%s)</span>" % (value, obj.get_timeuntil()))
+
     get_timeuntil.admin_order_field = 'next_run'
     get_timeuntil.allow_tags = True
     get_timeuntil.short_description = _('next check')
@@ -681,19 +659,18 @@ class MonitorAdmin(admin.ModelAdmin):
 
     def name_str(self, obj):
         if obj.monitor_url:
-            return format_html('<a href="%s" target="_blank">%s</a>'
-                               % (obj.monitor_url_rendered, obj.name))
+            return format_html('<a href="%s" target="_blank">%s</a>' % (obj.monitor_url_rendered, obj.name))
         return obj.name
+
     name_str.short_description = 'Name'
     name_str.allow_tags = True
 
     def action_buttons(self, obj):
         buttons = []
-        buttons.append('<a href="%s" class="button">Check now</a>'
-                       % '%d/run/?inline=1' % obj.id)
-        buttons.append('<a href="/chroniker/job/%i/"'
-                       'target="_blank" class="button">Edit</a>' % (obj.id,))
+        buttons.append('<a href="%s" class="button">Check now</a>' % '%d/run/?inline=1' % obj.id)
+        buttons.append('<a href="/chroniker/job/%i/"' 'target="_blank" class="button">Edit</a>' % (obj.id,))
         return format_html(' '.join(buttons))
+
     action_buttons.allow_tags = True
     action_buttons.short_description = 'Actions'
 

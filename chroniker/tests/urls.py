@@ -1,4 +1,3 @@
-
 try:
     # Removed in Django 1.6
     from django.conf.urls.defaults import url, include

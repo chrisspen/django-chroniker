@@ -4,6 +4,7 @@ import time
 import django
 from django.core.management.base import BaseCommand
 
+
 class Command(BaseCommand):
     args = '[time in seconds to loop]'
     help = 'A simple command that simply sleeps for the specified duration'
@@ -26,4 +27,4 @@ class Command(BaseCommand):
         time.sleep(target_time)
 
         end_time = time.time()
-        print("Job ran for {} seconds".format(end_time-start_time))
+        print("Job ran for {} seconds".format(end_time - start_time))

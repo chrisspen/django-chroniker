@@ -7,6 +7,7 @@ import chroniker
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 
+
 def get_reqs(*fns):
     lst = []
     for fn in fns:
@@ -16,6 +17,7 @@ def get_reqs(*fns):
                 continue
             lst.append(package.strip())
     return lst
+
 
 setup(
     name="django-chroniker",

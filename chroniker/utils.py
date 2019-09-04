@@ -28,6 +28,7 @@ from django.utils.html import format_html
 
 from . import constants as c
 
+
 def get_etc(complete_parts, total_parts, start_datetime, current_datetime=None, as_seconds=False):
     """
     Estimates a job's expected time to completion.
@@ -41,7 +42,7 @@ def get_etc(complete_parts, total_parts, start_datetime, current_datetime=None, 
 
         # Estimate the total seconds the task will take to complete by using
         # a linear projection.
-        total_seconds = passed_seconds/complete_parts*total_parts
+        total_seconds = passed_seconds / complete_parts * total_parts
 
         # Estimate the expected time of completion by projecting the duration
         # onto the start time.
@@ -54,6 +55,7 @@ def get_etc(complete_parts, total_parts, start_datetime, current_datetime=None, 
 
         return etc
 
+
 def get_remaining_seconds(*args, **kwargs):
     kwargs['as_seconds'] = True
     return get_etc(*args, **kwargs)
@@ -64,16 +66,19 @@ def get_admin_change_url(obj):
     change_url_name = 'admin:%s_%s_change' % (ct.app_label, ct.model)
     return reverse(change_url_name, args=(obj.id,))
 
+
 def get_admin_changelist_url(obj):
     ct = ContentType.objects.get_for_model(obj)
     list_url_name = 'admin:%s_%s_changelist' % (ct.app_label, ct.model)
     return reverse(list_url_name)
+
 
 class TeeFile(StringIO):
     """
     A helper class for allowing output to be stored in a StringIO instance
     while still be directed to a second file object, such as sys.stdout.
     """
+
     def __init__(self, file, auto_flush=False, queue=None, local=True): # pylint: disable=W0622
         super(TeeFile, self).__init__()
         #StringIO.__init__(self)
@@ -118,6 +123,7 @@ class TeeFile(StringIO):
 
     def fileno(self):
         return self.file.fileno()
+
 
 # Based on:
 # http://djangosnippets.org/snippets/833/
@@ -171,11 +177,7 @@ class LockingManager(models.Manager):
             table = self.model._meta.db_table
             cursor.execute("LOCK TABLES %s WRITE" % table)
         else:
-            warnings.warn(
-                'Locking of database backend "%s" is not supported.'
-                    % (connection.settings_dict['ENGINE'],),
-                warnings.RuntimeWarning
-            )
+            warnings.warn('Locking of database backend "%s" is not supported.' % (connection.settings_dict['ENGINE'],), warnings.RuntimeWarning)
         #row = cursor.fetchone()
         #return row
         return cursor
@@ -187,14 +189,11 @@ class LockingManager(models.Manager):
             table = self.model._meta.db_table
             cursor.execute("UNLOCK TABLES")
         else:
-            warnings.warn(
-                '(Un)Locking of database backend "%s" is not supported.'
-                    % (connection.settings_dict['ENGINE'],),
-                warnings.RuntimeWarning
-            )
+            warnings.warn('(Un)Locking of database backend "%s" is not supported.' % (connection.settings_dict['ENGINE'],), warnings.RuntimeWarning)
         #row = cursor.fetchone()
         #return row
         return cursor
+
 
 def pid_exists(pid):
     """
@@ -211,23 +210,25 @@ def pid_exists(pid):
     else:
         return True
 
+
 def get_cpu_usage(pid, interval=1):
     """
     Returns the CPU usage, as reported by `ps`, of the process associated with
     the given PID.
     """
-#    cmd = ['ps', '-p', str(pid), '-o', '%cpu', '--no-headers']
-#    output = subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()[0]
-#    try:
-#        return float(output.strip().split('\n')[0])
-#    except ValueError:
-#        return
+    #    cmd = ['ps', '-p', str(pid), '-o', '%cpu', '--no-headers']
+    #    output = subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()[0]
+    #    try:
+    #        return float(output.strip().split('\n')[0])
+    #    except ValueError:
+    #        return
     # Fix for psutil cross-version compatibility
     try:
         usage = psutil.Process(pid).get_cpu_times(interval=interval)
     except AttributeError:
         usage = psutil.Process(pid).cpu_times(interval=interval)
     return usage
+
 
 def kill_process(pid):
     """
@@ -262,6 +263,7 @@ def kill_process(pid):
         # Something strange happened.
         # Our user likely doesn't have permission to kill the process.
         return False
+
 
 class TimedProcess(Process):
     """
@@ -300,7 +302,10 @@ class TimedProcess(Process):
                 for child in self._p.get_children():
                     # Do one last time check.
                     self._process_times[child.pid] = child.get_cpu_times().user
-                    os.system('kill -%i %i' % (sig, child.pid,))
+                    os.system('kill -%i %i' % (
+                        sig,
+                        child.pid,
+                    ))
                 # Sum final time.
                 self._process_times[self._p.pid] = self._p.get_cpu_times().user
                 self._last_duration_seconds = sum(self._process_times.itervalues())
@@ -308,11 +313,17 @@ class TimedProcess(Process):
                 for child in self._p.children():
                     # Do one last time check.
                     self._process_times[child.pid] = child.cpu_times().user
-                    os.system('kill -%i %i' % (sig, child.pid,))
+                    os.system('kill -%i %i' % (
+                        sig,
+                        child.pid,
+                    ))
                 # Sum final time.
                 self._process_times[self._p.pid] = self._p.cpu_times().user
                 self._last_duration_seconds = sum(self._process_times.values())
-        os.system('kill -%i %i' % (sig, self._p.pid,))
+        os.system('kill -%i %i' % (
+            sig,
+            self._p.pid,
+        ))
         #return super(TimedProcess, self).terminate(*args, **kwargs)
 
     def get_duration_seconds_wall(self):
@@ -439,10 +450,12 @@ class TimedProcess(Process):
         self.t1_objective = time.time()
         return timeout
 
+
 def make_naive(dt, tz):
     if timezone.is_aware(dt):
         return timezone.make_naive(dt, tz)
     return dt
+
 
 def make_aware(dt, tz):
     if dt is None:
@@ -455,14 +468,17 @@ def make_aware(dt, tz):
         return timezone.make_naive(dt)
     return dt
 
+
 def localtime(dt):
     dt = make_aware(dt, settings.TIME_ZONE)
     return dt
+
 
 def write_lock(lock_file):
     lock_file.seek(0)
     lock_file.write(str(time.time()).encode('utf-8'))
     lock_file.flush()
+
 
 # Backportted from Django 1.7.
 def import_string(dotted_path):
@@ -488,9 +504,9 @@ def import_string(dotted_path):
     try:
         return getattr(module, class_name)
     except AttributeError:
-        msg = 'Module "%s" does not define a "%s" attribute/class' % (
-            dotted_path, class_name)
+        msg = 'Module "%s" does not define a "%s" attribute/class' % (dotted_path, class_name)
         reraise(ImportError, ImportError(msg), sys.exc_info()[2])
+
 
 def smart_print(*args, **kwargs):
     """
@@ -510,7 +526,7 @@ def smart_print(*args, **kwargs):
 
 def clean_samples(result):
     max_l = 10000
-    if len(result) > max_l*3:
+    if len(result) > max_l * 3:
         result = result[:max_l] + '\n...\n' + result[-max_l:]
     result = result.replace('{', '	&#123;')
     result = result.replace('}', '&#125;')

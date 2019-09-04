@@ -3,11 +3,11 @@ import os
 PROJECT_DIR = os.path.dirname(__file__)
 
 DATABASES = {
-    'default':{
+    'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         # Don't do this. It dramatically slows down the test.
-#        'NAME': '/tmp/chroniker.db',
-#        'TEST_NAME': '/tmp/chroniker.db',
+        #        'NAME': '/tmp/chroniker.db',
+        #        'TEST_NAME': '/tmp/chroniker.db',
     }
 }
 
@@ -27,6 +27,7 @@ INSTALLED_APPS = [
 
 MEDIA_ROOT = os.path.join(PROJECT_DIR, 'media')
 
+
 # Disable migrations.
 # http://stackoverflow.com/a/28560805/247542
 class DisableMigrations:
@@ -36,6 +37,7 @@ class DisableMigrations:
 
     def __getitem__(self, item):
         return "notmigrations"
+
 
 USE_TZ = True
 
@@ -71,7 +73,7 @@ TEMPLATES = [
             '%s/../templates' % PROJECT_DIR,
             '%s/../static' % PROJECT_DIR,
         ],
-#         'APP_DIRS': True,
+        #         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.contrib.auth.context_processors.auth',
@@ -87,7 +89,8 @@ TEMPLATES = [
                 'django.template.loaders.filesystem.Loader',
                 'django.template.loaders.app_directories.Loader',
             ],
-            'debug': True,
+            'debug':
+            True,
         },
     },
 ]

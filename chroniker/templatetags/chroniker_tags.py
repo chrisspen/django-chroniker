@@ -7,6 +7,7 @@ register = template.Library()
 
 
 class RunJobURLNode(template.Node):
+
     def __init__(self, object_id):
         self.object_id = template.Variable(object_id)
 
@@ -20,6 +21,7 @@ class RunJobURLNode(template.Node):
             url = reverse('admin:chroniker_job_run', args=(object_id,))
         return url
 
+
 def do_get_run_job_url(parser, token):
     """
     Returns the URL to the view that does the 'run_job' command.
@@ -32,11 +34,12 @@ def do_get_run_job_url(parser, token):
         # Splitting by None == splitting by spaces.
         tag_name, object_id = token.contents.split(None, 1)
     except ValueError:
-        raise template.TemplateSyntaxError(
-            "%r tag requires one argument" % token.contents.split()[0])
+        raise template.TemplateSyntaxError("%r tag requires one argument" % token.contents.split()[0])
     return RunJobURLNode(object_id)
 
+
 register.tag('get_run_job_url', do_get_run_job_url)
+
 
 @register.simple_tag
 def now_offset(format_string, offset_days=0):

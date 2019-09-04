@@ -4,6 +4,7 @@ import time
 
 from django.core.management.base import BaseCommand
 
+
 class Sleeper(BaseCommand):
     args = '[time in seconds to loop]'
     help = 'A simple command that simply sleeps for the specified duration'
@@ -16,7 +17,8 @@ class Sleeper(BaseCommand):
         time.sleep(target_time)
 
         end_time = time.time()
-        print("Job ran for {} seconds".format(end_time-start_time))
+        print("Job ran for {} seconds".format(end_time - start_time))
+
 
 class InfiniteWaiter(BaseCommand):
     args = ''
@@ -27,11 +29,10 @@ class InfiniteWaiter(BaseCommand):
             time.sleep(1)
             print('Waiting...')
 
+
 class ErrorThrower(BaseCommand):
     args = ''
     help = 'A simple command that always fails.'
 
     def handle(self, *args, **options):
-        print(
-            'Something went wrong (but not really, this is just a test).',
-            file=sys.stderr)
+        print('Something went wrong (but not really, this is just a test).', file=sys.stderr)

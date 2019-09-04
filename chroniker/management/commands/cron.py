@@ -15,7 +15,6 @@ from django.core.management.base import BaseCommand
 from django.db import connection
 from django.utils import timezone
 
-
 from chroniker.models import Job, Log
 from chroniker import utils
 from chroniker import settings as _settings
@@ -35,7 +34,7 @@ def kill_stalled_processes(dryrun=True):
         .values_list('current_pid', flat=True)))
     for pid in pids:
         try:
-            if utils.pid_exists(pid):# and not utils.get_cpu_usage(pid):
+            if utils.pid_exists(pid): # and not utils.get_cpu_usage(pid):
                 p = psutil.Process(pid)
                 cmd = ' '.join(p.cmdline())
                 if 'manage.py cron' in cmd:
@@ -53,11 +52,13 @@ def kill_stalled_processes(dryrun=True):
         except psutil.NoSuchProcess:
             print('PID does not exist.')
 
+
 class JobProcess(utils.TimedProcess):
 
     def __init__(self, job, *args, **kwargs):
         super(JobProcess, self).__init__(*args, **kwargs)
         self.job = job
+
 
 def run_job(job, **kwargs):
 
@@ -91,6 +92,7 @@ def run_job(job, **kwargs):
     )
     #TODO:mark job as not running if still marked?
     #TODO:normalize job termination and cleanup outside of handle_run()?
+
 
 def run_cron(jobs=None, **kwargs):
 
@@ -134,8 +136,7 @@ def run_cron(jobs=None, **kwargs):
                         print('%s already exists, exiting' % pid_fn)
                         sys.exit()
                     else:
-                        print(('%s already exists, but contains stale '
-                            'PID, continuing') % pid_fn)
+                        print(('%s already exists, but contains stale ' 'PID, continuing') % pid_fn)
                 except ValueError:
                     pass
                 except TypeError:
@@ -208,7 +209,8 @@ def run_cron(jobs=None, **kwargs):
                     kwargs=dict(
                         stdout_queue=stdout_queue,
                         stderr_queue=stderr_queue,
-                    ))
+                    )
+                )
                 proc.start()
                 procs.append(proc)
 
@@ -257,11 +259,11 @@ def run_cron(jobs=None, **kwargs):
                             on_time=False,
                             hostname=socket.gethostname(),
                             stdout=''.join(stdout_map[proc_id]),
-                            stderr=''.join(stderr_map[proc_id]+['Job exceeded timeout\n']),
+                            stderr=''.join(stderr_map[proc_id] + ['Job exceeded timeout\n']),
                         )
 
                 time.sleep(1)
-            print('!'*80)
+            print('!' * 80)
             print('All jobs complete!')
     finally:
         if _settings.CHRONIKER_USE_PID and os.path.isfile(pid_fn) and clear_pid:
@@ -319,31 +321,12 @@ class Command(BaseCommand):
                 default=1,
                 help='If given, launches a thread to asynchronously update ' + \
                     'job heartbeat status.')
-            parser.add_argument('--force_run',
-                dest='force_run',
-                action='store_true',
-                default=False,
-                help='If given, forces all jobs to run.')
-            parser.add_argument('--dryrun',
-                action='store_true',
-                default=False,
-                help='If given, only displays jobs to be run.')
-            parser.add_argument('--jobs',
-                dest='jobs',
-                default='',
-                help='A comma-delimited list of job ids to limit executions to.')
-            parser.add_argument('--name',
-                dest='name',
-                default='',
-                help='A name to give this process.')
-            parser.add_argument('--sync',
-                action='store_true',
-                default=False,
-                help='If given, runs jobs one at a time.')
-            parser.add_argument('--verbose',
-                action='store_true',
-                default=False,
-                help='If given, shows debugging info.')
+            parser.add_argument('--force_run', dest='force_run', action='store_true', default=False, help='If given, forces all jobs to run.')
+            parser.add_argument('--dryrun', action='store_true', default=False, help='If given, only displays jobs to be run.')
+            parser.add_argument('--jobs', dest='jobs', default='', help='A comma-delimited list of job ids to limit executions to.')
+            parser.add_argument('--name', dest='name', default='', help='A name to give this process.')
+            parser.add_argument('--sync', action='store_true', default=False, help='If given, runs jobs one at a time.')
+            parser.add_argument('--verbose', action='store_true', default=False, help='If given, shows debugging info.')
             self.add_arguments(parser)
         return parser
 
@@ -355,11 +338,7 @@ class Command(BaseCommand):
         kill_stalled_processes(dryrun=False)
 
         # Find specific job ids to run, if any.
-        jobs = [
-            int(_.strip())
-            for _ in options.get('jobs', '').strip().split(',')
-            if _.strip().isdigit()
-        ]
+        jobs = [int(_.strip()) for _ in options.get('jobs', '').strip().split(',') if _.strip().isdigit()]
 
         run_cron(
             jobs,

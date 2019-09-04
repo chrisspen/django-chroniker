@@ -49,10 +49,12 @@ socket.gethostname = lambda: 'localhost'
 
 CALLBACK_ERRORS = []
 
+
 def job_error_callback(job, stdout, stderr):
     print('Error for job %s' % job)
     print(stderr, file=sys.stderr)
     CALLBACK_ERRORS.append(stderr)
+
 
 class JobProcess(Process):
 
@@ -62,6 +64,7 @@ class JobProcess(Process):
             print('Job process waiting (pid=%i)...' % (os.getpid(),))
             time.sleep(1)
         print('Job process stopped.')
+
 
 class JobTestCase(TestCase):
 
@@ -98,9 +101,7 @@ class JobTestCase(TestCase):
         """
 
         # Pick the longest running Job
-        job = sorted(
-            Job.objects.due().filter(command="test_sleeper"),
-            key=lambda j: -int(j.args))[0]
+        job = sorted(Job.objects.due().filter(command="test_sleeper"), key=lambda j: -int(j.args))[0]
 
         # The "args" property simply describes the number of seconds the Job
         # should take to run
@@ -119,9 +120,7 @@ class JobTestCase(TestCase):
         Test that the ``cron_clean`` command runs properly.
         """
         # Pick the shortest running Job
-        job = sorted(
-            Job.objects.due().filter(command="test_sleeper"),
-            key=lambda j: int(j.args))[0]
+        job = sorted(Job.objects.due().filter(command="test_sleeper"), key=lambda j: int(j.args))[0]
 
         # Run the job 5 times
         for i in range(5):
@@ -154,9 +153,9 @@ class JobTestCase(TestCase):
         # 3 comes before 2
         # 4 comes before 3
         j1 = Job.objects.get(id=1)
-        j2 = Job.objects.get(id=2)# needs j1 and j3
+        j2 = Job.objects.get(id=2) # needs j1 and j3
         self.assertEqual(j2.dependencies.all().count(), 2)
-        j3 = Job.objects.get(id=3)# need j4
+        j3 = Job.objects.get(id=3) # need j4
         self.assertEqual(j3.dependencies.all().count(), 1)
         j4 = Job.objects.get(id=4)
         j5 = Job.objects.get(id=5)
@@ -168,30 +167,20 @@ class JobTestCase(TestCase):
         self.assertEqual(j4.is_due(), True)
         self.assertEqual(j5.is_due(), False)
 
-        self.assertEqual(
-            set(_.dependent for _ in j1.dependents.all()),
-            set([j2]))
-        self.assertEqual(
-            j1.dependents.filter(dependent=j2).count(),
-            1)
+        self.assertEqual(set(_.dependent for _ in j1.dependents.all()), set([j2]))
+        self.assertEqual(j1.dependents.filter(dependent=j2).count(), 1)
 
-        self.assertEqual(
-            set(_.dependee for _ in j1.dependencies.all()),
-            set([]))
+        self.assertEqual(set(_.dependee for _ in j1.dependencies.all()), set([]))
 
-        self.assertEqual(
-            set(_.dependent for _ in j2.dependents.all()),
-            set([]))
+        self.assertEqual(set(_.dependent for _ in j2.dependents.all()), set([]))
 
-        self.assertEqual(
-            set(_.dependee for _ in j2.dependencies.all()),
-            set([j1, j3]))
+        self.assertEqual(set(_.dependee for _ in j2.dependencies.all()), set([j1, j3]))
         self.assertEqual(j2.dependencies.filter(dependee=j1).count(), 1)
         self.assertEqual(j2.dependencies.filter(dependee=j3).count(), 1)
 
         jobs = Job.objects.ordered_by_dependencies(Job.objects.filter(enabled=True))
-#        for job in jobs:
-#            print(job, [_.dependee for _ in job.dependencies.all()])
+        #        for job in jobs:
+        #            print(job, [_.dependee for _ in job.dependencies.all()])
         print('jobs1:', [_.id for _ in jobs])
 
         # 1 comes before 2
@@ -235,7 +224,8 @@ class JobTestCase(TestCase):
             due,
             [
                 #Job.objects.get(args="5"),
-            ])
+            ]
+        )
 
         for job in due:
             job.run(update_heartbeat=0)
@@ -247,7 +237,8 @@ class JobTestCase(TestCase):
             due,
             [
                 #Job.objects.get(args="2"),
-            ])
+            ]
+        )
 
     def testStaleCleanup(self):
         """
@@ -423,11 +414,7 @@ class JobTestCase(TestCase):
             Job.objects.all().delete()
 
             _settings.CHRONIKER_JOB_NK = ('name',)
-            call_command(
-                'loaddatanaturally',
-                'chroniker/tests/fixtures/jobs_by_name.json',
-                traceback=True,
-                verbosity=1)
+            call_command('loaddatanaturally', 'chroniker/tests/fixtures/jobs_by_name.json', traceback=True, verbosity=1)
             qs = Job.objects.all()
             # There are 3 jobs, but only 2 with unique names, so only two should have been created.
             self.assertEqual(qs.count(), 2)
@@ -435,22 +422,14 @@ class JobTestCase(TestCase):
             Job.objects.all().delete()
 
             _settings.CHRONIKER_JOB_NK = ('command',)
-            call_command(
-                'loaddatanaturally',
-                'chroniker/tests/fixtures/jobs_by_command.json',
-                traceback=True,
-                verbosity=1)
+            call_command('loaddatanaturally', 'chroniker/tests/fixtures/jobs_by_command.json', traceback=True, verbosity=1)
             qs = Job.objects.all()
             self.assertEqual(qs.count(), 2)
 
             Job.objects.all().delete()
 
             _settings.CHRONIKER_JOB_NK = ('command', 'args')
-            call_command(
-                'loaddatanaturally',
-                'chroniker/tests/fixtures/jobs_by_command_args.json',
-                traceback=True,
-                verbosity=1)
+            call_command('loaddatanaturally', 'chroniker/tests/fixtures/jobs_by_command_args.json', traceback=True, verbosity=1)
             qs = Job.objects.all()
             self.assertEqual(qs.count(), 3)
 
@@ -616,7 +595,7 @@ class JobTestCase(TestCase):
         self.assertEqual(next_run1.tzname(), 'UTC')
 
         # Force run should have left the next_run unchanged.
-        td = (next_run1 - next_run0)#.total_seconds()
+        td = (next_run1 - next_run0) #.total_seconds()
         print('td:', td)
         self.assertEqual(td.total_seconds(), 0)
 
@@ -644,7 +623,7 @@ class JobTestCase(TestCase):
             job = Job.objects.get(id=1)
             job.mark_running()
             self.assertEqual(job.is_stale(), False)
-            timezone.now = lambda: _now() + timedelta(minutes=_settings.CHRONIKER_STALE_MINUTES*2)
+            timezone.now = lambda: _now() + timedelta(minutes=_settings.CHRONIKER_STALE_MINUTES * 2)
             self.assertEqual(job.is_stale(), True)
         finally:
             timezone.now = _now
@@ -724,9 +703,7 @@ class JobTestCase(TestCase):
 
     def test_widget_render_simple(self):
         widget = HTMLWidget()
-        self.assertEqual(
-            widget.render('myname', 'myvalue'),
-            u'<div myname="myname"><p>myvalue</p></div>')
+        self.assertEqual(widget.render('myname', 'myvalue'), u'<div myname="myname"><p>myvalue</p></div>')
 
     def test_widget_render_with_rel(self):
         job = Job.objects.create(
@@ -739,6 +716,4 @@ class JobTestCase(TestCase):
         field_obj = Job._meta.get_field('subscribers')
         rel = field_obj.remote_field
         widget = HTMLWidget(rel=rel)
-        self.assertTrue(
-            str(job).replace('\xc2', '').replace('\xa0', ' ') in
-            widget.render('name', job.id).replace(u'\xa0', u' '))
+        self.assertTrue(str(job).replace('\xc2', '').replace('\xa0', ' ') in widget.render('name', job.id).replace(u'\xa0', u' '))
