@@ -8,10 +8,10 @@ import chroniker
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 
 try:
-    with open(path.join(CURRENT_DIR, 'README.md'), encoding='utf-8') as f:
+    with open(os.path.join(CURRENT_DIR, 'README.md'), encoding='utf-8') as f:
         long_description = f.read()
 except TypeError:
-    with open(path.join(CURRENT_DIR, 'README.md')) as f:
+    with open(os.path.join(CURRENT_DIR, 'README.md')) as f:
         long_description = f.read()
 
 
