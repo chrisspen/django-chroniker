@@ -231,3 +231,6 @@ To build and deploy a versioned package to PyPI, verify [all unittests are passi
     python setup.py sdist
     python setup.py sdist upload
 
+To commit while skipping the pre-commit hooks:
+
+    SKIP=yapf git commit -m "foo"
