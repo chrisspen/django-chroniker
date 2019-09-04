@@ -40,12 +40,12 @@ from django.utils.safestring import mark_safe
 from django.utils.timesince import timeuntil
 from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
 from django.core.exceptions import ValidationError
-
+from django.utils.html import format_html
 from toposort import toposort_flatten
 
 import chroniker.constants as c
 from chroniker import utils
-from chroniker.utils import import_string
+from chroniker.utils import import_string, clean_samples
 
 from . import settings as _settings # pylint: disable=unused-import
 
@@ -1473,30 +1473,20 @@ class Log(models.Model):
         result = self.stdout or ''
         if len(result) > 40:
             result = result[:40] + '...'
-        return result or '(No output)'
+        return format_html(result) or '(No output)'
 
     def stderr_sample(self):
         result = self.stderr or ''
         if len(result) > 40:
             result = result[:40] + '...'
-        return result or '(No errors)'
+        return (result) or '(No errors)'
 
     def stdout_long_sample(self):
-        l = 10000
-        result = self.stdout or ''
-        if len(result) > l*3:
-            result = result[:l] + '\n...\n' + result[-l:]
-        result = result.replace('\n', '<br/>')
-        return result or '(No output)'
+        return clean_samples(self.stdout or '(No output)')
     stdout_long_sample.allow_tags = True
 
     def stderr_long_sample(self):
-        l = 10000
-        result = self.stderr or ''
-        if len(result) > l*3:
-            result = result[:l] + '\n...\n' + result[-l:]
-        result = result.replace('\n', '<br/>')
-        return result or '(No output)'
+        return clean_samples(str(self.stderr or '(No output)'))
     stderr_long_sample.allow_tags = True
 
     @classmethod
