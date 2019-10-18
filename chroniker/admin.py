@@ -37,12 +37,12 @@ class HTMLWidget(forms.Widget):
     def render(self, name, value, attrs=None, renderer=None):
         if self.remote_field is not None:
             key = self.remote_field.get_related_field().name
-            if hasattr(self.remote_field, 'related_model'):
-                related_model = self.remote_field.related_model
-            else:
-                related_model = self.remote_field.model
+            related_model = self.remote_field.model
             obj = related_model._default_manager.get(**{key: value})
-            related_url = '../../../%s/%s/%d/' % (related_model._meta.app_label, related_model._meta.object_name.lower(), value)
+            related_url = reverse(
+                'admin:{app_label}_{object_name}_change'.format(
+                    app_label=related_model._meta.app_label, object_name=related_model._meta.object_name.lower()),
+                args=(value,))
             value = format_html("<a href='%s'>%s</a>" % (related_url, escape(obj)))
 
         final_attrs = self.build_attrs({name: name})
