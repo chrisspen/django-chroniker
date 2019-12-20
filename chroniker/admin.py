@@ -40,9 +40,9 @@ class HTMLWidget(forms.Widget):
             related_model = self.remote_field.model
             obj = related_model._default_manager.get(**{key: value})
             related_url = reverse(
-                'admin:{app_label}_{object_name}_change'.format(
-                    app_label=related_model._meta.app_label, object_name=related_model._meta.object_name.lower()),
-                args=(value,))
+                'admin:{app_label}_{object_name}_change'.format(app_label=related_model._meta.app_label, object_name=related_model._meta.object_name.lower()),
+                args=(value,)
+            )
             value = format_html("<a href='%s'>%s</a>" % (related_url, escape(obj)))
 
         final_attrs = self.build_attrs({name: name})
@@ -362,13 +362,15 @@ class JobAdmin(admin.ModelAdmin):
         object_id = int(object_id)
         obj = self.get_object(request, object_id)
 
-        q = obj.logs.all()
-        q = q.order_by('run_start_datetime')
-        q = q.only('duration_seconds', 'run_start_datetime')
-
-        max_duration = q.aggregate(models.Max('duration_seconds'))['duration_seconds__max']
-
-        errors = q.filter(success=False)
+        q = None
+        max_duration = None
+        errors = None
+        if obj:
+            q = obj.logs.all()
+            q = q.order_by('run_start_datetime')
+            q = q.only('duration_seconds', 'run_start_datetime')
+            max_duration = q.aggregate(models.Max('duration_seconds'))['duration_seconds__max']
+            errors = q.filter(success=False)
 
         media = self.media
 
