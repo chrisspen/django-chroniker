@@ -1,4 +1,5 @@
 from __future__ import print_function
+import html
 import os
 import sys
 import time
@@ -528,6 +529,7 @@ def clean_samples(result):
     max_l = 10000
     if len(result) > max_l * 3:
         result = result[:max_l] + '\n...\n' + result[-max_l:]
+    result = html.escape(result)
     result = result.replace('{', '	&#123;')
     result = result.replace('}', '&#125;')
     result = result.replace('\n', '<br/>')
