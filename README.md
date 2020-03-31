@@ -194,7 +194,7 @@ following way:
         2.  Else we assume the ``Job`` is not running and update the database
             accordingly
 
-This new method should would much more reliably across all platforms that
+This new method should work much more reliably across all platforms that
 support the threading and multiprocess libraries.
 
 Development
