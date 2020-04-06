@@ -6,47 +6,24 @@ from django.core.management import get_commands
 from django.urls import reverse, NoReverseMatch
 from django.db import models
 from django.forms import TextInput
-from django.shortcuts import render_to_response
+from django.shortcuts import render
 from django.utils.encoding import force_text
 from django.http import HttpResponseRedirect, Http404, HttpResponse
-from django.template.defaultfilters import linebreaks
 from django.utils import dateformat, timezone
 from django.utils.datastructures import MultiValueDict
 from django.utils.formats import get_format
-from django.utils.html import escape, format_html
-from django.utils.safestring import mark_safe
+from django.utils.html import format_html
 from django.utils.text import capfirst
 from django.utils.translation import ugettext_lazy as _
 
 from chroniker.models import Job, Log, JobDependency, Monitor
 from chroniker import utils
-from chroniker.widgets import ImproveRawIdFieldsFormTabularInline, flatatt
+from chroniker.widgets import ImproveRawIdFieldsFormTabularInline
 
 try:
     from admin_steroids.queryset import ApproxCountQuerySet
 except ImportError:
     ApproxCountQuerySet = None
-
-
-class HTMLWidget(forms.Widget):
-
-    def __init__(self, rel=None, attrs=None):
-        self.remote_field = rel
-        super(HTMLWidget, self).__init__(attrs)
-
-    def render(self, name, value, attrs=None, renderer=None):
-        if self.remote_field is not None:
-            key = self.remote_field.get_related_field().name
-            related_model = self.remote_field.model
-            obj = related_model._default_manager.get(**{key: value})
-            related_url = reverse(
-                'admin:{app_label}_{object_name}_change'.format(app_label=related_model._meta.app_label, object_name=related_model._meta.object_name.lower()),
-                args=(value,)
-            )
-            value = format_html("<a href='%s'>%s</a>" % (related_url, escape(obj)))
-
-        final_attrs = self.build_attrs({name: name})
-        return mark_safe("<div%s>%s</div>" % (flatatt(final_attrs), linebreaks(value)))
 
 
 class JobDependencyInline(ImproveRawIdFieldsFormTabularInline):
@@ -387,7 +364,7 @@ class JobAdmin(admin.ModelAdmin):
             'max_duration': max_duration,
         }
 
-        return render_to_response('admin/chroniker/job/duration_graph.html', context, request)
+        return render(request, 'admin/chroniker/job/duration_graph.html', context)
 
     def get_urls(self):
         urls = super(JobAdmin, self).get_urls()
@@ -589,19 +566,6 @@ class LogAdmin(admin.ModelAdmin):
 
     def formfield_for_dbfield(self, db_field, **kwargs):
         request = kwargs.pop("request", None)
-
-        if isinstance(db_field, models.TextField):
-            kwargs['widget'] = HTMLWidget()
-            return db_field.formfield(**kwargs)
-
-        if isinstance(db_field, models.ForeignKey):
-            if hasattr(db_field, 'remote_field'):
-                remote_field = db_field.remote_field
-            else:
-                remote_field = db_field.remote_field
-            kwargs['widget'] = HTMLWidget(remote_field)
-            return db_field.formfield(**kwargs)
-
         return super(LogAdmin, self).formfield_for_dbfield(db_field, **kwargs)
 
 
