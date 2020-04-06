@@ -17,7 +17,6 @@ from multiprocessing import Process
 
 import pytz
 
-import six
 try:
     from io import StringIO
     from io import BytesIO
@@ -130,7 +129,7 @@ class JobTestCase(TestCase):
         self.assertEqual(Log.objects.count(), 1)
 
         # Ensure we can convert a log instances to unicode.
-        s = six.text_type(Log.objects.all()[0])
+        s = str(Log.objects.all()[0])
         self.assertTrue(s.startswith('Sleep '), s)
 
         # Now clean out the logs that are older than 0 minutes (all of them)

@@ -15,8 +15,6 @@ except ImportError:
 
 import psutil
 
-from six import print_, reraise, u
-
 from django.contrib.contenttypes.models import ContentType
 from django.urls import reverse
 from django.db import models
@@ -442,8 +440,7 @@ class TimedProcess(Process):
                 break
             elif self.is_expired:
                 if verbose:
-                    print_('\nAttempting to terminate expired process %s...' \
-                        % (self.pid,), file=self.fout)
+                    print('\nAttempting to terminate expired process %s...' % (self.pid,), file=self.fout)
                 timeout = True
                 self.terminate()
         self.t1 = time.clock()
@@ -497,7 +494,7 @@ def import_string(dotted_path):
         module_path, class_name = dotted_path.rsplit('.', 1)
     except ValueError:
         msg = "%s doesn't look like a module path" % dotted_path
-        reraise(ImportError, ImportError(msg), sys.exc_info()[2])
+        raise ImportError(msg)
 
     module = import_module(module_path)
 
@@ -505,7 +502,7 @@ def import_string(dotted_path):
         return getattr(module, class_name)
     except AttributeError:
         msg = 'Module "%s" does not define a "%s" attribute/class' % (dotted_path, class_name)
-        reraise(ImportError, ImportError(msg), sys.exc_info()[2])
+        raise ImportError(msg)
 
 
 def smart_print(*args, **kwargs):
@@ -516,7 +513,7 @@ def smart_print(*args, **kwargs):
     s = smart_str(' ')
     s = s.join(args)
     try:
-        print(u(s).encode(encoding), **kwargs)
+        print(str(s).encode(encoding), **kwargs)
     except TypeError:
         try:
             print(smart_str(s, encoding=encoding), **kwargs)
@@ -528,7 +525,7 @@ def clean_samples(result):
     max_l = 10000
     if len(result) > max_l * 3:
         result = result[:max_l] + '\n...\n' + result[-max_l:]
-    result = result.replace('{', '	&#123;')
+    result = result.replace('{', '  &#123;')
     result = result.replace('}', '&#125;')
     result = result.replace('\n', '<br/>')
     return format_html(result)

@@ -22,9 +22,6 @@ except ImportError:
     except ImportError:
         import dummy_thread as thread
 
-import six
-from six import u, iteritems
-
 from dateutil import rrule
 
 from django.conf import settings
@@ -50,8 +47,6 @@ from chroniker.utils import import_string, clean_samples
 from . import settings as _settings # pylint: disable=unused-import
 
 commit_on_success = transaction.atomic
-
-unicode = six.text_type # pylint: disable=W0622
 
 logger = logging.getLogger('chroniker.models')
 
@@ -189,6 +184,7 @@ class JobHeartbeatThread(threading.Thread):
             Job.objects.filter(id=self.job_id).update(
                 total_parts=total_parts,
                 total_parts_complete=total_parts_complete,
+                last_heartbeat=timezone.now(),
             )
 
 
@@ -205,49 +201,30 @@ class JobDependency(models.Model):
         'chroniker.Job', related_name='dependents', on_delete=models.CASCADE, help_text='The thing that has other jobs waiting on it to complete.'
     )
 
-    wait_for_completion = models.BooleanField(
-        default=True,
-        help_text='If checked, the dependent job will not run until ' + \
-            'the dependee job has completed.')
+    wait_for_completion = models.BooleanField(default=True, help_text='If checked, the dependent job will not run until the dependee job has completed.')
 
     wait_for_success = models.BooleanField(
-        default=True,
-        help_text='If checked, the dependent job will not run until ' + \
-            'the dependee job has completed successfully.')
+        default=True, help_text='If checked, the dependent job will not run until the dependee job has completed successfully.'
+    )
 
     wait_for_next_run = models.BooleanField(
-        default=True,
-        help_text='If checked, the dependent job will not run until ' + \
-            'the dependee job has a next_run greater than its next_run.')
+        default=True, help_text='If checked, the dependent job will not run until the dependee job has a next_run greater than its next_run.'
+    )
 
     def criteria_met(self, running_ids=None):
         if running_ids is None:
             running_ids = set()
-        if self.wait_for_completion \
-        and (self.dependee.is_running or self.dependee.id in running_ids):
-            # Don't run until our dependency completes.
-            #            print('"%s": Dependee "%s" is still running.' \
-            #                % (self.dependent.name, self.dependee.name,))
+        if self.wait_for_completion and (self.dependee.is_running or self.dependee.id in running_ids):
             return False
         if self.wait_for_success and not self.dependee.last_run_successful:
-            # Don't run until our dependency completes successfully.
-            #            print('"%s": Dependee "%s" failed its last run.' \
-            #                % (self.dependent.name, self.dependee.name,))
             return False
         if self.wait_for_next_run:
-            # Don't run until our dependency is scheduled until after
-            # our next run.
+            # Don't run until our dependency is scheduled until after our next run.
             if not self.dependent.next_run:
-                #                print('"%s": Our next scheduled run has not been set.' \
-                #                    % (self.dependent.name,))
                 return False
             if not self.dependee.next_run:
-                #                print('"%s": Dependee "%s" has not been scheduled to run.' \
-                #                    % (self.dependent.name, self.dependee.name,))
                 return False
             if self.dependee.next_run < self.dependent.next_run:
-                #                print('"%s": Dependee "%s" has not yet run before us.' \
-                #                    % (self.dependent.name, self.dependee.name,))
                 return False
         return True
 
@@ -258,7 +235,7 @@ class JobDependency(models.Model):
         unique_together = (('dependent', 'dependee'),)
 
     def __unicode__(self):
-        return unicode(self.dependent) + ' -> ' + unicode(self.dependee)
+        return str(self.dependent) + ' -> ' + str(self.dependee)
 
 
 class JobManager(models.Manager):
@@ -567,20 +544,15 @@ class Job(models.Model):
             ret = u"{} - {} - {}".format(self.id, self.name, self.timeuntil)
         else:
             ret = u"{id} - {name} - disabled".format(**{'name': self.name, 'id': self.id})
-        if not isinstance(ret, six.text_type):
-            ret = u(ret)
+        if not isinstance(ret, str):
+            ret = str(ret)
         return ret
 
     def __str__(self):
-        if six.PY3:
-            return self.__unicode__()
-        return self.__unicode__().encode('utf8')
+        return self.__unicode__()
 
     def natural_key(self):
         return tuple(getattr(self, _name) for _name in _settings.CHRONIKER_JOB_NK)
-
-
-#     natural_key.dependencies = []
 
     @property
     def monitor_url_rendered(self):
@@ -969,7 +941,7 @@ class Job(models.Model):
             last_heartbeat=timezone.now(),
         )
         Job.objects.filter(id=self.id).update(**kwargs)
-        for name, value in iteritems(kwargs):
+        for name, value in kwargs.items():
             setattr(self, name, value)
 
     def handle_run(self, update_heartbeat=True, stdout_queue=None, stderr_queue=None, *args, **kwargs):
@@ -1020,7 +992,7 @@ class Job(models.Model):
             except Exception as e:
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
-                ctx = {'exception': unicode(e), 'traceback': ['\n'.join(traceback.format_exception(*sys.exc_info()))]}
+                ctx = {'exception': str(e), 'traceback': ['\n'.join(traceback.format_exception(*sys.exc_info()))]}
                 print(t.render(ctx), file=sys.stderr)
                 success = False
 
@@ -1061,7 +1033,7 @@ class Job(models.Model):
                     return
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
-                ctx = {'exception': unicode(e), 'traceback': ['\n'.join(traceback.format_exception(*sys.exc_info()))]}
+                ctx = {'exception': str(e), 'traceback': ['\n'.join(traceback.format_exception(*sys.exc_info()))]}
                 print(t.render(ctx), file=sys.stderr)
                 success = False
 
@@ -1104,7 +1076,7 @@ class Job(models.Model):
             except Exception as e:
                 # The command failed to run; log the exception
                 t = loader.get_template('chroniker/error_message.txt')
-                ctx = {'exception': unicode(e), 'traceback': ['\n'.join(traceback.format_exception(*sys.exc_info()))]}
+                ctx = {'exception': str(e), 'traceback': ['\n'.join(traceback.format_exception(*sys.exc_info()))]}
                 print(t.render(ctx), file=sys.stderr)
                 success = False
 
@@ -1125,20 +1097,20 @@ class Job(models.Model):
             if self.log_stdout:
                 if not stdout_str:
                     stdout_str = stdout.getvalue()
-                if isinstance(stdout_str, six.text_type):
+                if isinstance(stdout_str, str):
                     stdout_str = stdout_str.encode('utf-8', 'replace')
                 else:
-                    stdout_str = six.text_type(stdout_str, 'utf-8', 'replace')
+                    stdout_str = str(stdout_str, 'utf-8', 'replace')
                 if isinstance(stdout_str, bytes):
                     stdout_str = stdout_str.decode('utf-8')
 
             if self.log_stderr:
                 if not stderr_str:
                     stderr_str = stderr.getvalue()
-                if isinstance(stderr_str, six.text_type):
+                if isinstance(stderr_str, str):
                     stderr_str = stderr_str.encode('utf-8', 'replace')
                 else:
-                    stderr_str = six.text_type(stderr_str, 'utf-8', 'replace')
+                    stderr_str = str(stderr_str, 'utf-8', 'replace')
                 if isinstance(stderr_str, bytes):
                     stderr_str = stderr_str.decode('utf-8')
 
@@ -1191,8 +1163,6 @@ class Job(models.Model):
     def check_is_running(self):
         """
         This function actually checks to ensure that a job is running.
-        Currently, it only supports `posix` systems.  On non-posix systems
-        it returns the value of this job's ``is_running`` field.
         """
         if _settings.CHRONIKER_CHECK_LOCK_FILE and self.is_running and self.lock_file:
             # The Job thinks that it is running, so lets actually check
@@ -1260,19 +1230,16 @@ class Log(models.Model):
 
     def __unicode__(self):
         ret = "%s - %s" % (self.job.name, self.run_start_datetime)
-        if not isinstance(ret, six.text_type):
-            ret = u(ret)
+        if not isinstance(ret, str):
+            ret = str(ret)
         return ret
 
     def __str__(self):
-        if six.PY3:
-            return self.__unicode__()
-        return self.__unicode__().encode('utf8')
+        return self.__unicode__()
 
     def save(self, *args, **kwargs):
         if self.run_start_datetime and self.run_end_datetime:
-            assert self.run_start_datetime <= self.run_end_datetime, \
-                'Job must start before it ends.'
+            assert self.run_start_datetime <= self.run_end_datetime, 'Job must start before it ends.'
             time_diff = (self.run_end_datetime - self.run_start_datetime)
             self.duration_seconds = time_diff.total_seconds()
         super(Log, self).save(*args, **kwargs)

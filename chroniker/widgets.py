@@ -1,5 +1,3 @@
-import six
-
 from django.contrib import admin
 from django.contrib.admin.sites import site
 from django.contrib.admin.widgets import ManyToManyRawIdWidget, ForeignKeyRawIdWidget
@@ -64,7 +62,7 @@ class ForeignKeyTextInput(TextInput):
             final_attrs['value'] = force_text(self._format_value(value))
         final_attrs['size'] = 10
         t = Template(
-            six.u(
+            str(
                 """
 {% load staticfiles %}
 <input{{ attrs|safe }} />
