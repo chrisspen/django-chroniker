@@ -882,14 +882,21 @@ class Job(models.Model):
         options = {}
         for arg in self.args.split():
             if arg.find('=') > -1:
-                #key, value = arg.split('=')
+                # key, value = arg.split('=')
                 parts = arg.split('=')
                 key = parts[0]
                 value = '='.join(parts[1:])
                 options[smart_str(key)] = smart_str(value)
             else:
                 args.append(arg)
-        return (args, options)
+        return args, options
+
+    def get_custom_parameters(self):
+        """
+        Assembles customisable parameters to be passed to our program.
+        Such as: --user=root --host=hostname --db-name=database1
+        """
+        return ' '.join(['--%s=%s' % (p.name, p.value) for p in self.paramater_set.all()])
 
     def is_due(self, **kwargs):
         """
@@ -990,7 +997,6 @@ class Job(models.Model):
         original_pid = os.getpid()
 
         try:
-
             # Redirect output so that we can log and easily check for errors.
             stdout = utils.TeeFile(sys.stdout, auto_flush=True, queue=stdout_queue, local=self.log_stdout)
             stderr = utils.TeeFile(sys.stderr, auto_flush=True, queue=stderr_queue, local=self.log_stderr)
@@ -1031,8 +1037,10 @@ class Job(models.Model):
                 logger.debug("Calling command '%s'", self.command)
                 if self.raw_command and not getattr(settings, 'CHRONIKER_DISABLE_RAW_COMMAND', False):
 
+                    command = self.raw_command + ' ' + self.get_custom_parameters()
+
                     p = subprocess.Popen(
-                        self.raw_command,
+                        command,
                         #                         stdout=sys.stdout,
                         #                         stderr=sys.stderr,
                         stdout=subprocess.PIPE,
@@ -1393,3 +1401,17 @@ class Monitor(Job):
 
     class Meta:
         proxy = True
+
+
+class Parameter(models.Model):
+    """Key=value pairs to pass as args."""
+    job = models.ForeignKey('chroniker.Job', on_delete=models.CASCADE, null=True, blank=True)
+    name = models.CharField("Name", max_length=80)
+    value = models.TextField("Value")
+
+    @property
+    def job_name(self):
+        return self.job.name if self.job else '--'
+
+    class Meta:
+        unique_together = ('job', 'name', 'value')
