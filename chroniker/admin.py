@@ -54,6 +54,8 @@ class JobDependencyInline(ImproveRawIdFieldsFormTabularInline):
     extra = 1
     fk_name = 'dependent'
 
+    classes = ('collapse',)
+
     readonly_fields = ('criteria_met',)
 
     raw_id_fields = ('dependee',)
@@ -170,7 +172,7 @@ class JobAdmin(admin.ModelAdmin):
             )
         }),
         ('Logging', {
-            'classes': ('wide',),
+            'classes': ('wide', 'collapse'),
             'fields': (
                 'view_logs_button',
                 'log_stdout',
@@ -179,7 +181,7 @@ class JobAdmin(admin.ModelAdmin):
             )
         }),
         ('Monitor', {
-            'classes': ('wide',),
+            'classes': ('wide', 'collapse'),
             'fields': (
                 'is_monitor',
                 'monitor_url',
@@ -189,7 +191,7 @@ class JobAdmin(admin.ModelAdmin):
             )
         }),
         ('E-mail subscriptions', {
-            'classes': ('wide',),
+            'classes': ('wide', 'collapse'),
             'fields': (
                 'subscribers',
                 'email_errors_to_subscribers',

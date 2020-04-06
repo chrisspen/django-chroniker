@@ -564,9 +564,9 @@ class Job(models.Model):
 
     def __unicode__(self):
         if self.enabled:
-            ret = u"{} - {} - {}".format(self.id, self.name, self.timeuntil)
+            ret = u"{} - {}".format(self.name, self.timeuntil)
         else:
-            ret = u"{id} - {name} - disabled".format(**{'name': self.name, 'id': self.id})
+            ret = u"{} - disabled".format(self.name)
         if not isinstance(ret, six.text_type):
             ret = u(ret)
         return ret
