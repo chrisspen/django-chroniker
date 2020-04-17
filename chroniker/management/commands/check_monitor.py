@@ -1,5 +1,7 @@
 from __future__ import print_function
+
 import sys
+from distutils.version import StrictVersion # pylint: disable=E0611
 from optparse import make_option
 
 from django import get_version, VERSION
@@ -23,7 +25,6 @@ class Command(BaseCommand):
         Create and return the ``ArgumentParser`` which extends ``BaseCommand`` parser with
         chroniker extra args and will be used to parse the arguments to this command.
         """
-        from distutils.version import StrictVersion # pylint: disable=E0611
         parser = super(Command, self).create_parser(prog_name, subcommand)
         version_threshold = StrictVersion('1.10')
         current_version = StrictVersion(get_version(VERSION))
