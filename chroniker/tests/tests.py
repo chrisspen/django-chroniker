@@ -243,7 +243,7 @@ class JobTestCase(TestCase):
         # Simulate a running job having crashed, leaving itself marked
         # as running with no further updates.
         job.is_running = True
-        job.last_heartbeat = timezone.now() - datetime.timedelta(days=60)
+        job.last_heartbeat = timezone.now() - timedelta(days=60)
         job.save()
         self.assertEqual(job.is_running, True)
         self.assertEqual(job.is_fresh(), False)
@@ -337,7 +337,7 @@ class JobTestCase(TestCase):
         j.frequency = "MINUTELY"
         j.enabled = True
         j.params = "interval:10"
-        j.next_run = datetime.datetime(2014, 6, 27, 14, 31, 4)
+        j.next_run = datetime(2014, 6, 27, 14, 31, 4)
         j.save()
 
         # Test someone turning-on timezone awareness after job was created.
@@ -351,7 +351,7 @@ class JobTestCase(TestCase):
             self.assertTrue(j.next_run)
             settings.USE_TZ = True
             j.params = "interval:10"
-            j.next_run = datetime.datetime(2014, 6, 27, 14, 31, 4)
+            j.next_run = datetime(2014, 6, 27, 14, 31, 4)
             j.save()
         finally:
             settings.USE_TZ = True
