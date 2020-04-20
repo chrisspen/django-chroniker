@@ -1,12 +1,13 @@
 from django.contrib import admin
 from django.contrib.admin.sites import site
 from django.contrib.admin.widgets import ManyToManyRawIdWidget, ForeignKeyRawIdWidget
-from django.urls import reverse
 from django.forms.widgets import Select, TextInput
 try:
     from django.forms.widgets import flatatt
 except ImportError:
     from django.forms.utils import flatatt
+from django.template import Context, Template
+from django.urls import reverse
 try:
     # force_unicode was deprecated in Django 1.5.
     from django.utils.encoding import force_unicode as force_text
@@ -52,8 +53,6 @@ class ForeignKeyTextInput(TextInput):
             self._instance = q[0]
 
     def render(self, name, value, attrs=None):
-        from django.template import Context, Template
-        from django.template.context import Context
         if value is None:
             value = ''
         final_attrs = self.build_attrs(attrs, type=self.input_type, name=name)

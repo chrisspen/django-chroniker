@@ -1,13 +1,13 @@
 from __future__ import print_function
+import errno
 import os
+import signal
 import sys
 import time
-import signal
 import warnings
-import errno
-from multiprocessing import Process, current_process
-from importlib import import_module
 from datetime import timedelta
+from importlib import import_module
+from multiprocessing import Process, current_process
 try:
     from io import StringIO
 except ImportError:
@@ -15,12 +15,12 @@ except ImportError:
 
 import psutil
 
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.urls import reverse
 from django.db import models
 from django.db import connection
+from django.urls import reverse
 from django.utils import timezone
-from django.conf import settings
 from django.utils.encoding import smart_str
 from django.utils.html import format_html
 
@@ -438,7 +438,7 @@ class TimedProcess(Process):
                 self.fout.flush()
             if not self.is_alive():
                 break
-            elif self.is_expired:
+            if self.is_expired:
                 if verbose:
                     print('\nAttempting to terminate expired process %s...' % (self.pid,), file=self.fout)
                 timeout = True
@@ -485,7 +485,7 @@ def import_string(dotted_path):
     """
 
     try:
-        from django.utils.module_loading import import_string # pylint: disable=W0621
+        from django.utils.module_loading import import_string # pylint: disable=W0621,C0415
         return import_string(dotted_path)
     except ImportError:
         pass

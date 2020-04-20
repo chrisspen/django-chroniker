@@ -7,37 +7,35 @@ Quick run with:
 from __future__ import print_function
 
 import os
-import sys
-import datetime
-from datetime import timedelta
-import time
 import socket
+import sys
+import tempfile
+import time
 import warnings
+from datetime import datetime, timedelta
 from multiprocessing import Process
 
+from dateutil import zoneinfo
 import pytz
 
 try:
-    from io import StringIO
-    from io import BytesIO
+    from io import BytesIO, StringIO
 except ImportError:
     from cStringIO import StringIO
     from cStringIO import StringIO as BytesIO
 
 import django
-from django.core.management import call_command
+from django.conf import settings
+from django.contrib.auth.models import User
 from django.core import mail
+from django.core.management import call_command
+from django.db.models import Max
 from django.test import TestCase
 from django.test.client import Client
 from django.utils import timezone
-from django.contrib.auth.models import User
-from django.conf import settings
-from django.db.models import Max
 
+from chroniker import constants as c, settings as _settings, utils
 from chroniker.models import Job, Log
-from chroniker import utils
-from chroniker import constants as c
-from chroniker import settings as _settings
 
 warnings.simplefilter('error', RuntimeWarning)
 
@@ -245,7 +243,7 @@ class JobTestCase(TestCase):
         # Simulate a running job having crashed, leaving itself marked
         # as running with no further updates.
         job.is_running = True
-        job.last_heartbeat = timezone.now() - datetime.timedelta(days=60)
+        job.last_heartbeat = timezone.now() - timedelta(days=60)
         job.save()
         self.assertEqual(job.is_running, True)
         self.assertEqual(job.is_fresh(), False)
@@ -339,7 +337,7 @@ class JobTestCase(TestCase):
         j.frequency = "MINUTELY"
         j.enabled = True
         j.params = "interval:10"
-        j.next_run = datetime.datetime(2014, 6, 27, 14, 31, 4)
+        j.next_run = datetime(2014, 6, 27, 14, 31, 4)
         j.save()
 
         # Test someone turning-on timezone awareness after job was created.
@@ -353,13 +351,12 @@ class JobTestCase(TestCase):
             self.assertTrue(j.next_run)
             settings.USE_TZ = True
             j.params = "interval:10"
-            j.next_run = datetime.datetime(2014, 6, 27, 14, 31, 4)
+            j.next_run = datetime(2014, 6, 27, 14, 31, 4)
             j.save()
         finally:
             settings.USE_TZ = True
 
     def testTimezone2(self):
-        from dateutil import zoneinfo
         tz = zoneinfo.gettz(settings.TIME_ZONE)
         _USE_TZ = settings.USE_TZ
         settings.USE_TZ = False
@@ -398,7 +395,6 @@ class JobTestCase(TestCase):
             settings.USE_TZ = _USE_TZ
 
     def testWriteLock(self):
-        import tempfile
         lock_file = tempfile.NamedTemporaryFile()
         utils.write_lock(lock_file)
         lock_file.close()
@@ -695,4 +691,4 @@ class JobTestCase(TestCase):
 
     def test_widgets(self):
         print('django.version:', django.VERSION)
-        from chroniker import widgets # pylint: disable=unused-import
+        from chroniker import widgets # pylint: disable=unused-import,import-outside-toplevel

@@ -305,7 +305,7 @@ class JobManager(models.Manager):
                 if dep.dependee.id in skipped_job_ids:
                     continue
                 #elif dep.wait_for_completion and dep.dependee.is_due():
-                elif not dep.criteria_met():
+                if not dep.criteria_met():
                     valid = False
                     failed_dep = dep
                     break
