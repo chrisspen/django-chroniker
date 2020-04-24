@@ -67,7 +67,8 @@ class ParameterInline(admin.TabularInline):
 
 
 class ParameterAdmin(admin.ModelAdmin):
-    list_display = ('name', 'value', 'job_name')
+    list_display = ('job_name', 'name', 'value')
+    ordering = ('job__name', 'name', 'value')
 
 
 admin.site.register(Parameter, ParameterAdmin)
