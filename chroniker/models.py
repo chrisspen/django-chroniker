@@ -664,8 +664,7 @@ class Job(models.Model):
     estimated_completion_datetime_str.help_text = \
         'Estimated time of completion'
 
-    def clean(self, *args, **kwargs):
-
+    def clean(self):
         self.frequency = self.frequency or c.DAILY
 
         disable_raw_command = getattr(settings, 'CHRONIKER_DISABLE_RAW_COMMAND', False)
@@ -687,15 +686,11 @@ class Job(models.Model):
             if not disable_raw_command:
                 errors['raw_command'] = errors['command']
             raise ValidationError(errors)
-        super(Job, self).clean(*args, **kwargs)
 
-    def full_clean(self, *args, **kwargs):
-        kwargs.pop('exclude', None)
-        kwargs.pop('validate_unique', None)
-        return self.clean(*args, **kwargs)
+    def full_clean(self, exclude=None, validate_unique=True):
+        self.clean()
 
-    def save(self, *args, **kwargs):
-
+    def save(self, **kwargs):
         self.full_clean()
 
         tz = timezone.get_default_timezone()
@@ -722,7 +717,7 @@ class Job(models.Model):
         if self.next_run:
             self.next_run = utils.make_aware(self.next_run, tz)
 
-        super(Job, self).save(*args, **kwargs)
+        super().save(**kwargs)
 
         # Delete expired logs.
         if self.maximum_log_entries:
@@ -962,7 +957,6 @@ class Job(models.Model):
         original_pid = os.getpid()
 
         try:
-
             # Redirect output so that we can log and easily check for errors.
             stdout = utils.TeeFile(sys.stdout, auto_flush=True, queue=stdout_queue, local=self.log_stdout)
             stderr = utils.TeeFile(sys.stderr, auto_flush=True, queue=stderr_queue, local=self.log_stderr)
@@ -983,7 +977,6 @@ class Job(models.Model):
 
             try:
                 with lock:
-
                     # Fixes MySQL error "Commands out of sync"?
                     connection.close()
 
@@ -994,34 +987,21 @@ class Job(models.Model):
                 t = loader.get_template('chroniker/error_message.txt')
                 ctx = {'exception': str(e), 'traceback': ['\n'.join(traceback.format_exception(*sys.exc_info()))]}
                 print(t.render(ctx), file=sys.stderr)
-                success = False
 
             if heartbeat:
                 heartbeat.start()
-            success = True
             try:
                 logger.debug("Calling command '%s'", self.command)
                 if self.raw_command and not getattr(settings, 'CHRONIKER_DISABLE_RAW_COMMAND', False):
-
-                    p = subprocess.Popen(
-                        self.raw_command,
-                        #                         stdout=sys.stdout,
-                        #                         stderr=sys.stderr,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        shell=True,
-                        universal_newlines=True
-                    )
-
-                    _stdout_str, _stderr_str = p.communicate()
+                    completed_process = subprocess.run(str(self.raw_command).split(' '), capture_output=True, check=True, universal_newlines=True)
+                    _stdout_str = completed_process.stdout
+                    _stderr_str = completed_process.stderr
 
                     if self.log_stdout:
                         stdout_str = _stdout_str
 
                     if self.log_stderr:
                         stderr_str = _stderr_str
-
-                    retcode = p.returncode
                 else:
                     logger.debug('command: %s %s %s', self.command, args, options)
                     call_command(self.command, *args, **options)
@@ -1035,7 +1015,6 @@ class Job(models.Model):
                 t = loader.get_template('chroniker/error_message.txt')
                 ctx = {'exception': str(e), 'traceback': ['\n'.join(traceback.format_exception(*sys.exc_info()))]}
                 print(t.render(ctx), file=sys.stderr)
-                success = False
 
             # Stop the heartbeat
             if heartbeat:
@@ -1045,7 +1024,7 @@ class Job(models.Model):
 
             # If this was a forced run, then don't update the
             # next_run date.
-            #next_run = self.next_run.replace(tzinfo=None)
+            # next_run = self.next_run.replace(tzinfo=None)
             next_run = self.next_run
             if not self.force_run:
                 print("Determining 'next_run' for job {}...".format(self.id))
@@ -1055,7 +1034,7 @@ class Job(models.Model):
                 next_run = self.rrule.after(next_run)
                 print(_next_run, next_run)
                 assert next_run != _next_run, 'RRule failed to increment next run datetime.'
-            #next_run = next_run.replace(tzinfo=timezone.get_current_timezone())
+            # next_run = next_run.replace(tzinfo=timezone.get_current_timezone())
 
             last_run_successful = not bool(stderr.length)
 
@@ -1078,10 +1057,8 @@ class Job(models.Model):
                 t = loader.get_template('chroniker/error_message.txt')
                 ctx = {'exception': str(e), 'traceback': ['\n'.join(traceback.format_exception(*sys.exc_info()))]}
                 print(t.render(ctx), file=sys.stderr)
-                success = False
 
         finally:
-
             if original_pid != os.getpid():
                 # We're a clone of the parent job, so exit immediately
                 # so we don't conflict.
@@ -1237,12 +1214,12 @@ class Log(models.Model):
     def __str__(self):
         return self.__unicode__()
 
-    def save(self, *args, **kwargs):
+    def save(self, **kwargs):
         if self.run_start_datetime and self.run_end_datetime:
             assert self.run_start_datetime <= self.run_end_datetime, 'Job must start before it ends.'
             time_diff = (self.run_end_datetime - self.run_start_datetime)
             self.duration_seconds = time_diff.total_seconds()
-        super(Log, self).save(*args, **kwargs)
+        super().save(**kwargs)
 
     def duration_str(self):
         sec = timedelta(seconds=self.duration_seconds)
@@ -1349,7 +1326,7 @@ class Log(models.Model):
 class MonitorManager(models.Manager):
 
     def all(self):
-        q = super(MonitorManager, self).all()
+        q = super().all()
         q = q.filter(is_monitor=True)
         return q
 
