@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import logging
 import os
+import shlex
 import socket
 import subprocess
 import sys
@@ -993,7 +994,7 @@ class Job(models.Model):
             try:
                 logger.debug("Calling command '%s'", self.command)
                 if self.raw_command and not getattr(settings, 'CHRONIKER_DISABLE_RAW_COMMAND', False):
-                    completed_process = subprocess.run(str(self.raw_command).split(' '), capture_output=True, check=True, universal_newlines=True)
+                    completed_process = subprocess.run(shlex.split(self.raw_command), capture_output=True, check=True, universal_newlines=True)
                     _stdout_str = completed_process.stdout
                     _stderr_str = completed_process.stderr
 
