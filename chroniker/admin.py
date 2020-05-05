@@ -564,10 +564,6 @@ class LogAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return False
 
-    def formfield_for_dbfield(self, db_field, **kwargs):
-        request = kwargs.pop("request", None)
-        return super(LogAdmin, self).formfield_for_dbfield(db_field, **kwargs)
-
 
 try:
     admin.site.register(Job, JobAdmin)
