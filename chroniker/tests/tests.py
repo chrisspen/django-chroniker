@@ -1,7 +1,7 @@
 """
 Quick run with:
 
-    export TESTNAME=.testJobRawCommand; tox -e py27-django17
+    export TESTNAME=.testJobRawCommand; tox -e py37-django21
 
 """
 from __future__ import print_function
@@ -64,13 +64,36 @@ class JobTestCase(TestCase):
 
     fixtures = ['test_jobs.json']
 
+    username = 'joe'
+    password = 'password'
+
     def setUp(self):
         pass
+
+    def get_superuser(self):
+        user = User.objects.create(
+            username=self.username,
+            email='joe@joe.com',
+            is_active=True,
+            is_staff=True,
+            is_superuser=True,
+        )
+        user.set_password(self.password)
+        user.save()
+        return user
+
+    def get_superuser_client(self):
+        user = self.get_superuser()
+        client = Client()
+        ret = client.login(username=self.username, password=self.password)
+        self.assertTrue(ret)
+        return client, user
 
     def testJobRun(self):
         """
         Test that the jobs run properly.
         """
+        self.assertEqual(Log.objects.all().count(), 0)
         self.assertEqual(Job.objects.filter(enabled=True).count(), 5)
 
         for job in Job.objects.due():
@@ -88,6 +111,14 @@ class JobTestCase(TestCase):
 
             time_taken = time_end - time_start
             self.assertTrue(time_taken >= time_expected)
+
+        # Confirm logs were created.
+        self.assertNotEqual(Log.objects.all().count(), 0)
+
+        # Confirm we can view the logs.
+        client, user = self.get_superuser_client()
+        response = client.get('/admin/chroniker/log/%i/change/' % Log.objects.all().first().id)
+        self.assertEqual(response.status_code, 200)
 
     def testCronCommand(self):
         """
@@ -363,21 +394,7 @@ class JobTestCase(TestCase):
         try:
             self.assertEqual(settings.USE_TZ, False)
 
-            username = 'joe'
-            password = 'password'
-            user = User.objects.create(
-                username=username,
-                email='joe@joe.com',
-                is_active=True,
-                is_staff=True,
-                is_superuser=True,
-            )
-            user.set_password(password)
-            user.save()
-
-            client = Client()
-            ret = client.login(username=username, password=password)
-            self.assertTrue(ret)
+            client, user = self.get_superuser_client()
 
             j = Job.objects.get(id=1)
             next_run = j.next_run
