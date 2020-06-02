@@ -1,47 +1,41 @@
 """
 Quick run with:
 
-    export TESTNAME=.testJobRawCommand; tox -e py27-django17
+    export TESTNAME=.testJobRawCommand; tox -e py37-django21
 
 """
 from __future__ import print_function
 
 import os
-import sys
-import datetime
-from datetime import timedelta
-import time
 import socket
+import sys
+import tempfile
+import time
 import warnings
+from datetime import datetime, timedelta
 from multiprocessing import Process
 
+from dateutil import zoneinfo
 import pytz
 
-import six
 try:
-    from io import StringIO
-    from io import BytesIO
+    from io import BytesIO, StringIO
 except ImportError:
     from cStringIO import StringIO
     from cStringIO import StringIO as BytesIO
 
 import django
-from django.core.management import call_command
+from django.conf import settings
+from django.contrib.auth.models import User
 from django.core import mail
+from django.core.management import call_command
+from django.db.models import Max
 from django.test import TestCase
 from django.test.client import Client
 from django.utils import timezone
-from django.contrib.auth.models import User
-from django.conf import settings
-from django.db.models import Max
 
+from chroniker import constants as c, settings as _settings, utils
 from chroniker.models import Job, Log
-from chroniker.admin import HTMLWidget
-# from chroniker.tests.commands import Sleeper, InfiniteWaiter, ErrorThrower
-# from chroniker.management.commands.cron import run_cron
-from chroniker import utils
-from chroniker import constants as c
-from chroniker import settings as _settings
 
 warnings.simplefilter('error', RuntimeWarning)
 
@@ -70,13 +64,36 @@ class JobTestCase(TestCase):
 
     fixtures = ['test_jobs.json']
 
+    username = 'joe'
+    password = 'password'
+
     def setUp(self):
         pass
+
+    def get_superuser(self):
+        user = User.objects.create(
+            username=self.username,
+            email='joe@joe.com',
+            is_active=True,
+            is_staff=True,
+            is_superuser=True,
+        )
+        user.set_password(self.password)
+        user.save()
+        return user
+
+    def get_superuser_client(self):
+        user = self.get_superuser()
+        client = Client()
+        ret = client.login(username=self.username, password=self.password)
+        self.assertTrue(ret)
+        return client, user
 
     def testJobRun(self):
         """
         Test that the jobs run properly.
         """
+        self.assertEqual(Log.objects.all().count(), 0)
         self.assertEqual(Job.objects.filter(enabled=True).count(), 5)
 
         for job in Job.objects.due():
@@ -94,6 +111,14 @@ class JobTestCase(TestCase):
 
             time_taken = time_end - time_start
             self.assertTrue(time_taken >= time_expected)
+
+        # Confirm logs were created.
+        self.assertNotEqual(Log.objects.all().count(), 0)
+
+        # Confirm we can view the logs.
+        client, user = self.get_superuser_client()
+        response = client.get('/admin/chroniker/log/%i/change/' % Log.objects.all().first().id)
+        self.assertEqual(response.status_code, 200)
 
     def testCronCommand(self):
         """
@@ -130,7 +155,7 @@ class JobTestCase(TestCase):
         self.assertEqual(Log.objects.count(), 1)
 
         # Ensure we can convert a log instances to unicode.
-        s = six.text_type(Log.objects.all()[0])
+        s = str(Log.objects.all()[0])
         self.assertTrue(s.startswith('Sleep '), s)
 
         # Now clean out the logs that are older than 0 minutes (all of them)
@@ -249,7 +274,7 @@ class JobTestCase(TestCase):
         # Simulate a running job having crashed, leaving itself marked
         # as running with no further updates.
         job.is_running = True
-        job.last_heartbeat = timezone.now() - datetime.timedelta(days=60)
+        job.last_heartbeat = timezone.now() - timedelta(days=60)
         job.save()
         self.assertEqual(job.is_running, True)
         self.assertEqual(job.is_fresh(), False)
@@ -343,7 +368,7 @@ class JobTestCase(TestCase):
         j.frequency = "MINUTELY"
         j.enabled = True
         j.params = "interval:10"
-        j.next_run = datetime.datetime(2014, 6, 27, 14, 31, 4)
+        j.next_run = datetime(2014, 6, 27, 14, 31, 4)
         j.save()
 
         # Test someone turning-on timezone awareness after job was created.
@@ -357,34 +382,19 @@ class JobTestCase(TestCase):
             self.assertTrue(j.next_run)
             settings.USE_TZ = True
             j.params = "interval:10"
-            j.next_run = datetime.datetime(2014, 6, 27, 14, 31, 4)
+            j.next_run = datetime(2014, 6, 27, 14, 31, 4)
             j.save()
         finally:
             settings.USE_TZ = True
 
     def testTimezone2(self):
-        from dateutil import zoneinfo
         tz = zoneinfo.gettz(settings.TIME_ZONE)
         _USE_TZ = settings.USE_TZ
         settings.USE_TZ = False
         try:
             self.assertEqual(settings.USE_TZ, False)
 
-            username = 'joe'
-            password = 'password'
-            user = User.objects.create(
-                username=username,
-                email='joe@joe.com',
-                is_active=True,
-                is_staff=True,
-                is_superuser=True,
-            )
-            user.set_password(password)
-            user.save()
-
-            client = Client()
-            ret = client.login(username=username, password=password)
-            self.assertTrue(ret)
+            client, user = self.get_superuser_client()
 
             j = Job.objects.get(id=1)
             next_run = j.next_run
@@ -402,7 +412,6 @@ class JobTestCase(TestCase):
             settings.USE_TZ = _USE_TZ
 
     def testWriteLock(self):
-        import tempfile
         lock_file = tempfile.NamedTemporaryFile()
         utils.write_lock(lock_file)
         lock_file.close()
@@ -699,21 +708,4 @@ class JobTestCase(TestCase):
 
     def test_widgets(self):
         print('django.version:', django.VERSION)
-        from chroniker import widgets # pylint: disable=unused-import
-
-    def test_widget_render_simple(self):
-        widget = HTMLWidget()
-        self.assertEqual(widget.render('myname', 'myvalue'), u'<div myname="myname"><p>myvalue</p></div>')
-
-    def test_widget_render_with_rel(self):
-        job = Job.objects.create(
-            name='command',
-            frequency=c.MINUTELY,
-            raw_command='echo "hello"',
-            enabled=True,
-            force_run=True,
-        )
-        field_obj = Job._meta.get_field('subscribers')
-        rel = field_obj.remote_field
-        widget = HTMLWidget(rel=rel)
-        self.assertTrue(str(job).replace('\xc2', '').replace('\xa0', ' ') in widget.render('name', job.id).replace(u'\xa0', u' '))
+        from chroniker import widgets # pylint: disable=unused-import,import-outside-toplevel
