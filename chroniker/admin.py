@@ -150,6 +150,7 @@ class JobAdmin(admin.ModelAdmin):
             'classes': ('wide',),
             'fields': (
                 'name',
+                'description',
                 'command',
                 'args',
                 'raw_command',
