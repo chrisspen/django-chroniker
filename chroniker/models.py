@@ -438,6 +438,7 @@ class Job(models.Model):
     objects = JobManager()
 
     name = models.CharField(_("name"), max_length=200)
+    description = models.CharField(_("description"), max_length=250, blank=True, null=True)
 
     frequency = models.CharField(_("frequency"), choices=c.FREQ_CHOICES, max_length=10)
 
