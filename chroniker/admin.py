@@ -63,7 +63,7 @@ class JobDependencyInline(ImproveRawIdFieldsFormTabularInline):
 
 class ParameterInline(admin.TabularInline):
     model = Parameter
-    extra = 3
+    extra = 1
 
 
 class ParameterAdmin(admin.ModelAdmin):
