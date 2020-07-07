@@ -1408,11 +1408,14 @@ class Parameter(models.Model):
     """Key=value pairs to pass as args."""
     job = models.ForeignKey('chroniker.Job', on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField("Name", max_length=80)
-    value = models.TextField("Value")
+    value = models.CharField("Value", max_length=250)
 
     @property
     def job_name(self):
         return self.job.name if self.job else '--'
+
+    def __str__(self):
+        return f'{self.job.name} {self.name}'
 
     class Meta:
         unique_together = ('job', 'name', 'value')
