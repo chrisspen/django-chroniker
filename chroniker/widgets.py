@@ -1,14 +1,13 @@
-import six
-
 from django.contrib import admin
 from django.contrib.admin.sites import site
 from django.contrib.admin.widgets import ManyToManyRawIdWidget, ForeignKeyRawIdWidget
-from django.urls import reverse
 from django.forms.widgets import Select, TextInput
 try:
     from django.forms.widgets import flatatt
 except ImportError:
     from django.forms.utils import flatatt
+from django.template import Context, Template
+from django.urls import reverse
 try:
     # force_unicode was deprecated in Django 1.5.
     from django.utils.encoding import force_unicode as force_text
@@ -24,8 +23,8 @@ from .utils import get_admin_change_url, get_admin_changelist_url
 
 class LinkedSelect(Select):
 
-    def render(self, name, value, attrs=None, *args, **kwargs):
-        output = super(LinkedSelect, self).render(name, value, attrs=attrs, *args, **kwargs)
+    def render(self, name, value, attrs=None, renderer=None):
+        output = super().render(name, value, attrs=attrs, renderer=renderer)
         model = self.choices.field.queryset.model
         to_field_name = self.choices.field.to_field_name or 'id'
         try:
@@ -53,18 +52,16 @@ class ForeignKeyTextInput(TextInput):
         if q.count():
             self._instance = q[0]
 
-    def render(self, name, value, attrs=None):
-        from django.template import Context, Template
-        from django.template.context import Context
+    def render(self, name, value, attrs=None, renderer=None):
         if value is None:
             value = ''
-        final_attrs = self.build_attrs(attrs, type=self.input_type, name=name)
+        final_attrs = self.build_attrs(attrs, extra_attrs={'type': self.input_type, 'name': name})
         if value != '':
             # Only add the 'value' attribute if a value is non-empty.
             final_attrs['value'] = force_text(self._format_value(value))
         final_attrs['size'] = 10
         t = Template(
-            six.u(
+            str(
                 """
 {% load staticfiles %}
 <input{{ attrs|safe }} />
@@ -126,36 +123,33 @@ class VerboseManyToManyRawIdWidget(ManyToManyRawIdWidget):
 
 class ImproveRawIdFieldsForm(admin.ModelAdmin):
 
-    def formfield_for_dbfield(self, db_field, **kwargs):
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
         if db_field.name in self.raw_id_fields:
-            kwargs.pop("request", None)
             if hasattr(db_field, 'remote_field'):
                 remote_field = db_field.remote_field
             else:
                 remote_field = db_field.rel
             typ = remote_field.__class__.__name__
-            if typ == "ManyToOneRel":
+            if typ == 'ManyToOneRel':
                 kwargs['widget'] = VerboseForeignKeyRawIdWidget(remote_field, site)
-            elif typ == "ManyToManyRel":
+            elif typ == 'ManyToManyRel':
                 kwargs['widget'] = VerboseManyToManyRawIdWidget(remote_field, site)
             return db_field.formfield(**kwargs)
-        return super(ImproveRawIdFieldsForm, self).formfield_for_dbfield(db_field, **kwargs)
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 
 class ImproveRawIdFieldsFormTabularInline(admin.TabularInline):
 
-    def formfield_for_dbfield(self, db_field, **kwargs):
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
         if db_field.name in self.raw_id_fields:
-            kwargs.pop("request", None)
             if hasattr(db_field, 'remote_field'):
                 remote_field = db_field.remote_field
             else:
                 remote_field = db_field.rel
             typ = remote_field.__class__.__name__
-            if typ == "ManyToOneRel":
+            if typ == 'ManyToOneRel':
                 kwargs['widget'] = VerboseForeignKeyRawIdWidget(remote_field, site)
-            elif typ == "ManyToManyRel":
+            elif typ == 'ManyToManyRel':
                 kwargs['widget'] = VerboseManyToManyRawIdWidget(remote_field, site)
             return db_field.formfield(**kwargs)
-        return super(ImproveRawIdFieldsFormTabularInline, self)\
-            .formfield_for_dbfield(db_field, **kwargs)
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
