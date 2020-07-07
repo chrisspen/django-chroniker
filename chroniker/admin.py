@@ -629,8 +629,8 @@ class MonitorAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return False
 
-    def queryset(self, request):
-        qs = super(MonitorAdmin, self).queryset(request)
+    def get_queryset(self, request):
+        qs = super(MonitorAdmin, self).get_queryset(request)
         qs = qs.filter(is_monitor=True)
         qs = qs.order_by('name')
         return qs
