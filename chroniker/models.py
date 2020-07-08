@@ -897,7 +897,10 @@ class Job(models.Model):
         Assembles customisable parameters to be passed to our program.
         Such as: --user=root --host=hostname --db-name=database1
         """
-        return ' '.join(['--%s=%s' % (p.name, p.value) for p in self.parameter_set.all()])
+        params = self.parameter_set.all()
+        if params:
+            return '\\\n'+'\\\n'.join(['--%s=%s' % (p.name, p.value) for p in params])
+        return ''
 
     def is_due(self, **kwargs):
         """
