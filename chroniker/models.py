@@ -535,6 +535,8 @@ class Job(models.Model):
     log_stderr = models.BooleanField(default=True, help_text=_('''If checked, all characters printed to stderr will be
             saved in a log record.'''))
 
+    command_group = models.ForeignKey('chroniker.CommandGroup', on_delete=models.SET_NULL, null=True, blank=True)
+
     class Meta:
         ordering = (
             'name',
@@ -826,7 +828,7 @@ class Job(models.Model):
         param_dict = []
         for param in params:
             if param.strip() == "":
-                continue # skip blanks
+                continue  # skip blanks
             param = param.split(':')
             if len(param) == 2:
                 param = (
@@ -865,7 +867,9 @@ class Job(models.Model):
         Assembles customisable parameters to be passed to our program.
         Such as: --user=root --host=hostname --db-name=database1
         """
-        params = self.parameter_set.all()
+        params = list(self.parameter_set.all())
+        if self.command_group:
+            params += list(self.command_group.parameter_set.all())
         if params:
             return '\\\n'+'\\\n'.join(['--%s=%s' % (p.name, p.value) for p in params])
         return ''
@@ -898,7 +902,7 @@ class Job(models.Model):
     def is_due_with_dependencies_met(self, running_ids=None):
         """
         Return true if job is scheduled to run and all dependencies
-        are satisified.
+        are satisfied.
         """
         return self.is_due() and self.dependencies_met(running_ids=running_ids)
 
@@ -1359,8 +1363,20 @@ class Monitor(Job):
         proxy = True
 
 
+class CommandGroup(models.Model):
+    """Command groups share common parameters."""
+    name = models.CharField("Name", max_length=80)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = 'Command group'
+
+
 class Parameter(models.Model):
     """Key=value pairs to pass as args."""
+    command_group = models.ForeignKey('chroniker.CommandGroup', on_delete=models.SET_NULL, null=True, blank=True)
     job = models.ForeignKey('chroniker.Job', on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField("Name", max_length=80)
     value = models.CharField("Value", max_length=250)
