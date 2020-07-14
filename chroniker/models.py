@@ -870,7 +870,7 @@ class Job(models.Model):
         for group in self.groups.all():
             params += list(group.parameter_set.all())
         if params:
-            return '\\\n'+'\\\n'.join(['--%s=%s' % (p.name, p.value) for p in params])
+            return ' \\\n'+' \\\n'.join(['--%s=%s' % (p.name, p.value) for p in params])
         return ''
 
     def is_due(self, **kwargs):
