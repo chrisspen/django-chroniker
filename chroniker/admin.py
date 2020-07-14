@@ -44,7 +44,7 @@ class ParameterInline(admin.TabularInline):
 
 
 class ParameterAdmin(admin.ModelAdmin):
-    list_display = ('group', 'name', 'value', 'job_name')
+    list_display = ('__str__', 'name', 'value', 'group', 'job_name')
     ordering = ('group', 'name', 'value')
 
 

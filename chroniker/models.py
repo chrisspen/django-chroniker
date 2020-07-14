@@ -1385,7 +1385,11 @@ class Parameter(models.Model):
         return self.job.name if self.job else '--'
 
     def __str__(self):
-        return f'{self.job.name} {self.name}'
+        if self.job:
+            return f'{self.job.name} {self.name}'
+        if self.group:
+            return f'{self.group.name} {self.name}'
+        return self.name
 
     class Meta:
         unique_together = ('job', 'name', 'value')
