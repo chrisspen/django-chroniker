@@ -416,7 +416,8 @@ class Job(models.Model):
     objects = JobManager()
 
     name = models.CharField(_("name"), max_length=200)
-    description = models.CharField(_("description"), max_length=250, blank=True, null=True)
+    description = models.TextField(_("description"), blank=True, null=True,
+                                   help_text=_('An explanation of the job\'s purpose.'))
 
     frequency = models.CharField(_("frequency"), choices=c.FREQ_CHOICES, max_length=10)
 
@@ -514,8 +515,6 @@ class Job(models.Model):
             'to compose the error text email.<br/>' + \
             'Available variables: {{ job }} {{ stderr }} {{ url }}'))
 
-    monitor_description = models.TextField(blank=True, null=True, help_text=_('An explanation of the monitor\'s purpose.'))
-
     monitor_records = models.IntegerField(
         blank=True,
         null=True,
@@ -571,8 +570,8 @@ class Job(models.Model):
         return url
 
     @property
-    def monitor_description_safe(self):
-        return mark_safe(self.monitor_description)
+    def description_safe(self):
+        return mark_safe(self.description)
 
     @property
     def progress_ratio(self):

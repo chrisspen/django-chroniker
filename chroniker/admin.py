@@ -183,7 +183,6 @@ class JobAdmin(admin.ModelAdmin):
                 'is_monitor',
                 'monitor_url',
                 'monitor_error_template',
-                'monitor_description',
                 'monitor_records',
             )
         }),

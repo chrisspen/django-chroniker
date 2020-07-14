@@ -48,7 +48,7 @@ class Migration(migrations.Migration):
                 ('total_parts', models.PositiveIntegerField(default=0, editable=False, help_text='The total number of parts of the task.')),
                 ('is_monitor', models.BooleanField(default=False, help_text='If checked, will appear in the monitors section.')),
                 ('monitor_url', models.CharField(blank=True, help_text='URL provided to further explain the monitor.', max_length=255, null=True)),
-                ('monitor_error_template', models.TextField(blank=True, default='\nThe monitor "{{ job.name }}" has indicated a problem.\n\nPlease review this monitor at {{ url }}\n\n{{ job.monitor_description_safe }}\n\n{{ stderr }}\n', help_text='If this is a monitor, this is the template used to compose the error text email.<br/>Available variables: {{ job }} {{ stderr }} {{ url }}', null=True)),
+                ('monitor_error_template', models.TextField(blank=True, default='\nThe monitor "{{ job.name }}" has indicated a problem.\n\nPlease review this monitor at {{ url }}\n\n{{ job.description_safe }}\n\n{{ stderr }}\n', help_text='If this is a monitor, this is the template used to compose the error text email.<br/>Available variables: {{ job }} {{ stderr }} {{ url }}', null=True)),
                 ('monitor_description', models.TextField(blank=True, help_text="An explanation of the monitor's purpose.", null=True)),
                 ('monitor_records', models.IntegerField(blank=True, editable=False, help_text='The number of records that need attention.', null=True)),
                 ('maximum_log_entries', models.PositiveIntegerField(default=1000, help_text='The maximum number of most recent log entries to keep.<br/>A value of 0 keeps all log entries.')),
