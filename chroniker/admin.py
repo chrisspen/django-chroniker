@@ -40,6 +40,7 @@ class JobDependencyInline(ImproveRawIdFieldsFormTabularInline):
 
 class ParameterInline(admin.TabularInline):
     model = Parameter
+    fields = ('name', 'value')
     extra = 0
 
 
@@ -50,6 +51,7 @@ class ParameterAdmin(admin.ModelAdmin):
 
 class ParameterGroupAdmin(admin.ModelAdmin):
     list_display = ('name',)
+    inlines = (ParameterInline,)
 
 
 admin.site.register(Parameter, ParameterAdmin)
