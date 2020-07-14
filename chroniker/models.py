@@ -535,7 +535,7 @@ class Job(models.Model):
     log_stderr = models.BooleanField(default=True, help_text=_('''If checked, all characters printed to stderr will be
             saved in a log record.'''))
 
-    command_group = models.ForeignKey('chroniker.CommandGroup', on_delete=models.SET_NULL, null=True, blank=True)
+    groups = models.ManyToManyField('chroniker.ParameterGroup')
 
     class Meta:
         ordering = (
@@ -868,8 +868,8 @@ class Job(models.Model):
         Such as: --user=root --host=hostname --db-name=database1
         """
         params = list(self.parameter_set.all())
-        if self.command_group:
-            params += list(self.command_group.parameter_set.all())
+        for group in self.groups.all():
+            params += list(group.parameter_set.all())
         if params:
             return '\\\n'+'\\\n'.join(['--%s=%s' % (p.name, p.value) for p in params])
         return ''
@@ -1363,7 +1363,7 @@ class Monitor(Job):
         proxy = True
 
 
-class CommandGroup(models.Model):
+class ParameterGroup(models.Model):
     """Command groups share common parameters."""
     name = models.CharField("Name", max_length=80)
 
@@ -1371,12 +1371,12 @@ class CommandGroup(models.Model):
         return self.name
 
     class Meta:
-        verbose_name = 'Command group'
+        verbose_name = 'Parameter group'
 
 
 class Parameter(models.Model):
     """Key=value pairs to pass as args."""
-    command_group = models.ForeignKey('chroniker.CommandGroup', on_delete=models.SET_NULL, null=True, blank=True)
+    group = models.ForeignKey('chroniker.ParameterGroup', on_delete=models.SET_NULL, null=True, blank=True)
     job = models.ForeignKey('chroniker.Job', on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField("Name", max_length=80)
     value = models.CharField("Value", max_length=250)

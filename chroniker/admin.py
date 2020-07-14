@@ -16,7 +16,7 @@ from django.utils.html import format_html
 from django.utils.text import capfirst
 from django.utils.translation import ugettext_lazy as _
 
-from chroniker.models import Job, Log, JobDependency, Monitor, Parameter, CommandGroup
+from chroniker.models import Job, Log, JobDependency, Monitor, Parameter, ParameterGroup
 from chroniker import utils
 from chroniker.widgets import ImproveRawIdFieldsFormTabularInline
 
@@ -44,16 +44,16 @@ class ParameterInline(admin.TabularInline):
 
 
 class ParameterAdmin(admin.ModelAdmin):
-    list_display = ('command_group', 'name', 'value', 'job_name')
-    ordering = ('command_group', 'name', 'value')
+    list_display = ('group', 'name', 'value', 'job_name')
+    ordering = ('group', 'name', 'value')
 
 
-class CommandGroupAdmin(admin.ModelAdmin):
+class ParameterGroupAdmin(admin.ModelAdmin):
     list_display = ('name',)
 
 
 admin.site.register(Parameter, ParameterAdmin)
-admin.site.register(CommandGroup, CommandGroupAdmin)
+admin.site.register(ParameterGroup, ParameterGroupAdmin)
 
 
 class JobAdmin(admin.ModelAdmin):
@@ -133,10 +133,10 @@ class JobAdmin(admin.ModelAdmin):
             'fields': (
                 'name',
                 'description',
-                'command_group',
                 'command',
                 'args',
                 'raw_command',
+                'groups',
                 'hostname',
                 'current_hostname',
                 'current_pid',
