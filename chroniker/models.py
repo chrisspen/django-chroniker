@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import logging
 import os
+import sys
 import shlex
 import socket
 import subprocess
@@ -51,8 +52,11 @@ commit_on_success = transaction.atomic
 
 logger = logging.getLogger('chroniker.models')
 
-_state = {} # {thread_ident:job_id}
-_state_heartbeat = {} # {thread_ident:heartbeat thread object}
+_state = {}  # {thread_ident:job_id}
+_state_heartbeat = {}  # {thread_ident:heartbeat thread object}
+
+if settings.CHRONIKER_WORKING_DIR:
+    sys.path.append(settings.CHRONIKER_WORKING_DIR)
 
 
 def get_current_job():

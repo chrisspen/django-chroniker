@@ -66,3 +66,6 @@ CHRONIKER_AUTO_END_STALE_JOBS = settings.CHRONIKER_AUTO_END_STALE_JOBS = getattr
 CHRONIKER_JOB_NK = settings.CHRONIKER_JOB_NK = getattr(settings, 'CHRONIKER_JOB_NK', ('name',))
 
 CHRONIKER_JOB_ERROR_CALLBACK = settings.CHRONIKER_JOB_ERROR_CALLBACK = getattr(settings, 'CHRONIKER_JOB_ERROR_CALLBACK', None)
+
+# working dir to add to sys path for running raw command python scripts
+CHRONIKER_WORKING_DIR = settings.CHRONIKER_WORKING_DIR = getattr(settings, 'CHRONIKER_WORKING_DIR', '~/')
