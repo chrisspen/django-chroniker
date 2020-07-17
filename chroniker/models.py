@@ -1014,7 +1014,7 @@ class Job(models.Model):
                         shlex.split(command),
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
-                        check=True,
+                        # check=True,  # log actual output of failing commands, so we know why they failed
                         universal_newlines=True
                     )
                     _stdout_str = completed_process.stdout
