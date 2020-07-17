@@ -13,16 +13,19 @@ def _get_name():
 CHRONIKER_LOCK_TIMEOUT = settings.CHRONIKER_LOCK_TIMEOUT = getattr(settings, 'CHRONIKER_LOCK_TIMEOUT', 60)
 
 # The name used to identify the email sender.
-CHRONIKER_EMAIL_SENDER = settings.CHRONIKER_EMAIL_SENDER = getattr(settings, 'CHRONIKER_EMAIL_SENDER', getattr(settings, 'EMAIL_SENDER', _get_name()))
+CHRONIKER_EMAIL_SENDER = settings.CHRONIKER_EMAIL_SENDER = getattr(
+    settings, 'CHRONIKER_EMAIL_SENDER', getattr(settings, 'EMAIL_SENDER', _get_name()))
 
 # The email address used to identify the email sender.
 CHRONIKER_EMAIL_HOST_USER = settings.CHRONIKER_EMAIL_HOST_USER = getattr(
     settings, 'CHRONIKER_EMAIL_HOST_USER', getattr(settings, 'EMAIL_HOST_USER', _get_name())
 )
 
-CHRONIKER_EMAIL_SUBJECT_SUCCESS = settings.CHRONIKER_EMAIL_SUBJECT_SUCCESS = getattr(settings, 'CHRONIKER_EMAIL_SUBJECT_SUCCESS', 'Success: {{ job.name }}')
+CHRONIKER_EMAIL_SUBJECT_SUCCESS = settings.CHRONIKER_EMAIL_SUBJECT_SUCCESS = getattr(
+    settings, 'CHRONIKER_EMAIL_SUBJECT_SUCCESS', 'Success: {{ job.name }}')
 
-CHRONIKER_EMAIL_SUBJECT_ERROR = settings.CHRONIKER_EMAIL_SUBJECT_ERROR = getattr(settings, 'CHRONIKER_EMAIL_SUBJECT_ERROR', 'Error: {{ job.name }}')
+CHRONIKER_EMAIL_SUBJECT_ERROR = settings.CHRONIKER_EMAIL_SUBJECT_ERROR = getattr(
+    settings, 'CHRONIKER_EMAIL_SUBJECT_ERROR', 'Error: {{ job.name }}')
 
 CHRONIKER_PID_FN = settings.CHRONIKER_PID_FN = getattr(settings, 'CHRONIKER_PID_FN', '/tmp/chroniker-cron.pid')
 
@@ -44,7 +47,8 @@ CHRONIKER_USE_PID = settings.CHRONIKER_USE_PID = getattr(settings, 'CHRONIKER_US
 # Only set this to True if you really need this functionality and
 # are certain transactions are properly maintained in all of your scheduled
 # commands.
-CHRONIKER_SELECT_FOR_UPDATE = settings.CHRONIKER_SELECT_FOR_UPDATE = getattr(settings, 'CHRONIKER_SELECT_FOR_UPDATE', False)
+CHRONIKER_SELECT_FOR_UPDATE = settings.CHRONIKER_SELECT_FOR_UPDATE = getattr(
+    settings, 'CHRONIKER_SELECT_FOR_UPDATE', False)
 
 # Set this to false for use on multiple hosts, since
 # the lock file will only be accessible on a single host.
@@ -61,11 +65,10 @@ CHRONIKER_STALE_MINUTES = settings.CHRONIKER_STALE_MINUTES = getattr(settings, '
 # If true, and a job becomes stale, it will be automatically marked
 # as not running, with a failed status and log entry noting that the
 # job unexpectedly crashed.
-CHRONIKER_AUTO_END_STALE_JOBS = settings.CHRONIKER_AUTO_END_STALE_JOBS = getattr(settings, 'CHRONIKER_AUTO_END_STALE_JOBS', True)
+CHRONIKER_AUTO_END_STALE_JOBS = settings.CHRONIKER_AUTO_END_STALE_JOBS = getattr(
+    settings, 'CHRONIKER_AUTO_END_STALE_JOBS', True)
 
 CHRONIKER_JOB_NK = settings.CHRONIKER_JOB_NK = getattr(settings, 'CHRONIKER_JOB_NK', ('name',))
 
-CHRONIKER_JOB_ERROR_CALLBACK = settings.CHRONIKER_JOB_ERROR_CALLBACK = getattr(settings, 'CHRONIKER_JOB_ERROR_CALLBACK', None)
-
-# working dir to add to sys path for running raw command python scripts
-CHRONIKER_WORKING_DIR = settings.CHRONIKER_WORKING_DIR = getattr(settings, 'CHRONIKER_WORKING_DIR', '~/')
+CHRONIKER_JOB_ERROR_CALLBACK = settings.CHRONIKER_JOB_ERROR_CALLBACK = getattr(
+    settings, 'CHRONIKER_JOB_ERROR_CALLBACK', None)
