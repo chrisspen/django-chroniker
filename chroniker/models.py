@@ -98,10 +98,10 @@ def set_current_heartbeat(obj):
 
 
 def hostname_help_text_setter():
-    return _('If given, ensures the job is only run on the server ' + \
-             'with the equivalent host name.<br/>Not setting any hostname ' + \
-             'will cause the job to be run on the first server that ' + \
-             'processes pending jobs.<br/> ' + \
+    return _('If given, ensures the job is only run on the server ' +
+             'with the equivalent host name.<br/>Not setting any hostname ' +
+             'will cause the job to be run on the first server that ' +
+             'processes pending jobs.<br/> ' +
              'e.g. The hostname of this server is <b>%s</b>.') \
              % socket.gethostname()
 
@@ -264,8 +264,8 @@ class JobManager(models.Manager):
             q = self.all()
         q = q.filter(Q(next_run__lte=timezone.now()) | Q(force_run=True))
         q = q.filter(
-            Q(hostname__isnull=True) | \
-            Q(hostname='') | \
+            Q(hostname__isnull=True) |
+            Q(hostname='') |
             Q(hostname=socket.gethostname()))
         q = q.filter(enabled=True)
         if check_running:
@@ -298,28 +298,28 @@ class JobManager(models.Manager):
             valid = True
 
             if job.check_is_running():
-                #print('Skipping job %i (%s) which is already running.' % (job.id, job))
+                # print('Skipping job %i (%s) which is already running.' % (job.id, job))
                 continue
 
             failed_dep = None
             for dep in deps:
                 if dep.dependee.id in skipped_job_ids:
                     continue
-                #elif dep.wait_for_completion and dep.dependee.is_due():
+                # elif dep.wait_for_completion and dep.dependee.is_due():
                 if not dep.criteria_met():
                     valid = False
                     failed_dep = dep
                     break
 
             if not valid:
-                #print('Skipping job %i (%s) which is dependent on a due job %i (%s).' \
+                # print('Skipping job %i (%s) which is dependent on a due job %i (%s).' \
                 #    % (job.id, job, failed_dep.dependee.id, failed_dep.dependee))
                 skipped_job_ids.add(job.id)
                 continue
 
-            #TODO:remove? redundant?
+            # TODO: remove? redundant?
             if not job.dependencies_met():
-                #print('Skipping job %i (%s) which has unmet dependencies.' % (job.id, job))
+                # print('Skipping job %i (%s) which has unmet dependencies.' % (job.id, job))
                 skipped_job_ids.add(job.id)
                 continue
 
@@ -373,11 +373,11 @@ class JobManager(models.Manager):
                 if utils.pid_exists(job.current_pid):
                     print('Killing process {}...'.format(job.current_pid))
                     utils.kill_process(job.current_pid)
-                    #TODO:record log entry
+                    # TODO:record log entry
                 else:
                     print('Process with PID {} is not running.'.format(job.current_pid))
             else:
-                print('Process with PID {} is not elligible for killing.'.format(job.current_pid))
+                print('Process with PID {} is not eligible for killing.'.format(job.current_pid))
 
             job.is_running = False
             job.last_run_successful = False
@@ -1065,7 +1065,7 @@ class Job(models.Model):
                 with lock:
                     Job.objects.update()
                     job = Job.objects.only('id', 'total_parts', 'last_run_successful').get(id=self.id)
-                    tpc = (job.last_run_successful and job.total_parts) or 0 # pylint: disable=E0601
+                    tpc = (job.last_run_successful and job.total_parts) or 0  # pylint: disable=E0601
                     Job.objects.filter(id=self.id).update(
                         is_running=False,
                         lock_file='',
@@ -1153,7 +1153,7 @@ class Job(models.Model):
                 Job.objects.update()
                 job = Job.objects.get(id=self.id)
                 if job.is_running:
-                    # This should only be reached if an error ocurred above.
+                    # This should only be reached if an error occurred above.
                     job.is_running = False
                     job.last_run_successful = False
                     job.save()
@@ -1204,13 +1204,15 @@ class Log(models.Model):
 
     run_end_datetime = models.DateTimeField(editable=False, db_index=True, blank=True, null=True)
 
-    duration_seconds = models.PositiveIntegerField(editable=False, db_index=True, verbose_name='duration (total seconds)', blank=True, null=True)
+    duration_seconds = models.PositiveIntegerField(editable=False, db_index=True,
+                                                   verbose_name='duration (total seconds)', blank=True, null=True)
 
     stdout = models.TextField(blank=True)
 
     stderr = models.TextField(blank=True)
 
-    hostname = models.CharField(max_length=700, blank=True, null=True, editable=False, help_text=_('The hostname this job was executed on.'))
+    hostname = models.CharField(max_length=700, blank=True, null=True, editable=False,
+                                help_text=_('The hostname this job was executed on.'))
 
     success = models.BooleanField(default=True, db_index=True, editable=False)
 
@@ -1323,7 +1325,7 @@ class Log(models.Model):
         result = self.stderr or ''
         if len(result) > 40:
             result = result[:40] + '...'
-        return (result) or '(No errors)'
+        return result or '(No errors)'
 
     def stdout_long_sample(self):
         return clean_samples(self.stdout or '(No output)')
