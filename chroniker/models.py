@@ -534,8 +534,6 @@ class Job(models.Model):
     log_stderr = models.BooleanField(default=True, help_text=_('''If checked, all characters printed to stderr will be
             saved in a log record.'''))
 
-    groups = models.ManyToManyField('chroniker.ParameterGroup')
-
     class Meta:
         ordering = (
             'name',
@@ -861,18 +859,6 @@ class Job(models.Model):
                 args.append(arg)
         return args, options
 
-    def get_custom_parameters(self):
-        """
-        Assembles customisable parameters to be passed to our program.
-        Such as: --user=root --host=hostname --db-name=database1
-        """
-        params = list(self.parameter_set.all())
-        for group in self.groups.all():
-            params += list(group.parameter_set.all())
-        if params:
-            return ' \\\n'+' \\\n'.join(['--%s=%s' % (p.name, p.value) for p in params])
-        return ''
-
     def is_due(self, **kwargs):
         """
         >>> job = Job(next_run=timezone.now())
@@ -1008,13 +994,13 @@ class Job(models.Model):
             try:
                 logger.debug("Calling command '%s'", self.command)
                 if self.raw_command and not getattr(settings, 'CHRONIKER_DISABLE_RAW_COMMAND', False):
-                    command = self.raw_command + ' ' + self.get_custom_parameters()
+                    command = self.raw_command
 
                     completed_process = subprocess.run(
                         shlex.split(command),
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
-                        # check=True,  # log actual output of failing commands, so we know why they failed
+                        check=True,  # comment out to log actual output of failing commands, to see why they failed
                         universal_newlines=True
                     )
                     _stdout_str = completed_process.stdout
@@ -1362,36 +1348,3 @@ class Monitor(Job):
 
     class Meta:
         proxy = True
-
-
-class ParameterGroup(models.Model):
-    """Command groups share common parameters."""
-    name = models.CharField("Name", max_length=80)
-
-    def __str__(self):
-        return self.name
-
-    class Meta:
-        verbose_name = 'Parameter group'
-
-
-class Parameter(models.Model):
-    """Key=value pairs to pass as args."""
-    group = models.ForeignKey('chroniker.ParameterGroup', on_delete=models.SET_NULL, null=True, blank=True)
-    job = models.ForeignKey('chroniker.Job', on_delete=models.CASCADE, null=True, blank=True)
-    name = models.CharField("Name", max_length=80)
-    value = models.CharField("Value", max_length=250)
-
-    @property
-    def job_name(self):
-        return self.job.name if self.job else '--'
-
-    def __str__(self):
-        if self.job:
-            return f'{self.job.name} {self.name}'
-        if self.group:
-            return f'{self.group.name} {self.name}'
-        return self.name
-
-    class Meta:
-        unique_together = ('job', 'name', 'value')
