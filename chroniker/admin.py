@@ -118,7 +118,6 @@ class JobAdmin(admin.ModelAdmin):
                 'command',
                 'args',
                 'raw_command',
-                'groups',
                 'hostname',
                 'current_hostname',
                 'current_pid',
