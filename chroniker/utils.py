@@ -277,7 +277,10 @@ class TimedProcess(Process):
     def __init__(self, max_seconds, time_type=c.MAX_TIME, fout=None, check_freq=1, *args, **kwargs):
         super(TimedProcess, self).__init__(*args, **kwargs)
         self.fout = fout or sys.stdout
-        self.t0 = time.clock()
+        try:
+            self.t0 = time.process_time()
+        except AttributeError:
+            self.t0 = time.clock()
         self.t0_objective = time.time()
         self.max_seconds = float(max_seconds)
         self.t1 = None
@@ -332,7 +335,13 @@ class TimedProcess(Process):
     def get_duration_seconds_cpu(self):
         if self.t1 is not None:
             return self.t1 - self.t0
-        return time.clock() - self.t0
+
+        try:
+            now = time.process_time()
+        except AttributeError:
+            now = time.clock()
+
+        return now - self.t0
 
     def get_duration_seconds_cpu_recursive(self):
         # Note, this calculation will consume much user
@@ -443,7 +452,10 @@ class TimedProcess(Process):
                     print('\nAttempting to terminate expired process %s...' % (self.pid,), file=self.fout)
                 timeout = True
                 self.terminate()
-        self.t1 = time.clock()
+        try:
+            self.t0 = time.process_time()
+        except AttributeError:
+            self.t0 = time.clock()
         self.t1_objective = time.time()
         return timeout
 
