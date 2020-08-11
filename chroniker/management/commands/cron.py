@@ -1,12 +1,13 @@
+import logging
 import os
+import socket
 import sys
 import time
-import socket
-import logging
-from functools import partial
-from optparse import make_option
 from collections import defaultdict
+from distutils.version import StrictVersion # pylint: disable=E0611
+from functools import partial
 from multiprocessing import Queue
+from optparse import make_option
 
 import psutil
 
@@ -15,9 +16,8 @@ from django.core.management.base import BaseCommand
 from django.db import connection
 from django.utils import timezone
 
+from chroniker import settings as _settings, utils
 from chroniker.models import Job, Log
-from chroniker import utils
-from chroniker import settings as _settings
 
 
 def kill_stalled_processes(dryrun=True):
@@ -311,7 +311,6 @@ class Command(BaseCommand):
         Create and return the ``ArgumentParser`` which extends ``BaseCommand`` parser with
         chroniker extra args and will be used to parse the arguments to this command.
         """
-        from distutils.version import StrictVersion # pylint: disable=E0611
         parser = super(Command, self).create_parser(prog_name, subcommand)
         version_threshold = StrictVersion('1.10')
         current_version = StrictVersion(get_version(VERSION))

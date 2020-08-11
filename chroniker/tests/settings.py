@@ -23,7 +23,10 @@ INSTALLED_APPS = [
     'chroniker',
     'chroniker.tests',
     'admin_steroids',
+    'django_smoke_tests',
 ]
+
+SKIP_SMOKE_TESTS = ('chroniker_job_add',)
 
 MEDIA_ROOT = os.path.join(PROJECT_DIR, 'media')
 

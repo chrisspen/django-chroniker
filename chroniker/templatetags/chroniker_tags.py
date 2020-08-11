@@ -1,7 +1,10 @@
+from datetime import datetime, timedelta
+
 from django import template
+from django.conf import settings
 from django.urls import reverse, NoReverseMatch
 from django.utils import timezone
-from django.conf import settings
+from django.template.defaultfilters import date
 
 register = template.Library()
 
@@ -47,8 +50,6 @@ def now_offset(format_string, offset_days=0):
     Like Django's built-in {% now ... %} tag, except it accepts a second
     integer parameter representing days to add to the current datetime.
     """
-    from django.template.defaultfilters import date
-    from datetime import datetime, timedelta
     offset_days = int(offset_days)
     tzinfo = timezone.get_current_timezone() if settings.USE_TZ else None
     dt = datetime.now(tz=tzinfo) + timedelta(days=offset_days)

@@ -1,14 +1,14 @@
 from __future__ import print_function
 import html
+import errno
 import os
+import signal
 import sys
 import time
-import signal
 import warnings
-import errno
-from multiprocessing import Process, current_process
-from importlib import import_module
 from datetime import timedelta
+from importlib import import_module
+from multiprocessing import Process, current_process
 try:
     from io import StringIO
 except ImportError:
@@ -16,14 +16,12 @@ except ImportError:
 
 import psutil
 
-from six import print_, reraise, u
-
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.urls import reverse
 from django.db import models
 from django.db import connection
+from django.urls import reverse
 from django.utils import timezone
-from django.conf import settings
 from django.utils.encoding import smart_str
 from django.utils.html import format_html
 
@@ -280,7 +278,10 @@ class TimedProcess(Process):
     def __init__(self, max_seconds, time_type=c.MAX_TIME, fout=None, check_freq=1, *args, **kwargs):
         super(TimedProcess, self).__init__(*args, **kwargs)
         self.fout = fout or sys.stdout
-        self.t0 = time.clock()
+        try:
+            self.t0 = time.process_time()
+        except AttributeError:
+            self.t0 = time.clock()
         self.t0_objective = time.time()
         self.max_seconds = float(max_seconds)
         self.t1 = None
@@ -335,7 +336,13 @@ class TimedProcess(Process):
     def get_duration_seconds_cpu(self):
         if self.t1 is not None:
             return self.t1 - self.t0
-        return time.clock() - self.t0
+
+        try:
+            now = time.process_time()
+        except AttributeError:
+            now = time.clock()
+
+        return now - self.t0
 
     def get_duration_seconds_cpu_recursive(self):
         # Note, this calculation will consume much user
@@ -441,13 +448,15 @@ class TimedProcess(Process):
                 self.fout.flush()
             if not self.is_alive():
                 break
-            elif self.is_expired:
+            if self.is_expired:
                 if verbose:
-                    print_('\nAttempting to terminate expired process %s...' \
-                        % (self.pid,), file=self.fout)
+                    print('\nAttempting to terminate expired process %s...' % (self.pid,), file=self.fout)
                 timeout = True
                 self.terminate()
-        self.t1 = time.clock()
+        try:
+            self.t0 = time.process_time()
+        except AttributeError:
+            self.t0 = time.clock()
         self.t1_objective = time.time()
         return timeout
 
@@ -489,7 +498,7 @@ def import_string(dotted_path):
     """
 
     try:
-        from django.utils.module_loading import import_string # pylint: disable=W0621
+        from django.utils.module_loading import import_string # pylint: disable=W0621,C0415
         return import_string(dotted_path)
     except ImportError:
         pass
@@ -498,7 +507,7 @@ def import_string(dotted_path):
         module_path, class_name = dotted_path.rsplit('.', 1)
     except ValueError:
         msg = "%s doesn't look like a module path" % dotted_path
-        reraise(ImportError, ImportError(msg), sys.exc_info()[2])
+        raise ImportError(msg)
 
     module = import_module(module_path)
 
@@ -506,7 +515,7 @@ def import_string(dotted_path):
         return getattr(module, class_name)
     except AttributeError:
         msg = 'Module "%s" does not define a "%s" attribute/class' % (dotted_path, class_name)
-        reraise(ImportError, ImportError(msg), sys.exc_info()[2])
+        raise ImportError(msg)
 
 
 def smart_print(*args, **kwargs):
@@ -517,7 +526,7 @@ def smart_print(*args, **kwargs):
     s = smart_str(' ')
     s = s.join(args)
     try:
-        print(u(s).encode(encoding), **kwargs)
+        print(str(s).encode(encoding), **kwargs)
     except TypeError:
         try:
             print(smart_str(s, encoding=encoding), **kwargs)
