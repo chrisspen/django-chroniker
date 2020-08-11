@@ -659,7 +659,7 @@ class MonitorAdmin(admin.ModelAdmin):
         """
         try:
             job = Job.objects.get(pk=pk)
-        except Job.DoesNotExist:
+        except (TypeError, ValueError, Job.DoesNotExist):
             raise Http404
         # Rather than actually running the Job right now, we
         # simply force the Job to be run by the next cron job
