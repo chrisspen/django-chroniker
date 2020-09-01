@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block h1 %} &rsaquo; {{ job.name }}{% endblock %}
+
+{% block extrahead %}
+<style>
+    .centre{text-align:center}
+    .logs{text-align:center;list-style:none;padding:0;font-size:smaller}
+    .command{max-width:600px;margin:1em auto;color:green;background:#eee;padding:.5em 1em}
+</style>
+{% endblock %}
+
+{% block content %}
+<p class="subtle centre">{{ job.description|default:'' }}</p>
+<p class="subtle centre">running {{ job.frequency|lower }}, next run {{ job.next_run }}
+    {% if job.params %} using schedule {{ job.params }}{% endif %}
+<p class="subtle centre"><br>
+    <a href="{% url 'job_toggle' job.pk %}" title="toggle job">
+        {% if job.enabled %}Turn OFF{% else %}Turn ON{% endif %}
+    </a>
+
+<p class="centre">
+    <a class="btn" href="{% url 'job_run' job.pk %}" title="run job">
+        <img src="/static/refresh.svg" width="24" height="24" alt="run job">
+    </a>
+
+<p class="command"><code>
+        {{ job.command }}
+        {% if job.command %}
+            {{ job.command }} {{ job.args }}
+        {% elif job.raw_command %}
+            {{ job.raw_command }}{{ job.get_custom_parameters|linebreaksbr }}
+        {% endif %}
+    </code></p>
+
+<ul class="logs">
+    {% for log in logs %}
+        <li><a href="{% url 'job_log' log.pk %}">
+            {% if 'The job failed' in log.stderr or 'ERROR:' in log.stderr %}
+                <span style="color:orangered">&times;</span>
+            {% else %}<span style="color:greenyellow">&bull;</span>{% endif %}
+            {{ log.run_start_datetime }} ({{ log.duration_seconds }}s)</a></li>
+    {% if forloop.counter == limit %}<li>
+        <a href="{% url 'admin:chroniker_log_changelist' %}?job__id__exact={{ job.pk }}">view more</a></li>{% endif %}
+    {% empty %}
+        <li>no logs</li>
+    {% endfor %}
+</ul>
+
+{% if user.is_staff %}
+    <p class="centre"><small><a href="{% url 'admin:chroniker_job_change' job.id %}">edit</a></small>
+{% endif %}
+
+{% endblock %}

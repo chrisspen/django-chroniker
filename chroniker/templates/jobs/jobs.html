@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block extrahead %}
+<style>
+    header a{color:#222}
+    .disabled{display:none}
+    .jobs{list-style:none;border-collapse:collapse;margin:0 auto 2em auto}
+    .jobs a{color:#222}
+    .jobs tr{border-bottom:1px solid #eee}
+    .jobs td{padding:.5em 1em}
+    .jobs thead th{font-weight:normal;text-transform:uppercase;font-size:12px}
+    .jobs tbody th{text-align:left;padding-right:2em;font-weight:normal}
+    .jobs tbody th a{font-weight:bold}
+    .jobs tbody th a img{vertical-align:middle}
+    .jobs .disabled *{color:#aaa}
+</style>
+<script src="https://code.jquery.com/jquery.min.js"></script>
+{% endblock %}
+
+{% block content %}
+    <table class="jobs">
+      <thead>
+        <tr>
+            <th align="right"><a href="#" onclick="$('.disabled').toggle()">show/hide disabled</a> &nbsp; </th>
+            <th>Last run</th>
+            <th>Next run</th>
+            <th>Run now</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+        <tr {% if not job.enabled %} class="disabled"{% endif %}>
+         <th><a href="{% url 'job' job.pk %}">{{ job.name }}</a>
+             {% if job.description %}<p class="subtle">{{ job.description }}</p>{% endif %}</th>
+         <td class="subtle">
+             <a href="{% url 'job_last_run' job.pk %}"{% if job.last_run %} title="{{ job.last_run }}"{% endif %}>
+             {% if job.last_run_successful == True %}success
+             {% elif job.last_run_successful == False %}failed
+             {% else %}(?){% endif %}
+             </a>
+         </td>
+         <td class="subtle">{% if job.next_run %}{{ job.next_run }}{% else %}&mdash;{% endif %}</td>
+         <td><a href="{% url 'job_run' job.pk %}" title="run {{ job.name }}">
+             <img src="/static/refresh.svg" width="18" height="18" alt="run job"></a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+{% endblock %}

@@ -72,3 +72,16 @@ CHRONIKER_JOB_NK = settings.CHRONIKER_JOB_NK = getattr(settings, 'CHRONIKER_JOB_
 
 CHRONIKER_JOB_ERROR_CALLBACK = settings.CHRONIKER_JOB_ERROR_CALLBACK = getattr(
     settings, 'CHRONIKER_JOB_ERROR_CALLBACK', None)
+
+# site name to use in templates for jobs app
+CHRONIKER_SITE_NAME = settings.CHRONIKER_SITE_NAME = getattr(settings, 'CHRONIKER_SITE_NAME', 'chroniker')
+
+# collections of python argh command jobs to inspect using ./manage.py setup_jobs and SCHEDULE
+CHRONIKER_JOBS_FOLDER = settings.CHRONIKER_JOBS_FOLDER = getattr(settings, 'CHRONIKER_JOBS_FOLDER', 'chronikerjobs')
+# names of jobs within JOBS_FOLDER to add
+CHRONIKER_JOBS_LIST = settings.CHRONIKER_JOBS_LIST = getattr(settings, 'CHRONIKER_JOBS_LIST', [])
+# job modules to add disabled by default
+CHRONIKER_JOBS_DISABLED = settings.CHRONIKER_JOBS_DISABLED = getattr(settings, 'CHRONIKER_JOBS_DISABLED', [])
+
+# setup subscribers to job errors, e.g. {'admin': 'admin@example.com', 'username': 'user@example.com'}
+CHRONIKER_JOBS_SUBSCRIBERS = settings.CHRONIKER_JOBS_SUBSCRIBERS = getattr(settings, 'CHRONIKER_JOBS_SUBSCRIBERS ', {})
