@@ -305,10 +305,13 @@ class JobAdmin(admin.ModelAdmin):
         """
         Runs the specified job.
         """
-        Job.objects.filter(id=job_id).update(
-            force_run=True,
-            force_stop=False,
-        )
+        try:
+            Job.objects.filter(id=job_id).update(
+                force_run=True,
+                force_stop=False,
+            )
+        except (TypeError, ValueError):
+            raise Http404
         self.message_user(request, _('Job %(job)s has been signalled to start running immediately.') % {'job': job_id})
         if 'inline' in request.GET:
             redirect = request.path + '../../'
@@ -320,10 +323,13 @@ class JobAdmin(admin.ModelAdmin):
         """
         Stop the specified job.
         """
-        Job.objects.filter(id=job_id).update(
-            force_run=False,
-            force_stop=True,
-        )
+        try:
+            Job.objects.filter(id=job_id).update(
+                force_run=False,
+                force_stop=True,
+            )
+        except (TypeError, ValueError):
+            raise Http404
         self.message_user(
             request,
             _('Job %(job)s has been signalled to stop running immediately.') \
@@ -338,7 +344,10 @@ class JobAdmin(admin.ModelAdmin):
 
         model = self.model
         opts = model._meta
-        object_id = int(object_id)
+        try:
+            object_id = int(object_id)
+        except (TypeError, ValueError):
+            raise Http404
         obj = self.get_object(request, object_id)
 
         q = None
@@ -661,7 +670,7 @@ class MonitorAdmin(admin.ModelAdmin):
         """
         try:
             job = Job.objects.get(pk=pk)
-        except Job.DoesNotExist:
+        except (TypeError, ValueError, Job.DoesNotExist):
             raise Http404
         # Rather than actually running the Job right now, we
         # simply force the Job to be run by the next cron job

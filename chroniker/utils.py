@@ -1,4 +1,5 @@
 from __future__ import print_function
+import html
 import errno
 import os
 import signal
@@ -277,7 +278,10 @@ class TimedProcess(Process):
     def __init__(self, max_seconds, time_type=c.MAX_TIME, fout=None, check_freq=1, *args, **kwargs):
         super(TimedProcess, self).__init__(*args, **kwargs)
         self.fout = fout or sys.stdout
-        self.t0 = time.process_time()
+        try:
+            self.t0 = time.process_time()
+        except AttributeError:
+            self.t0 = time.clock()
         self.t0_objective = time.time()
         self.max_seconds = float(max_seconds)
         self.t1 = None
@@ -322,7 +326,7 @@ class TimedProcess(Process):
             sig,
             self._p.pid,
         ))
-        #return super(TimedProcess, self).terminate(*args, **kwargs)
+        # return super(TimedProcess, self).terminate(*args, **kwargs)
 
     def get_duration_seconds_wall(self):
         if self.t1_objective is not None:
@@ -332,7 +336,13 @@ class TimedProcess(Process):
     def get_duration_seconds_cpu(self):
         if self.t1 is not None:
             return self.t1 - self.t0
-        return time.process_time() - self.t0
+
+        try:
+            now = time.process_time()
+        except AttributeError:
+            now = time.clock()
+
+        return now - self.t0
 
     def get_duration_seconds_cpu_recursive(self):
         # Note, this calculation will consume much user
@@ -443,7 +453,10 @@ class TimedProcess(Process):
                     print('\nAttempting to terminate expired process %s...' % (self.pid,), file=self.fout)
                 timeout = True
                 self.terminate()
-        self.t1 = time.clock()
+        try:
+            self.t0 = time.process_time()
+        except AttributeError:
+            self.t0 = time.clock()
         self.t1_objective = time.time()
         return timeout
 
@@ -525,7 +538,8 @@ def clean_samples(result):
     max_l = 10000
     if len(result) > max_l * 3:
         result = result[:max_l] + '\n...\n' + result[-max_l:]
-    result = result.replace('{', '  &#123;')
+    result = html.escape(result)
+    result = result.replace('{', '	&#123;')
     result = result.replace('}', '&#125;')
     result = result.replace('\n', '<br/>')
     return format_html(result)

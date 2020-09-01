@@ -25,6 +25,8 @@ INSTALLED_APPS = [
     'admin_steroids',
 ]
 
+SKIP_SMOKE_TESTS = ('chroniker_job_add',)
+
 MEDIA_ROOT = os.path.join(PROJECT_DIR, 'media')
 
 
