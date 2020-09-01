@@ -994,10 +994,9 @@ class Job(models.Model):
             try:
                 logger.debug("Calling command '%s'", self.command)
                 if self.raw_command and not getattr(settings, 'CHRONIKER_DISABLE_RAW_COMMAND', False):
-                    command = self.raw_command
 
                     completed_process = subprocess.run(
-                        shlex.split(command),
+                        shlex.split(self.raw_command),
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                         check=True,  # comment out to log actual output of failing commands, to see why they failed
