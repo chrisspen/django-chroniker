@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block h1 %} &rsaquo; {{ job.name }}{% endblock %}
 
 {% block extrahead %}
@@ -20,7 +21,7 @@
 
 <p class="centre">
     <a class="btn" href="{% url 'job_run' job.pk %}" title="run job">
-        <img src="/static/refresh.svg" width="24" height="24" alt="run job">
+        <img src="{% static 'chroniker/refresh.svg' %}" width="24" height="24" alt="run job">
     </a>
 
 <p class="command"><code>

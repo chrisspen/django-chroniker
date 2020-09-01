@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block extrahead %}
 <style>
     header a{color:#222}
@@ -40,7 +41,7 @@
          </td>
          <td class="subtle">{% if job.next_run %}{{ job.next_run }}{% else %}&mdash;{% endif %}</td>
          <td><a href="{% url 'job_run' job.pk %}" title="run {{ job.name }}">
-             <img src="/static/refresh.svg" width="18" height="18" alt="run job"></a></td>
+             <img src="{% static 'chroniker/refresh.svg' %}" width="18" height="18" alt="run job"></a></td>
         </tr>
         {% endfor %}
       </tbody>
