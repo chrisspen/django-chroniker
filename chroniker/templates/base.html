@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>{{ site_name }} {% block title %}{% endblock %}</title>
+    {% block extrahead %}{% endblock %}
+  </head>
+  <body>
+  <header>
+    <h1><a href="{% url 'jobs' %}">{{ site_name }}</a>
+        {% block h1 %}{% endblock %}</h1>
+  </header>
+  <main>
+    {% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  </body>
+</html>
