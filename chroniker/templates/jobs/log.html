@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block h1 %} &rsaquo; <a href="{% url job log.job.pk %}">{{ log.job.name }}</a> log{% endblock %}
+{% block h1 %} &rsaquo; <a href="{% url 'job' log.job.pk %}">{{ log.job.name }}</a> log{% endblock %}
 {% block extrahead %}
     <style>
     pre{padding:1em;background:#eee;border-radius:4px}
