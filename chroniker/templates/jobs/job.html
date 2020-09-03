@@ -18,20 +18,24 @@
     <a href="{% url 'job_toggle' job.pk %}" title="toggle job">
         {% if job.enabled %}Turn OFF{% else %}Turn ON{% endif %}
     </a>
+</p>
 
 <p class="centre">
     <a class="btn" href="{% url 'job_run' job.pk %}" title="run job">
         <img src="{% static 'chroniker/refresh.svg' %}" width="24" height="24" alt="run job">
     </a>
+</p>
 
-<p class="command"><code>
+<p class="command">
+    <code>
         {{ job.command }}
         {% if job.command %}
             {{ job.command }} {{ job.args }}
         {% elif job.raw_command %}
             {{ job.raw_command }}{{ job.get_custom_parameters|linebreaksbr }}
         {% endif %}
-    </code></p>
+    </code>
+</p>
 
 <ul class="logs">
     {% for log in logs %}
@@ -47,8 +51,6 @@
     {% endfor %}
 </ul>
 
-{% if user.is_staff %}
-    <p class="centre"><small><a href="{% url 'admin:chroniker_job_change' job.id %}">edit</a></small>
-{% endif %}
+<p class="centre"><small><a href="{% url 'admin:chroniker_job_change' job.id %}">edit</a></small></p>
 
 {% endblock %}
