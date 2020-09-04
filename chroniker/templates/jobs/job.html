@@ -40,7 +40,7 @@
 <ul class="logs">
     {% for log in logs %}
         <li><a href="{% url 'job_log' log.pk %}">
-            {% if 'The job failed' in log.stderr or 'ERROR:' in log.stderr %}
+            {% if 'The job failed' in log.stderr or 'Job became stale' in log.stderr or 'ERROR:' in log.stderr %}
                 <span style="color:orangered">&times;</span>
             {% else %}<span style="color:greenyellow">&bull;</span>{% endif %}
             {{ log.run_start_datetime }} ({{ log.duration_seconds }}s)</a></li>
