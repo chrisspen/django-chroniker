@@ -12,7 +12,7 @@ class Command(BaseCommand):
     help = 'A simple command that simply sleeps for the specified duration'
 
     def create_parser(self, prog_name, subcommand):
-        parser = super(Command, self).create_parser(prog_name, subcommand)
+        parser = super().create_parser(prog_name, subcommand)
         version_threshold = StrictVersion('1.10')
         current_version = StrictVersion(django.get_version(django.VERSION))
         if current_version >= version_threshold:

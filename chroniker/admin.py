@@ -196,7 +196,7 @@ class JobAdmin(admin.ModelAdmin):
         js = ("chroniker/js/dygraph-combined.js",)
 
     def queryset(self, *args, **kwargs):
-        qs = super(JobAdmin, self).queryset(*args, **kwargs)
+        qs = super().queryset(*args, **kwargs)
         if ApproxCountQuerySet is not None:
             qs = qs._clone(klass=ApproxCountQuerySet)
         return qs
@@ -308,8 +308,8 @@ class JobAdmin(admin.ModelAdmin):
                 force_run=True,
                 force_stop=False,
             )
-        except (TypeError, ValueError):
-            raise Http404
+        except (TypeError, ValueError) as exc:
+            raise Http404 from exc
         self.message_user(request, _('Job %(job)s has been signalled to start running immediately.') % {'job': job_id})
         if 'inline' in request.GET:
             redirect = request.path + '../../'
@@ -326,8 +326,8 @@ class JobAdmin(admin.ModelAdmin):
                 force_run=False,
                 force_stop=True,
             )
-        except (TypeError, ValueError):
-            raise Http404
+        except (TypeError, ValueError) as exc:
+            raise Http404 from exc
         self.message_user(
             request,
             _('Job %(job)s has been signalled to stop running immediately.') \
@@ -344,8 +344,8 @@ class JobAdmin(admin.ModelAdmin):
         opts = model._meta
         try:
             object_id = int(object_id)
-        except (TypeError, ValueError):
-            raise Http404
+        except (TypeError, ValueError) as exc:
+            raise Http404 from exc
         obj = self.get_object(request, object_id)
 
         q = None
@@ -376,7 +376,7 @@ class JobAdmin(admin.ModelAdmin):
         return render(request, 'admin/chroniker/job/duration_graph.html', context)
 
     def get_urls(self):
-        urls = super(JobAdmin, self).get_urls()
+        urls = super().get_urls()
         my_urls = [
             url(r'^(.+)/run/$', self.admin_site.admin_view(self.run_job_view), name="chroniker_job_run"),
             url(r'^(.+)/stop/$', self.admin_site.admin_view(self.stop_job_view), name="chroniker_job_stop"),
@@ -460,7 +460,7 @@ class JobAdmin(admin.ModelAdmin):
             return db_field.formfield(**kwargs)
 
         kwargs['request'] = request
-        return super(JobAdmin, self).formfield_for_dbfield(db_field, **kwargs)
+        return super().formfield_for_dbfield(db_field, **kwargs)
 
 
 class LogAdmin(admin.ModelAdmin):
@@ -513,7 +513,7 @@ class LogAdmin(admin.ModelAdmin):
     )
 
     def queryset(self, *args, **kwargs):
-        qs = super(LogAdmin, self).queryset(*args, **kwargs)
+        qs = super().queryset(*args, **kwargs)
         qs = qs.only(
             'id',
             'run_start_datetime',
@@ -551,7 +551,7 @@ class LogAdmin(admin.ModelAdmin):
         return resp
 
     def get_urls(self):
-        urls = super(LogAdmin, self).get_urls()
+        urls = super().get_urls()
         my_urls = [
             url(r'^(?P<log_id>[0-9]+)/stdout/?$', self.admin_site.admin_view(self.view_full_stdout), name='chroniker_log_stdout'),
             url(r'^(?P<log_id>[0-9]+)/stderr/?$', self.admin_site.admin_view(self.view_full_stderr), name='chroniker_log_stderr'),
@@ -611,7 +611,7 @@ class MonitorAdmin(admin.ModelAdmin):
     get_timeuntil.short_description = _('next check')
 
     def get_actions(self, request):
-        actions = super(MonitorAdmin, self).get_actions(request)
+        actions = super().get_actions(request)
         if 'delete_selected' in actions:
             del actions['delete_selected']
         return actions
@@ -623,7 +623,7 @@ class MonitorAdmin(admin.ModelAdmin):
         return False
 
     def queryset(self, request):
-        qs = super(MonitorAdmin, self).queryset(request)
+        qs = super().queryset(request)
         qs = qs.filter(is_monitor=True)
         qs = qs.order_by('name')
         return qs
@@ -660,7 +660,7 @@ class MonitorAdmin(admin.ModelAdmin):
     status.allow_tags = True
 
     def changelist_view(self, request, extra_context=None):
-        return super(MonitorAdmin, self).changelist_view(request, extra_context=dict(title='View monitors'))
+        return super().changelist_view(request, extra_context=dict(title='View monitors'))
 
     def run_job_view(self, request, pk):
         """
@@ -668,8 +668,8 @@ class MonitorAdmin(admin.ModelAdmin):
         """
         try:
             job = Job.objects.get(pk=pk)
-        except (TypeError, ValueError, Job.DoesNotExist):
-            raise Http404
+        except (TypeError, ValueError, Job.DoesNotExist) as exc:
+            raise Http404 from exc
         # Rather than actually running the Job right now, we
         # simply force the Job to be run by the next cron job
         job.force_run = True
@@ -682,7 +682,7 @@ class MonitorAdmin(admin.ModelAdmin):
         return HttpResponseRedirect(redirect)
 
     def get_urls(self):
-        urls = super(MonitorAdmin, self).get_urls()
+        urls = super().get_urls()
         my_urls = [
             url(r'^(.+)/run/$', self.admin_site.admin_view(self.run_job_view), name="chroniker_job_run"),
         ]
