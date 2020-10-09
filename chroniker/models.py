@@ -806,8 +806,8 @@ class Job(models.Model):
             return c.RRULE_WEEKDAY_DICT[param_value]
         try:
             val = int(param_value)
-        except ValueError:
-            raise ValueError('rrule parameter should be integer or weekday ' 'constant (e.g. MO, TU, etc.).  ' 'Error on: %s' % param_value)
+        except ValueError as exc:
+            raise ValueError('rrule parameter should be integer or weekday ' 'constant (e.g. MO, TU, etc.).  ' 'Error on: %s' % param_value) from exc
         else:
             return val
 

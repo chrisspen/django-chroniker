@@ -36,8 +36,8 @@ def do_get_run_job_url(parser, token):
     try:
         # Splitting by None == splitting by spaces.
         tag_name, object_id = token.contents.split(None, 1)
-    except ValueError:
-        raise template.TemplateSyntaxError("%r tag requires one argument" % token.contents.split()[0])
+    except ValueError as exc:
+        raise template.TemplateSyntaxError("%r tag requires one argument" % token.contents.split()[0]) from exc
     return RunJobURLNode(object_id)
 
 
