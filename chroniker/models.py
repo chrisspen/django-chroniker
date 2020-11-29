@@ -1347,3 +1347,25 @@ class Monitor(Job):
 
     class Meta:
         proxy = True
+
+
+class OptionKey(models.Model):
+    name = models.CharField(max_length=80)
+
+    def __str__(self):
+        return self.name
+
+
+class Option(models.Model):
+    job = models.ForeignKey('chroniker.Job', on_delete=models.CASCADE)
+    key = models.ForeignKey('chroniker.OptionKey', on_delete=models.CASCADE)
+    value = models.CharField(max_length=255)
+
+    def ticker(self):
+        return f"{self.value} {self.key.name}"
+
+    def __str__(self):
+        return f'{self.job.name} {self.key.name}={self.value}'
+
+    class Meta:
+        unique_together = ['job', 'key', 'value']

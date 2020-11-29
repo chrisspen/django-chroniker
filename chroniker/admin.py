@@ -16,7 +16,7 @@ from django.utils.html import format_html
 from django.utils.text import capfirst
 from django.utils.translation import ugettext_lazy as _
 
-from chroniker.models import Job, Log, JobDependency, Monitor
+from chroniker.models import Job, Log, JobDependency, Monitor, OptionKey, Option
 from chroniker import utils
 from chroniker.widgets import ImproveRawIdFieldsFormTabularInline
 
@@ -692,3 +692,12 @@ class MonitorAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Monitor, MonitorAdmin)
+
+
+class OptionAdmin(admin.ModelAdmin):
+    list_display = ['job', 'key', 'value']
+    list_filter = ['key']
+
+
+admin.site.register(OptionKey)
+admin.site.register(Option, OptionAdmin)
