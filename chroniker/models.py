@@ -102,6 +102,7 @@ def hostname_help_text_setter():
              'with the equivalent host name.<br/>Not setting any hostname ' + \
              'will cause the job to be run on the first server that ' + \
              'processes pending jobs.<br/> ' + \
+             'if * is used, the job will be run on ALL servers at once.<br/>' + \
              'e.g. The hostname of this server is <b>%s</b>.') \
              % socket.gethostname()
 
@@ -266,7 +267,9 @@ class JobManager(models.Manager):
         q = q.filter(
             Q(hostname__isnull=True) | \
             Q(hostname='') | \
-            Q(hostname=socket.gethostname()))
+            Q(hostname=socket.gethostname()) | \
+            Q(hostname='*')
+            )
         q = q.filter(enabled=True)
         if check_running:
             q = q.filter(is_running=False)
@@ -926,6 +929,7 @@ class Job(models.Model):
         Updates the record in the database to show it as running.
         Updates both the fields in the current instance as well as the fields in the database.
         """
+        # The "database lock" is just is_running!
         kwargs = dict(
             is_running=True,
             last_run_start_timestamp=timezone.now(),
@@ -981,6 +985,7 @@ class Job(models.Model):
                     # Fixes MySQL error "Commands out of sync"?
                     connection.close()
 
+                    # This doesn't check for CHRONIKER_CHECK_LOCK_FILE?
                     self.mark_running(lock_file=lock_file)
 
             except Exception as e:
@@ -1144,7 +1149,7 @@ class Job(models.Model):
         """
         This function actually checks to ensure that a job is running.
         """
-        if _settings.CHRONIKER_CHECK_LOCK_FILE and self.is_running and self.lock_file:
+        if _settings.CHRONIKER_CHECK_LOCK_FILE and self.is_running and self.lock_file and self.hostname:
             # The Job thinks that it is running, so lets actually check
             # NOTE: This will screw up the record if separate hosts
             # are processing and reading the jobs.
@@ -1162,6 +1167,10 @@ class Job(models.Model):
             return False
         # We assume the database record is definitive.
         return self.is_running
+
+        if self.hostname == "*":
+            # We ignore is_running and hopefully the lockfile in line 987 or a pid check stops the job from running again
+            return False
 
     check_is_running.short_description = "is running"
     check_is_running.boolean = True
