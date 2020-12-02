@@ -272,7 +272,8 @@ class JobManager(models.Manager):
             )
         q = q.filter(enabled=True)
         if check_running:
-            q = q.filter(is_running=False)
+            # Get jobs that aren't running and potentially-running every-host jobs
+            q = q.filter(Q(is_running=False) | Q(hostname="*"))
         if job is not None:
             if isinstance(job, int):
                 job = job.id
