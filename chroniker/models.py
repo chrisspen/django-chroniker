@@ -914,6 +914,7 @@ class Job(models.Model):
             if not self.dependencies_met():
                 # Note, this will cause the job to be re-checked the next time cron runs.
                 print('Job "{}" has unmet dependencies. Aborting run.'.format(self.name))
+            # Run an already running job if it's a wildcard job
             elif check_running and self.check_is_running() and hostname != "*":
                 print('Job "{}" already running. Aborting run.'.format(self.name))
             elif not self.is_due(check_running=check_running):
@@ -1150,7 +1151,7 @@ class Job(models.Model):
         """
         This function actually checks to ensure that a job is running.
         """
-        if _settings.CHRONIKER_CHECK_LOCK_FILE and self.is_running and self.lock_file and self.hostname:
+        if _settings.CHRONIKER_CHECK_LOCK_FILE and self.is_running and self.lock_file:
             # The Job thinks that it is running, so lets actually check
             # NOTE: This will screw up the record if separate hosts
             # are processing and reading the jobs.
