@@ -61,5 +61,3 @@ docs/_build/
 /site/
 /*.geany
 /*.out
-.vscode/
-chroniker/.venv/

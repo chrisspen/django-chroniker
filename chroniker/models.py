@@ -915,7 +915,7 @@ class Job(models.Model):
                 # Note, this will cause the job to be re-checked the next time cron runs.
                 print('Job "{}" has unmet dependencies. Aborting run.'.format(self.name))
             # Run an already running job if it's a wildcard job
-            elif check_running and self.check_is_running() and hostname != "*":
+            elif check_running and self.check_is_running() and self.hostname != "*":
                 print('Job "{}" already running. Aborting run.'.format(self.name))
             elif not self.is_due(check_running=check_running):
                 print('Job "{}" not due. Aborting run.'.format(self.name))
@@ -931,7 +931,6 @@ class Job(models.Model):
         Updates the record in the database to show it as running.
         Updates both the fields in the current instance as well as the fields in the database.
         """
-        # The "database lock" is just is_running!
         kwargs = dict(
             is_running=True,
             last_run_start_timestamp=timezone.now(),
@@ -987,7 +986,6 @@ class Job(models.Model):
                     # Fixes MySQL error "Commands out of sync"?
                     connection.close()
 
-                    # This doesn't check for CHRONIKER_CHECK_LOCK_FILE?
                     self.mark_running(lock_file=lock_file)
 
             except Exception as e:
@@ -1168,13 +1166,12 @@ class Job(models.Model):
             self.save()
             return False
 
-        # We ignore is_running and hopefully the lockfile in line 987 or a pid check stops the job from running again
-        if self.hostname == "*":
-            return False
+        # We already ignore is_running if hostname == * so this shouldn't be needed
+        # if self.hostname == "*":
+        #     return False
 
         # We assume the database record is definitive.
         return self.is_running
-
 
     check_is_running.short_description = "is running"
     check_is_running.boolean = True
