@@ -26,7 +26,7 @@ def get_reqs(*fns):
 
 
 setup(
-    name="django-chroniker",
+    name="chroniker",
     version=chroniker.__version__,
     packages=find_packages(),
     scripts=['bin/chroniker'],
