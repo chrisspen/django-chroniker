@@ -79,8 +79,7 @@ class TeeFile(StringIO):
     """
 
     def __init__(self, file, auto_flush=False, queue=None, local=True): # pylint: disable=W0622
-        super(TeeFile, self).__init__()
-        #StringIO.__init__(self)
+        super().__init__()
         self.file = file
         self.auto_flush = auto_flush
         self.length = 0
@@ -276,7 +275,7 @@ class TimedProcess(Process):
     daemon = True
 
     def __init__(self, max_seconds, time_type=c.MAX_TIME, fout=None, check_freq=1, *args, **kwargs):
-        super(TimedProcess, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.fout = fout or sys.stdout
         try:
             self.t0 = time.process_time()
@@ -429,7 +428,7 @@ class TimedProcess(Process):
         return max(self.max_seconds - self.get_duration_seconds(), 0)
 
     def start(self, *args, **kwargs):
-        super(TimedProcess, self).start(*args, **kwargs)
+        super().start(*args, **kwargs)
         self._p = psutil.Process(self.pid)
 
     def start_then_kill(self, verbose=True):
@@ -505,17 +504,17 @@ def import_string(dotted_path):
 
     try:
         module_path, class_name = dotted_path.rsplit('.', 1)
-    except ValueError:
+    except ValueError as exc:
         msg = "%s doesn't look like a module path" % dotted_path
-        raise ImportError(msg)
+        raise ImportError(msg) from exc
 
     module = import_module(module_path)
 
     try:
         return getattr(module, class_name)
-    except AttributeError:
+    except AttributeError as exc:
         msg = 'Module "%s" does not define a "%s" attribute/class' % (dotted_path, class_name)
-        raise ImportError(msg)
+        raise ImportError(msg) from exc
 
 
 def smart_print(*args, **kwargs):
@@ -539,7 +538,7 @@ def clean_samples(result):
     if len(result) > max_l * 3:
         result = result[:max_l] + '\n...\n' + result[-max_l:]
     result = html.escape(result)
-    result = result.replace('{', '	&#123;')
+    result = result.replace('{', '  &#123;')
     result = result.replace('}', '&#125;')
     result = result.replace('\n', '<br/>')
     return format_html(result)

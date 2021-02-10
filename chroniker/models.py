@@ -464,7 +464,7 @@ class Job(models.Model):
         editable=True,
     )
 
-    last_run_successful = models.NullBooleanField(_('success'), blank=True, null=True, editable=False)
+    last_run_successful = models.BooleanField(_('success'), blank=True, null=True, editable=False)
 
     subscribers = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='subscribed_jobs', blank=True, limit_choices_to={'is_staff': True})
 
@@ -806,8 +806,8 @@ class Job(models.Model):
             return c.RRULE_WEEKDAY_DICT[param_value]
         try:
             val = int(param_value)
-        except ValueError:
-            raise ValueError('rrule parameter should be integer or weekday ' 'constant (e.g. MO, TU, etc.).  ' 'Error on: %s' % param_value)
+        except ValueError as exc:
+            raise ValueError('rrule parameter should be integer or weekday ' 'constant (e.g. MO, TU, etc.).  ' 'Error on: %s' % param_value) from exc
         else:
             return val
 

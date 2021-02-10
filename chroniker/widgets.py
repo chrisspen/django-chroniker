@@ -44,7 +44,7 @@ class ForeignKeyTextInput(TextInput):
     """
 
     def __init__(self, model_class, value, *args, **kwargs):
-        super(ForeignKeyTextInput, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._model_class = model_class
         self._raw_value = value
         q = model_class.objects.filter(id=value)

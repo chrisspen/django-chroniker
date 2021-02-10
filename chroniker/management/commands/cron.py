@@ -4,14 +4,12 @@ import socket
 import sys
 import time
 from collections import defaultdict
-from distutils.version import StrictVersion # pylint: disable=E0611
 from functools import partial
 from multiprocessing import Queue
 from optparse import make_option
 
 import psutil
 
-from django import get_version, VERSION
 from django.core.management.base import BaseCommand
 from django.db import connection
 from django.utils import timezone
@@ -56,7 +54,7 @@ def kill_stalled_processes(dryrun=True):
 class JobProcess(utils.TimedProcess):
 
     def __init__(self, job, *args, **kwargs):
-        super(JobProcess, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.job = job
 
 
@@ -305,29 +303,18 @@ class Command(BaseCommand):
             help='If given, shows debugging info.'),
     )
 
-    def create_parser(self, prog_name, subcommand):
-        """
-        For ``Django>=1.10``
-        Create and return the ``ArgumentParser`` which extends ``BaseCommand`` parser with
-        chroniker extra args and will be used to parse the arguments to this command.
-        """
-        parser = super(Command, self).create_parser(prog_name, subcommand)
-        version_threshold = StrictVersion('1.10')
-        current_version = StrictVersion(get_version(VERSION))
-        if current_version >= version_threshold:
-            parser.add_argument('--update_heartbeat',
-                dest='update_heartbeat',
-                default=1,
-                help='If given, launches a thread to asynchronously update ' + \
-                    'job heartbeat status.')
-            parser.add_argument('--force_run', dest='force_run', action='store_true', default=False, help='If given, forces all jobs to run.')
-            parser.add_argument('--dryrun', action='store_true', default=False, help='If given, only displays jobs to be run.')
-            parser.add_argument('--jobs', dest='jobs', default='', help='A comma-delimited list of job ids to limit executions to.')
-            parser.add_argument('--name', dest='name', default='', help='A name to give this process.')
-            parser.add_argument('--sync', action='store_true', default=False, help='If given, runs jobs one at a time.')
-            parser.add_argument('--verbose', action='store_true', default=False, help='If given, shows debugging info.')
-            self.add_arguments(parser)
-        return parser
+    def add_arguments(self, parser):
+        parser.add_argument('--update_heartbeat',
+            dest='update_heartbeat',
+            default=1,
+            help='If given, launches a thread to asynchronously update ' + \
+                'job heartbeat status.')
+        parser.add_argument('--force_run', dest='force_run', action='store_true', default=False, help='If given, forces all jobs to run.')
+        parser.add_argument('--dryrun', action='store_true', default=False, help='If given, only displays jobs to be run.')
+        parser.add_argument('--jobs', dest='jobs', default='', help='A comma-delimited list of job ids to limit executions to.')
+        parser.add_argument('--name', dest='name', default='', help='A name to give this process.')
+        parser.add_argument('--sync', action='store_true', default=False, help='If given, runs jobs one at a time.')
+        parser.add_argument('--verbose', action='store_true', default=False, help='If given, shows debugging info.')
 
     def handle(self, *args, **options):
         verbose = options['verbose']
