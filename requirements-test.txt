@@ -1,6 +1,6 @@
 tox>=2.0.0
 # Can't be set due to conflicting versions for Py2 and Py3.
-pylint==2.6.0
+pylint==2.14.3
 django-admin-steroids>=0.4.0
 mkdocs==1.1
 yapf==0.29.0
