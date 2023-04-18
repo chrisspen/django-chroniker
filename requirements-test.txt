@@ -3,6 +3,6 @@ tox>=2.0.0
 pylint==2.6.0
 django-admin-steroids>=0.4.0
 mkdocs==1.1
-yapf==0.29.0
+yapf==0.33.0
 twine==3.3.0
 pre-commit==2.11.0
