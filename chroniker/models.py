@@ -102,6 +102,7 @@ def hostname_help_text_setter():
              'with the equivalent host name.<br/>Not setting any hostname ' + \
              'will cause the job to be run on the first server that ' + \
              'processes pending jobs.<br/> ' + \
+             'if * is used, the job will be run on ALL servers at once.<br/>' + \
              'e.g. The hostname of this server is <b>%s</b>.') \
              % socket.gethostname()
 
@@ -266,10 +267,13 @@ class JobManager(models.Manager):
         q = q.filter(
             Q(hostname__isnull=True) | \
             Q(hostname='') | \
-            Q(hostname=socket.gethostname()))
+            Q(hostname=socket.gethostname()) | \
+            Q(hostname='*')
+            )
         q = q.filter(enabled=True)
         if check_running:
-            q = q.filter(is_running=False)
+            # Get jobs that aren't running and potentially-running every-host jobs
+            q = q.filter(Q(is_running=False) | Q(hostname="*"))
         if job is not None:
             if isinstance(job, int):
                 job = job.id
@@ -910,7 +914,8 @@ class Job(models.Model):
             if not self.dependencies_met():
                 # Note, this will cause the job to be re-checked the next time cron runs.
                 print('Job "{}" has unmet dependencies. Aborting run.'.format(self.name))
-            elif check_running and self.check_is_running():
+            # Run an already running job if it's a wildcard job
+            elif check_running and self.check_is_running() and self.hostname != "*":
                 print('Job "{}" already running. Aborting run.'.format(self.name))
             elif not self.is_due(check_running=check_running):
                 print('Job "{}" not due. Aborting run.'.format(self.name))
@@ -1160,6 +1165,11 @@ class Job(models.Model):
             self.lock_file = ""
             self.save()
             return False
+
+        # We already ignore is_running if hostname == * so this shouldn't be needed
+        # if self.hostname == "*":
+        #     return False
+
         # We assume the database record is definitive.
         return self.is_running
 
