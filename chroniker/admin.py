@@ -20,8 +20,10 @@ from django.utils.datastructures import MultiValueDict
 from django.utils.formats import get_format
 from django.utils.html import format_html
 from django.utils.text import capfirst
-from django.utils.translation import ugettext_lazy as _
-
+try:
+    from django.utils.translation import ugettext_lazy as _
+except ImportError:
+    from django.utils.translation import gettext_lazy as _
 from chroniker.models import Job, Log, JobDependency, Monitor
 from chroniker import utils
 from chroniker.widgets import ImproveRawIdFieldsFormTabularInline
