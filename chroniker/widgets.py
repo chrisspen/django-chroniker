@@ -17,7 +17,10 @@ except ImportError:
         from django.utils.encoding import force_text
     except ImportError:
         from django.utils.encoding import force_str as force_text
-    from django.utils.encoding import smart_text
+    try:
+        from django.utils.encoding import smart_text
+    except ImportError:
+        from django.utils.encoding import smart_str as smart_text
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
 
