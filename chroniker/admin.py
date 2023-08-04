@@ -10,7 +10,10 @@ from django.urls import reverse, NoReverseMatch
 from django.db import models
 from django.forms import TextInput
 from django.shortcuts import render
-from django.utils.encoding import force_text
+try:
+    from django.utils.encoding import force_text
+except ImportError:
+    from django.utils.encoding import force_str as force_text
 from django.http import HttpResponseRedirect, Http404, HttpResponse
 from django.utils import dateformat, timezone
 from django.utils.datastructures import MultiValueDict
