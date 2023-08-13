@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import itertools
 import logging
 import os
 import shlex
@@ -697,11 +698,13 @@ class Job(models.Model):
                 errors['raw_command'] = errors['command']
             raise ValidationError(errors)
 
-    def full_clean(self, exclude=None, validate_unique=True):
+    def full_clean(self, **kwargs):
         self.clean()
 
     def save(self, **kwargs):
         self.full_clean()
+        # The `clean` method can update `self.frequency`
+        save_fields = ['frequency']
 
         tz = timezone.get_default_timezone()
 
@@ -713,6 +716,7 @@ class Job(models.Model):
             if not self.next_run or j.params != self.params:
                 logger.debug("Updating 'next_run")
                 next_run = self.next_run or timezone.now()
+                save_fields += ['next_run']
                 try:
                     self.next_run = self.rrule.after(utils.make_aware(next_run, tz))
                 except ValueError:
@@ -723,9 +727,23 @@ class Job(models.Model):
         if not self.is_running:
             self.current_hostname = None
             self.current_pid = None
+            save_fields += ['current_hostname', 'current_pid']
 
         if self.next_run:
             self.next_run = utils.make_aware(self.next_run, tz)
+            if 'next_run' not in save_fields:
+                save_fields += ['next_run']
+
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            extra_update_fields = [
+                field for field in save_fields if field not in update_fields
+            ]
+            # update_fields can be a tuple, or list, or set
+            extended_update_fields = type(update_fields)(
+                itertools.chain(update_fields, extra_update_fields)
+            )
+            kwargs['update_fields'] = extended_update_fields
 
         super().save(**kwargs)
 
@@ -1237,6 +1255,15 @@ class Log(models.Model):
             assert self.run_start_datetime <= self.run_end_datetime, 'Job must start before it ends.'
             time_diff = (self.run_end_datetime - self.run_start_datetime)
             self.duration_seconds = time_diff.total_seconds()
+
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None and 'duration_seconds' not in update_fields:
+                # update_fields can be a tuple, or list, or set
+                extended_update_fields = type(update_fields)(
+                    itertools.chain(update_fields, ['duration_seconds'])
+                )
+                kwargs['update_fields'] = extended_update_fields
+
         super().save(**kwargs)
 
     def duration_str(self):
