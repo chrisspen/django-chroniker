@@ -5,4 +5,4 @@ django-admin-steroids>=0.4.0
 mkdocs==1.4.2
 yapf==0.29.0
 twine==4.0.2
-pre-commit==2.11.0
+pre-commit==3.6.2
