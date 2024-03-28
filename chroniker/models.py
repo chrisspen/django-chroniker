@@ -996,6 +996,8 @@ class Job(models.Model):
 
             if heartbeat:
                 heartbeat.start()
+
+            _raw_status = 0
             try:
                 logger.debug("Calling command '%s'", self.command)
                 if self.raw_command and not getattr(settings, 'CHRONIKER_DISABLE_RAW_COMMAND', False):
@@ -1004,6 +1006,7 @@ class Job(models.Model):
                     )
                     _stdout_str = completed_process.stdout
                     _stderr_str = completed_process.stderr
+                    _raw_status = completed_process.returncode
 
                     if self.log_stdout:
                         stdout_str = _stdout_str
@@ -1044,7 +1047,7 @@ class Job(models.Model):
                 assert next_run != _next_run, 'RRule failed to increment next run datetime.'
             # next_run = next_run.replace(tzinfo=timezone.get_current_timezone())
 
-            last_run_successful = not bool(stderr.length)
+            last_run_successful = not _raw_status && not bool(stderr.length)
 
             try:
                 with lock:
