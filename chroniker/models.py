@@ -1000,7 +1000,7 @@ class Job(models.Model):
                 logger.debug("Calling command '%s'", self.command)
                 if self.raw_command and not getattr(settings, 'CHRONIKER_DISABLE_RAW_COMMAND', False):
                     completed_process = subprocess.run(
-                        shlex.split(self.raw_command), stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, universal_newlines=True
+                        shlex.split(self.raw_command), stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, universal_newlines=True
                     )
                     _stdout_str = completed_process.stdout
                     _stderr_str = completed_process.stderr
