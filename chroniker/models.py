@@ -1047,7 +1047,7 @@ class Job(models.Model):
                 assert next_run != _next_run, 'RRule failed to increment next run datetime.'
             # next_run = next_run.replace(tzinfo=timezone.get_current_timezone())
 
-            last_run_successful = not _raw_status && not bool(stderr.length)
+            last_run_successful = not _raw_status and not bool(stderr.length)
 
             try:
                 with lock:
