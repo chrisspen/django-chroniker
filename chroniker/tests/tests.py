@@ -711,22 +711,21 @@ class JobTestCase(TestCase):
         from chroniker import widgets # pylint: disable=unused-import,import-outside-toplevel
 
     def test_non_zero_return_status_command(self):
-        # Create a Job instance with a command that returns a non-zero status
+        """
+        Confirm that jobs running a raw command that return a non-zero exit code don't break the runner
+        and simply save the exit code.
+        """
         job = Job.objects.create(name="Test Job with Non-Zero Status", raw_command="false")
 
-        # Run the job using the run_job management command and capture stdout and stderr
-        from io import StringIO
-        out = StringIO()
-        err = StringIO()
+        call_command('run_job', str(job.id), update_heartbeat=0)
 
-        with self.assertRaises(SystemExit):
-            call_command('run_job', str(job.id), stdout=out, stderr=err)
+        job.refresh_from_db()
+        self.assertEqual(job.last_run_successful, False)
 
-        # Check the outputs
-        stdout_output = out.getvalue()
-        stderr_output = err.getvalue()
+        job.raw_command = "true"
+        job.save()
 
-        self.assertIn("Command returned non-zero exit status", stderr_output)
-        self.assertNotEqual(job.last_run_return_code, 0)
-        self.assertIsNotNone(stdout_output)
-        self.assertIsNotNone(stderr_output)
+        call_command('run_job', str(job.id), update_heartbeat=0)
+
+        job.refresh_from_db()
+        self.assertEqual(job.last_run_successful, True)
