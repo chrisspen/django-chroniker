@@ -1,16 +1,13 @@
 from django import forms
 from django.conf import settings
+from django.urls import re_path as url
 from django.contrib import admin
 from django.core.management import get_commands
+from django.urls import reverse, NoReverseMatch
 from django.db import models
 from django.forms import TextInput
 from django.shortcuts import render
-from django.urls import reverse, NoReverseMatch
-try:
-    from django.urls import re_path
-except ImportError:
-    from django.conf.urls import url as re_path
-from django.utils.encoding import force_str
+from django.utils.encoding import force_str as force_text
 from django.http import HttpResponseRedirect, Http404, HttpResponse
 from django.utils import dateformat, timezone
 from django.utils.datastructures import MultiValueDict
@@ -367,7 +364,7 @@ class JobAdmin(admin.ModelAdmin):
         media = self.media
 
         context = {
-            'title': _('Change %s') % force_str(opts.verbose_name),
+            'title': _('Change %s') % force_text(opts.verbose_name),
             'object_id': object_id,
             'original': obj,
             'is_popup': False,
@@ -384,9 +381,9 @@ class JobAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super().get_urls()
         my_urls = [
-            re_path(r'^(.+)/run/$', self.admin_site.admin_view(self.run_job_view), name="chroniker_job_run"),
-            re_path(r'^(.+)/stop/$', self.admin_site.admin_view(self.stop_job_view), name="chroniker_job_stop"),
-            re_path(r'^(.+)/graph/duration/$', self.admin_site.admin_view(self.view_duration_graph), name='chroniker_job_duration_graph'),
+            url(r'^(.+)/run/$', self.admin_site.admin_view(self.run_job_view), name="chroniker_job_run"),
+            url(r'^(.+)/stop/$', self.admin_site.admin_view(self.stop_job_view), name="chroniker_job_stop"),
+            url(r'^(.+)/graph/duration/$', self.admin_site.admin_view(self.view_duration_graph), name='chroniker_job_duration_graph'),
         ]
         return my_urls + urls
 
@@ -559,8 +556,8 @@ class LogAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super().get_urls()
         my_urls = [
-            re_path(r'^(?P<log_id>[0-9]+)/stdout/?$', self.admin_site.admin_view(self.view_full_stdout), name='chroniker_log_stdout'),
-            re_path(r'^(?P<log_id>[0-9]+)/stderr/?$', self.admin_site.admin_view(self.view_full_stderr), name='chroniker_log_stderr'),
+            url(r'^(?P<log_id>[0-9]+)/stdout/?$', self.admin_site.admin_view(self.view_full_stdout), name='chroniker_log_stdout'),
+            url(r'^(?P<log_id>[0-9]+)/stderr/?$', self.admin_site.admin_view(self.view_full_stderr), name='chroniker_log_stderr'),
         ]
         return my_urls + urls
 
@@ -690,7 +687,7 @@ class MonitorAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super().get_urls()
         my_urls = [
-            re_path(r'^(.+)/run/$', self.admin_site.admin_view(self.run_job_view), name="chroniker_job_run"),
+            url(r'^(.+)/run/$', self.admin_site.admin_view(self.run_job_view), name="chroniker_job_run"),
         ]
         return my_urls + urls
 

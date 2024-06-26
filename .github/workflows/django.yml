@@ -1,0 +1,40 @@
+name: Django CI
+
+on:
+  push:
+    branches: [ "**" ]
+#  pull_request:
+#    branches: [ "**" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.8"]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        sudo add-apt-repository -y ppa:deadsnakes/ppa
+        sudo apt-get -yq update
+        sudo apt-get -yq install python${{ matrix.python-version }} python${{ matrix.python-version }}-dev
+        python -m pip install --upgrade pip
+        pip install -r requirements-test.txt
+
+    - name: Run PEP8 script
+      run: |
+        chmod +x ./pep8.sh
+        ./pep8.sh
+
+    - name: Run tests with Tox
+      run: tox

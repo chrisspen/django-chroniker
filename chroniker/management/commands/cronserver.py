@@ -6,10 +6,7 @@ from threading import Thread
 
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
-try:
-    from django.utils.translation import gettext_lazy as _
-except ImportError:
-    from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger('chroniker.commands.cronserver')
 
@@ -24,7 +21,7 @@ class CronThread(Thread):
 
 class Command(BaseCommand):
     args = "time"
-    help = _("Emulates a reoccurring cron call to run jobs at a specified " "interval.  This is meant primarily for development use.")
+    help = _("Emulates a reoccurring cron call to run jobs at a specified interval.  This is meant primarily for development use.")
 
     def handle(self, *args, **options):
 

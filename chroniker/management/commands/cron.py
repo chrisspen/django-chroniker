@@ -6,7 +6,6 @@ import time
 from collections import defaultdict
 from functools import partial
 from multiprocessing import Queue
-from optparse import make_option
 
 import psutil
 
@@ -129,7 +128,7 @@ def run_cron(jobs=None, **kwargs):
                 pass
             elif os.path.isfile(pid_fn):
                 try:
-                    old_pid = int(open(pid_fn, 'r').read())
+                    old_pid = int(open(pid_fn, 'r', encoding='utf8').read())
                     if utils.pid_exists(old_pid):
                         print('%s already exists, exiting' % pid_fn)
                         sys.exit()
@@ -139,7 +138,7 @@ def run_cron(jobs=None, **kwargs):
                     pass
                 except TypeError:
                     pass
-            open(pid_fn, 'w').write(pid)
+            open(pid_fn, 'w', encoding='utf8').write(pid)
             clear_pid = True
 
         procs = []
@@ -167,13 +166,13 @@ def run_cron(jobs=None, **kwargs):
             Job.objects.update()
             job = Job.objects.get(id=job.id)
             if not force_run and not job.is_due_with_dependencies_met(running_ids=running_ids):
-                utils.smart_print(u'Job {} {} is due but has unmet dependencies.'\
+                utils.smart_print('Job {} {} is due but has unmet dependencies.'\
                     .format(job.id, job))
                 continue
 
             # Immediately mark the job as running so the next jobs can
             # update their dependency check.
-            utils.smart_print(u'Running job {} {}.'.format(job.id, job))
+            utils.smart_print('Running job {} {}.'.format(job.id, job))
             running_ids.add(job.id)
             if dryrun:
                 continue
@@ -270,38 +269,6 @@ def run_cron(jobs=None, **kwargs):
 
 class Command(BaseCommand):
     help = 'Runs all jobs that are due.'
-    option_list = getattr(BaseCommand, 'option_list', ()) + (
-        make_option('--update_heartbeat',
-            dest='update_heartbeat',
-            default=1,
-            help='If given, launches a thread to asynchronously update ' + \
-                'job heartbeat status.'),
-        make_option('--force_run',
-            dest='force_run',
-            action='store_true',
-            default=False,
-            help='If given, forces all jobs to run.'),
-        make_option('--dryrun',
-            action='store_true',
-            default=False,
-            help='If given, only displays jobs to be run.'),
-        make_option('--jobs',
-            dest='jobs',
-            default='',
-            help='A comma-delimited list of job ids to limit executions to.'),
-        make_option('--name',
-            dest='name',
-            default='',
-            help='A name to give this process.'),
-        make_option('--sync',
-            action='store_true',
-            default=False,
-            help='If given, runs jobs one at a time.'),
-        make_option('--verbose',
-            action='store_true',
-            default=False,
-            help='If given, shows debugging info.'),
-    )
 
     def add_arguments(self, parser):
         parser.add_argument('--update_heartbeat',

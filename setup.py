@@ -6,18 +6,14 @@ import chroniker
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 
-try:
-    with open(os.path.join(CURRENT_DIR, 'README.md'), encoding='utf-8') as f:
-        long_description = f.read()
-except TypeError:
-    with open(os.path.join(CURRENT_DIR, 'README.md')) as f:
-        long_description = f.read()
+with open(os.path.join(CURRENT_DIR, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
 
 
 def get_reqs(*fns):
     lst = []
     for fn in fns:
-        for package in open(os.path.join(CURRENT_DIR, fn)).readlines():
+        for package in open(os.path.join(CURRENT_DIR, fn), encoding='utf-8').readlines():
             package = package.strip()
             if not package:
                 continue

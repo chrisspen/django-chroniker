@@ -1,7 +1,7 @@
 Chroniker - Django Controlled Cron Jobs
 =============================================================================
 
-[![](https://img.shields.io/pypi/v/django-chroniker.svg)](https://pypi.python.org/pypi/django-chroniker) [![Build Status](https://img.shields.io/travis/chrisspen/django-chroniker.svg?branch=master)](https://travis-ci.org/chrisspen/django-chroniker) [![](https://pyup.io/repos/github/chrisspen/django-chroniker/shield.svg)](https://pyup.io/repos/github/chrisspen/django-chroniker)
+[![](https://img.shields.io/pypi/v/django-chroniker.svg)](https://pypi.python.org/pypi/django-chroniker) [![Build Status](https://github.com/chrisspen/django-chroniker/actions/workflows/django.yml/badge.svg)](https://github.com/chrisspen/django-chroniker) [![](https://pyup.io/repos/github/chrisspen/django-chroniker/shield.svg)](https://pyup.io/repos/github/chrisspen/django-chroniker)
 
 Overview
 --------
@@ -210,13 +210,13 @@ To run all [tests](http://tox.readthedocs.org/en/latest/):
 
     export TESTNAME=; tox
 
-To run tests for a specific environment (e.g. Python 2.7 with Django 1.11):
+To run tests for a specific environment (e.g. Python 3.8 with Django 3.0):
     
-    export TESTNAME=; tox -e py27-django111
+    export TESTNAME=; tox -e py38-django30
 
 To run a specific test:
     
-    export TESTNAME=.testTimezone2; tox -e py36-django21
+    export TESTNAME=.testTimezone2; tox -e py38-django30
 
 To run the [documentation server](http://www.mkdocs.org/#getting-started) locally:
 

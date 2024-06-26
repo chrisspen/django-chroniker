@@ -205,8 +205,7 @@ def pid_exists(pid):
         os.kill(pid, 0)
     except OSError as e:
         return e.errno == errno.EPERM
-    else:
-        return True
+    return True
 
 
 def get_cpu_usage(pid, interval=1):
@@ -277,10 +276,7 @@ class TimedProcess(Process):
     def __init__(self, max_seconds, time_type=c.MAX_TIME, fout=None, check_freq=1, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fout = fout or sys.stdout
-        try:
-            self.t0 = time.process_time()
-        except AttributeError:
-            self.t0 = time.clock()
+        self.t0 = time.process_time()
         self.t0_objective = time.time()
         self.max_seconds = float(max_seconds)
         self.t1 = None
@@ -336,10 +332,7 @@ class TimedProcess(Process):
         if self.t1 is not None:
             return self.t1 - self.t0
 
-        try:
-            now = time.process_time()
-        except AttributeError:
-            now = time.clock()
+        now = time.process_time()
 
         return now - self.t0
 
@@ -452,10 +445,7 @@ class TimedProcess(Process):
                     print('\nAttempting to terminate expired process %s...' % (self.pid,), file=self.fout)
                 timeout = True
                 self.terminate()
-        try:
-            self.t0 = time.process_time()
-        except AttributeError:
-            self.t0 = time.clock()
+        self.t0 = time.process_time()
         self.t1_objective = time.time()
         return timeout
 

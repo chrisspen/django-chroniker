@@ -37,12 +37,7 @@ from django.utils import timezone
 from django.utils.encoding import smart_str
 from django.utils.safestring import mark_safe
 from django.utils.timesince import timeuntil
-try:
-    from django.utils.translation import ngettext, gettext, gettext_lazy as _
-except ImportError:
-    from django.utils.translation import (
-        ungettext as ngettext, ugettext as gettext, ugettext_lazy as _
-    )
+from django.utils.translation import ngettext as ungettext, gettext as ugettext, gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.utils.html import format_html
 from toposort import toposort_flatten
@@ -459,7 +454,7 @@ class Job(models.Model):
             to the frequency options.''')
     )
 
-    next_run = models.DateTimeField(_("next run"), blank=True, null=True, help_text=_("If you don't set this it will" " be determined automatically"))
+    next_run = models.DateTimeField(_("next run"), blank=True, null=True, help_text=_("If you don't set this it will be determined automatically"))
 
     last_run_start_timestamp = models.DateTimeField(_("last run start timestamp"), editable=False, blank=True, null=True)
 
@@ -552,9 +547,9 @@ class Job(models.Model):
 
     def __unicode__(self):
         if self.enabled:
-            ret = u"{} - {} - {}".format(self.id, self.name, self.timeuntil)
+            ret = "{} - {} - {}".format(self.id, self.name, self.timeuntil)
         else:
-            ret = u"{id} - {name} - disabled".format(**{'name': self.name, 'id': self.id})
+            ret = "{id} - {name} - disabled".format(**{'name': self.name, 'id': self.id})
         if not isinstance(ret, str):
             ret = str(ret)
         return ret
@@ -753,7 +748,7 @@ class Job(models.Model):
             log_q = self.logs.all().order_by('-run_start_datetime')[cutoff:]
             if log_q.exists():
                 cutoff_dt = log_q[0].run_start_datetime
-                qs = Log.objects.filter(run_start_datetime__lte=cutoff_dt)
+                qs = Log.objects.filter(job=self.id, run_start_datetime__lte=cutoff_dt)
                 for o in qs:
                     o.delete()
 
@@ -799,8 +794,8 @@ class Job(models.Model):
             return _('due')
         if delta.seconds < 60:
             # Adapted from django.utils.timesince
-            count = lambda n: ngettext('second', 'seconds', n)
-            return gettext('%(number)d %(type)s') % {'number': delta.seconds, 'type': count(delta.seconds)}
+            count = lambda n: ungettext('second', 'seconds', n)
+            return ugettext('%(number)d %(type)s') % {'number': delta.seconds, 'type': count(delta.seconds)}
         return timeuntil(self.next_run)
 
     get_timeuntil.short_description = _('time until next run')
@@ -835,8 +830,7 @@ class Job(models.Model):
             val = int(param_value)
         except ValueError as exc:
             raise ValueError('rrule parameter should be integer or weekday ' 'constant (e.g. MO, TU, etc.).  ' 'Error on: %s' % param_value) from exc
-        else:
-            return val
+        return val
 
     def get_params(self):
         """
@@ -985,15 +979,15 @@ class Job(models.Model):
 
         original_pid = os.getpid()
 
-        try:
-            # Redirect output so that we can log and easily check for errors.
-            stdout = utils.TeeFile(sys.stdout, auto_flush=True, queue=stdout_queue, local=self.log_stdout)
-            stderr = utils.TeeFile(sys.stderr, auto_flush=True, queue=stderr_queue, local=self.log_stderr)
-            ostdout = sys.stdout
-            ostderr = sys.stderr
-            sys.stdout = stdout
-            sys.stderr = stderr
+        # Redirect output so that we can log and easily check for errors.
+        stdout = utils.TeeFile(sys.stdout, auto_flush=True, queue=stdout_queue, local=self.log_stdout)
+        stderr = utils.TeeFile(sys.stderr, auto_flush=True, queue=stderr_queue, local=self.log_stderr)
+        ostdout = sys.stdout
+        ostderr = sys.stderr
+        sys.stdout = stdout
+        sys.stderr = stderr
 
+        try:
             args, options = self.get_args()
 
             heartbeat = None
@@ -1019,14 +1013,17 @@ class Job(models.Model):
 
             if heartbeat:
                 heartbeat.start()
+
+            _raw_status = 0
             try:
                 logger.debug("Calling command '%s'", self.command)
                 if self.raw_command and not getattr(settings, 'CHRONIKER_DISABLE_RAW_COMMAND', False):
                     completed_process = subprocess.run(
-                        shlex.split(self.raw_command), stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, universal_newlines=True
+                        shlex.split(self.raw_command), stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, universal_newlines=True
                     )
                     _stdout_str = completed_process.stdout
                     _stderr_str = completed_process.stderr
+                    _raw_status = completed_process.returncode
 
                     if self.log_stdout:
                         stdout_str = _stdout_str
@@ -1067,7 +1064,7 @@ class Job(models.Model):
                 assert next_run != _next_run, 'RRule failed to increment next run datetime.'
             # next_run = next_run.replace(tzinfo=timezone.get_current_timezone())
 
-            last_run_successful = not bool(stderr.length)
+            last_run_successful = not _raw_status and not bool(stderr.length)
 
             try:
                 with lock:
