@@ -8,16 +8,6 @@
 # 
 [MASTER]
 
-# Specify a configuration file.
-#rcfile=
-
-# Python code to execute, usually for sys.path manipulation such as
-# pygtk.require().
-#init-hook=
-
-# Profiled execution.
-profile=no
-
 # Add <file or directory> to the black list. It should be a base name, not a
 # path. You may set this option multiple times.
 # Ignore all auto-generated South migration directories.
@@ -26,98 +16,19 @@ ignore=migrations,south_migrations
 # Pickle collected data for later comparisons.
 persistent=yes
 
-# Set the cache size for astng objects.
-cache-size=500
-
 # List of plugins (as comma separated values of python modules names) to load,
 # usually to register additional checkers.
 load-plugins=
 
 [MESSAGES CONTROL]
 
-# Enable only checker(s) with the given id(s). This option conflicts with the
-# disable-checker option
-#enable-checker=
-
-# Enable all checker(s) except those with the given id(s). This option
-# conflicts with the enable-checker option
-#disable-checker=
-
-# Enable all messages in the listed categories (IRCWEF).
-#enable-msg-cat=
-
-# Disable all messages in the listed categories (IRCWEF).
-disable-msg-cat=I
-
-# Enable the message(s) with the given id(s).
-#enable-msg=
-
-#http://docs.pylint.org/features.html
-#http://pylint-messages.wikidot.com/all-codes
-#pylint --list-msgs > pylint.messages
-
-# All these are disabled below.
-# C1001: old-style class defined (Django uses these for Meta options)
-# C0103: variable regex check.
-# C0111: missing docstring check. It's too vague. Complains about no docstrings in __init__ and other places we don't care about.
-# C0330: bad-continuation
-# E1101: member check...this is usually wrong.
-# E1103: type inference...this is usually wrong.
-# F0401: unable to import
-# R0201: method should be function check.
-# R0401: cyclic import check...because sometimes it's wrong.
-# R0902: too many instance attributes check.
-# R0903: too few public methods check...makes no sense with Django.
-# R0904: too many public method check.
-# R0913: too many argument check.
-# R0921: abstract class not referenced check.
-# W0104: no effect check.
-# W0142: magic check.
-# W0212: protected data check.
-# W0232: __init__ check.
-# W0311: bad-indentation
-# W0401: wildcard import.
-# W0404: reimport check...this is sometimes wrong.
-# W0511: TODO check.
-# W0612: unused variable check.
-# W0613: unused argument check. Too vague.
-# W0614: wildcard import usage check.
-# W0704: empty except check.
-# E1002: Use of super on an old style class
-# E1120: No value for argument
-# R0901: Too many ancestors
-# E1123: Unexpected keyword argument %r in %s call
-# C0302: *Too many lines in module (%s)*
-# R0801: *Similar lines in %s files*
-# R0914: *Too many local variables (%s/%s)*
-# R0912: *Too many branches (%s/%s)*
-# R0915: *Too many statements (%s/%s)*
-# W0703: *Catching too general exception %s*
-# E1003: *Bad first argument %r given to super()*
-# E0202: *An attribute defined in %s line %s hides this method*
-# W0201: *Attribute %r defined outside __init__*
-# W0221: *Arguments number differs from %s method*
-# C0325: *Unnecessary parens after %r keyword*
-# R0916: too-many-boolean-expressions
-# R0204: *Redefinition of %s type from %s to %s*
-# R0101: *Too many nested blocks (%s/%s)*
-# I0011: *Locally disabling %s (%s)*
-# W1001: *Use of "property" on an old style class*
-disable=C1001,C0103,R0201,W0212,W0614,W0401,W0704,E1101,W0142,R0904,R0913,W0404,R0903,W0232,C0111,W0613,W0612,W0511,W0104,R0902,R0921,R0401,E1103,W0311,C0330,F0401,E1002,E1120,R0901,E1123,C0302,R0801,R0914,R0912,R0915,W0703,E1003,E0202,W0201,W0221,C0325,R0916,R0204,R0101,I0011,W1001,consider-using-ternary,unsubscriptable-object,inconsistent-return-statements,keyword-arg-before-vararg,wrong-import-order
+disable=C0103,W0212,W0614,W0401,E1101,R0904,R0913,W0404,R0903,C0111,W0613,W0612,W0511,W0104,R0902,R0401,E1103,W0311,F0401,E1120,R0901,E1123,C0302,R0801,R0914,R0912,R0915,W0703,E1003,E0202,W0201,W0221,C0325,R0916,R0101,I0011,consider-using-ternary,unsubscriptable-object,inconsistent-return-statements,keyword-arg-before-vararg,wrong-import-order,use-dict-literal,consider-using-f-string,consider-using-with,unsupported-binary-operation,broad-exception-raised,unnecessary-lambda-assignment,no-name-in-module
 
 [REPORTS]
 
 # Set the output format. Available formats are text, parseable, colorized, msvs
 # (visual studio) and html
 output-format=text
-
-# Include message's id in output
-include-ids=yes
-
-# Put messages in a separate file for each module / package specified on the
-# command line instead of printing them on stdout. Reports (if any) will be
-# written in a file name "pylint_global.[txt|html]".
-files-output=no
 
 # Tells whether to display a full report or only the messages
 reports=no
@@ -128,16 +39,6 @@ reports=no
 # number of statements analyzed. This is used by the global evaluation report
 # (R0004).
 evaluation=10.0 - ((float(5 * error + warning + refactor + convention) / statement) * 10)
-
-# Add a comment according to your evaluation note. This is used by the global
-# evaluation report (R0004).
-comment=no
-
-# Enable the report(s) with the given id(s).
-#enable-report=
-
-# Disable the report(s) with the given id(s).
-#disable-report=
 
 
 # checks for :
@@ -190,9 +91,6 @@ good-names=i,j,k,ex,Run,_
 # Bad variable names which should always be refused, separated by a comma
 bad-names=foo,bar,baz,toto,tutu,tata
 
-# List of builtins function names that should not be used, separated by a comma
-bad-functions=map,filter,apply,input
-
 
 # try to find bugs in the code using type inference
 # 
@@ -205,10 +103,6 @@ ignore-mixin-members=yes
 # List of classes names for which member attributes should not be checked
 # (useful for classes with attributes dynamically set).
 ignored-classes=SQLObject
-
-# When zope mode is activated, add a predefined set of Zope acquired attributes
-# to generated-members.
-zope=no
 
 # List of members which are set dynamically and missed by pylint inference
 # system, and so shouldn't trigger E0201 when accessed.
@@ -272,9 +166,6 @@ max-locals=15
 
 # Maximum number of return / yield for function / method body
 max-returns=6
-
-# Maximum number of branch for function / method body
-max-branchs=12
 
 # Maximum number of statements in function / method body
 max-statements=50

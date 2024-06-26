@@ -709,3 +709,23 @@ class JobTestCase(TestCase):
     def test_widgets(self):
         print('django.version:', django.VERSION)
         from chroniker import widgets # pylint: disable=unused-import,import-outside-toplevel
+
+    def test_non_zero_return_status_command(self):
+        """
+        Confirm that jobs running a raw command that return a non-zero exit code don't break the runner
+        and simply save the exit code.
+        """
+        job = Job.objects.create(name="Test Job with Non-Zero Status", raw_command="false")
+
+        call_command('run_job', str(job.id), update_heartbeat=0)
+
+        job.refresh_from_db()
+        self.assertEqual(job.last_run_successful, False)
+
+        job.raw_command = "true"
+        job.save()
+
+        call_command('run_job', str(job.id), update_heartbeat=0)
+
+        job.refresh_from_db()
+        self.assertEqual(job.last_run_successful, True)
