@@ -1,13 +1,13 @@
 from django import forms
 from django.conf import settings
-from django.conf.urls import url
+from django.conf.urls import re_path as url
 from django.contrib import admin
 from django.core.management import get_commands
 from django.urls import reverse, NoReverseMatch
 from django.db import models
 from django.forms import TextInput
 from django.shortcuts import render
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str as force_text
 from django.http import HttpResponseRedirect, Http404, HttpResponse
 from django.utils import dateformat, timezone
 from django.utils.datastructures import MultiValueDict

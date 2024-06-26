@@ -6,7 +6,7 @@ from threading import Thread
 
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger('chroniker.commands.cronserver')
 

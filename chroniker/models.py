@@ -36,7 +36,7 @@ from django.utils import timezone
 from django.utils.encoding import smart_str
 from django.utils.safestring import mark_safe
 from django.utils.timesince import timeuntil
-from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
+from django.utils.translation import ngettext as ungettext, gettext as ugettext, gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.utils.html import format_html
 from toposort import toposort_flatten
