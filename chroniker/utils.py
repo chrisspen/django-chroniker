@@ -205,8 +205,7 @@ def pid_exists(pid):
         os.kill(pid, 0)
     except OSError as e:
         return e.errno == errno.EPERM
-    else:
-        return True
+    return True
 
 
 def get_cpu_usage(pid, interval=1):

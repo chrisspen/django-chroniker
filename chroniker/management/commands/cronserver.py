@@ -21,7 +21,7 @@ class CronThread(Thread):
 
 class Command(BaseCommand):
     args = "time"
-    help = _("Emulates a reoccurring cron call to run jobs at a specified " "interval.  This is meant primarily for development use.")
+    help = _("Emulates a reoccurring cron call to run jobs at a specified interval.  This is meant primarily for development use.")
 
     def handle(self, *args, **options):
 

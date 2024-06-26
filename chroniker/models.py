@@ -453,7 +453,7 @@ class Job(models.Model):
             to the frequency options.''')
     )
 
-    next_run = models.DateTimeField(_("next run"), blank=True, null=True, help_text=_("If you don't set this it will" " be determined automatically"))
+    next_run = models.DateTimeField(_("next run"), blank=True, null=True, help_text=_("If you don't set this it will be determined automatically"))
 
     last_run_start_timestamp = models.DateTimeField(_("last run start timestamp"), editable=False, blank=True, null=True)
 
@@ -546,9 +546,9 @@ class Job(models.Model):
 
     def __unicode__(self):
         if self.enabled:
-            ret = u"{} - {} - {}".format(self.id, self.name, self.timeuntil)
+            ret = "{} - {} - {}".format(self.id, self.name, self.timeuntil)
         else:
-            ret = u"{id} - {name} - disabled".format(**{'name': self.name, 'id': self.id})
+            ret = "{id} - {name} - disabled".format(**{'name': self.name, 'id': self.id})
         if not isinstance(ret, str):
             ret = str(ret)
         return ret
@@ -812,8 +812,7 @@ class Job(models.Model):
             val = int(param_value)
         except ValueError as exc:
             raise ValueError('rrule parameter should be integer or weekday ' 'constant (e.g. MO, TU, etc.).  ' 'Error on: %s' % param_value) from exc
-        else:
-            return val
+        return val
 
     def get_params(self):
         """
@@ -962,15 +961,15 @@ class Job(models.Model):
 
         original_pid = os.getpid()
 
-        try:
-            # Redirect output so that we can log and easily check for errors.
-            stdout = utils.TeeFile(sys.stdout, auto_flush=True, queue=stdout_queue, local=self.log_stdout)
-            stderr = utils.TeeFile(sys.stderr, auto_flush=True, queue=stderr_queue, local=self.log_stderr)
-            ostdout = sys.stdout
-            ostderr = sys.stderr
-            sys.stdout = stdout
-            sys.stderr = stderr
+        # Redirect output so that we can log and easily check for errors.
+        stdout = utils.TeeFile(sys.stdout, auto_flush=True, queue=stdout_queue, local=self.log_stdout)
+        stderr = utils.TeeFile(sys.stderr, auto_flush=True, queue=stderr_queue, local=self.log_stderr)
+        ostdout = sys.stdout
+        ostderr = sys.stderr
+        sys.stdout = stdout
+        sys.stderr = stderr
 
+        try:
             args, options = self.get_args()
 
             heartbeat = None
