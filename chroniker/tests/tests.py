@@ -709,3 +709,24 @@ class JobTestCase(TestCase):
     def test_widgets(self):
         print('django.version:', django.VERSION)
         from chroniker import widgets # pylint: disable=unused-import,import-outside-toplevel
+
+    def test_non_zero_return_status_command(self):
+        # Create a Job instance with a command that returns a non-zero status
+        job = Job.objects.create(name="Test Job with Non-Zero Status", raw_command="false")
+
+        # Run the job using the run_job management command and capture stdout and stderr
+        from io import StringIO
+        out = StringIO()
+        err = StringIO()
+
+        with self.assertRaises(SystemExit):
+            call_command('run_job', str(job.id), stdout=out, stderr=err)
+
+        # Check the outputs
+        stdout_output = out.getvalue()
+        stderr_output = err.getvalue()
+
+        self.assertIn("Command returned non-zero exit status", stderr_output)
+        self.assertNotEqual(job.last_run_return_code, 0)
+        self.assertIsNotNone(stdout_output)
+        self.assertIsNotNone(stderr_output)
