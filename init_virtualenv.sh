@@ -14,6 +14,7 @@ echo "[$(date)] Activating virtual environment."
 
 echo "[$(date)] Upgrading pip."
 pip install -U pip
+pip install -U pip setuptools wheel
 
 echo "[$(date)] Installing pip requirements."
 pip install -r requirements.txt -r requirements-test.txt
