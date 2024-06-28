@@ -9,4 +9,4 @@ pre-commit==2.11.0
 # Support for using pytz will be removed in Django 5.0.
 # Don't specify a version for it now. It will already be included in
 # Django versions prior to 4.0.
-pytz
+pytz==2024.1
