@@ -46,6 +46,9 @@ USE_TZ = True
 
 TIME_ZONE = 'America/New_York'
 
+# See https://docs.djangoproject.com/en/4.2/ref/settings/#use-deprecated-pytz
+USE_DEPRECATED_PYTZ = True
+
 AUTH_USER_MODEL = 'auth.User'
 
 SECRET_KEY = 'abc123'

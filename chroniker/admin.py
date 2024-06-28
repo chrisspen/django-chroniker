@@ -1,6 +1,6 @@
 from django import forms
 from django.conf import settings
-from django.conf.urls import re_path as url
+from django.urls import re_path as url
 from django.contrib import admin
 from django.core.management import get_commands
 from django.urls import reverse, NoReverseMatch
@@ -14,7 +14,10 @@ from django.utils.datastructures import MultiValueDict
 from django.utils.formats import get_format
 from django.utils.html import format_html
 from django.utils.text import capfirst
-from django.utils.translation import ugettext_lazy as _
+try:
+    from django.utils.translation import gettext_lazy as _
+except ImportError:
+    from django.utils.translation import ugettext_lazy as _
 
 from chroniker.models import Job, Log, JobDependency, Monitor
 from chroniker import utils
