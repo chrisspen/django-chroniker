@@ -729,3 +729,36 @@ class JobTestCase(TestCase):
 
         job.refresh_from_db()
         self.assertEqual(job.last_run_successful, True)
+
+    def test_get_args_handles_quoted_strings(self):
+        """
+        Confirm quoted argument values survive as a single argument.
+
+        args was split on whitespace, so arg="this is a string" became three
+        arguments with the quotes left embedded in the values. See issue #138.
+        """
+        job = Job(args="arg1 arg2 kwarg1='some value'")
+        args, options = job.get_args()
+        self.assertEqual(args, ['arg1', 'arg2'])
+        self.assertEqual(options, {'kwarg1': 'some value'})
+
+        # Double quotes, and an '=' inside a quoted value.
+        job = Job(args='arg1 kwarg1="a=b" kwarg2=plain')
+        args, options = job.get_args()
+        self.assertEqual(args, ['arg1'])
+        self.assertEqual(options, {'kwarg1': 'a=b', 'kwarg2': 'plain'})
+
+        # A quoted positional argument.
+        job = Job(args='"two words" other')
+        args, options = job.get_args()
+        self.assertEqual(args, ['two words', 'other'])
+        self.assertEqual(options, {})
+
+        # Unquoted args behave exactly as before.
+        job = Job(args='a b key=value')
+        args, options = job.get_args()
+        self.assertEqual(args, ['a', 'b'])
+        self.assertEqual(options, {'key': 'value'})
+
+        # Empty args must not raise.
+        self.assertEqual(Job(args='').get_args(), ([], {}))

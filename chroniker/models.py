@@ -863,15 +863,22 @@ class Job(models.Model):
         Processes the args and returns a tuple or (args, options) for passing
         to ``call_command``.
 
+        Splits with shlex, so quoted values survive as a single argument and
+        the quotes themselves are stripped, matching how raw_command is
+        already handled. See issue #138.
+
         >>> job = Job(args="arg1 arg2 kwarg1='some value'")
         >>> job.get_args()
-        (['arg1', 'arg2', "value'"], {'kwarg1': "'some"})
+        (['arg1', 'arg2'], {'kwarg1': 'some value'})
+
+        >>> job = Job(args='arg1 kwarg1="a=b" kwarg2=plain')
+        >>> job.get_args()
+        (['arg1'], {'kwarg1': 'a=b', 'kwarg2': 'plain'})
         """
         args = []
         options = {}
-        for arg in self.args.split():
+        for arg in shlex.split(self.args or ''):
             if arg.find('=') > -1:
-                #key, value = arg.split('=')
                 parts = arg.split('=')
                 key = parts[0]
                 value = '='.join(parts[1:])
