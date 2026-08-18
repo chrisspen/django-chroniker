@@ -501,7 +501,21 @@ def make_aware(dt, tz):
 
 
 def localtime(dt):
+    """
+    Converts a datetime to the current timezone for display.
+
+    This used to only call make_aware(), which returns an aware datetime
+    unchanged. Values are stored in UTC, so they are already aware and came
+    back out still in UTC, meaning the admin showed UTC no matter what
+    TIME_ZONE was set to. See issue #88.
+
+    Only used for display; scheduling is unaffected.
+    """
+    if dt is None:
+        return dt
     dt = make_aware(dt, settings.TIME_ZONE)
+    if settings.USE_TZ and timezone.is_aware(dt):
+        return timezone.localtime(dt)
     return dt
 
 
