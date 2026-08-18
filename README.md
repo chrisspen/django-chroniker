@@ -102,6 +102,71 @@ An example of this might be:
 
 Run `bin/chroniker --help` for a full listing of options.
 
+Monitors
+--------
+
+A monitor is a job that checks a condition rather than performing work. It is
+an ordinary `Job` with `is_monitor` set, which changes three things:
+
+* It appears under Monitors in the admin instead of Jobs.
+* Anything the command writes to **stderr** is treated as the problem
+  description and emailed to the job's subscribers, using
+  `monitor_error_template`.
+* The admin shows a status icon and a `monitor_records` count, i.e. how many
+  things currently need attention.
+
+The convention is that a monitor writes to stderr when something is wrong and
+to stdout when everything is fine. A monitor that finds nothing is a
+successful, silent run.
+
+A monitoring command looks like this:
+
+    import sys
+    from django.core.management.base import BaseCommand
+    from chroniker.models import get_current_job
+
+    class Command(BaseCommand):
+        help = 'Reports orders stuck in the pending state.'
+
+        def handle(self, *args, **options):
+            from myapp.models import Order
+            q = Order.objects.filter(status='pending')
+
+            # Optional: show the count in the admin's monitor list.
+            job = get_current_job()
+            if job:
+                job.monitor_records = q.count()
+                job.save()
+
+            if q.count():
+                # stderr means "this needs attention" and triggers the email.
+                print('%i orders are stuck pending.' % q.count(), file=sys.stderr)
+            else:
+                print('No stuck orders.', file=sys.stdout)
+
+Then create a Monitor in the admin pointing at that command, set a frequency,
+and add subscribers.
+
+For simple "does this queryset have rows" checks there is a built-in command,
+`check_monitor`, that takes the imports and query as arguments so no custom
+command is needed:
+
+    --imports=myapp.models,Order --query="Order.objects.filter(status='pending')"
+
+Note it uses `exec`/`eval` on those arguments, so treat them as trusted
+configuration rather than something to expose to untrusted admin users. The
+same caution applies as with `raw_command`; see `CHRONIKER_DISABLE_RAW_COMMAND`
+below.
+
+The other monitor fields are:
+
+* `monitor_description` — an explanation of what the monitor is for, shown in
+  the admin.
+* `monitor_url` — a link shown alongside the monitor, rendered as a Django
+  template, so it can point at a filtered changelist for the offending records.
+* `monitor_error_template` — the body of the error email. Available variables
+  are `{{ job }}`, `{{ stderr }}` and `{{ url }}`.
+
 Settings
 --------
 
