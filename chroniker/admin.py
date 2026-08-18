@@ -98,7 +98,7 @@ class JobAdmin(admin.ModelAdmin):
         'current_hostname',
         'current_pid',
         'job_type',
-        'is_due',
+        'is_due_display',
     )
     list_display_links = ('name',)
     list_filter = (
@@ -128,7 +128,7 @@ class JobAdmin(admin.ModelAdmin):
                 'classes': ('wide',),
                 'fields': (
                     'is_running',
-                    'is_due',
+                    'is_due_display',
                     'is_fresh',
                     'last_run_successful',
                     'total_parts',
