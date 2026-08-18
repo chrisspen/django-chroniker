@@ -6,6 +6,7 @@ Quick run with:
 """
 from __future__ import print_function
 
+import logging
 import os
 import socket
 import sys
@@ -762,3 +763,55 @@ class JobTestCase(TestCase):
 
         # Empty args must not raise.
         self.assertEqual(Job(args='').get_args(), ([], {}))
+
+    def test_logging_module_output_is_captured(self):
+        """
+        Confirm records emitted through the logging module reach the job log.
+
+        The job log is captured by swapping sys.stdout, but handlers built
+        from settings.LOGGING hold a reference to the stream that was current
+        when they were configured, which is the real stdout. So logger.info()
+        bypassed the capture entirely and only print() showed up in the log.
+        See issue #13.
+        """
+        job = Job.objects.create(
+            name="Test Job That Logs",
+            command="test_logger",
+            enabled=True,
+            log_stdout=True,
+            log_stderr=True,
+            next_run=timezone.now() - timedelta(days=1),
+        )
+
+        job.run(update_heartbeat=0)
+
+        log = Log.objects.filter(job=job).order_by('-id').first()
+        self.assertIsNotNone(log)
+
+        # print() has always worked; it is the control.
+        self.assertIn('printed line', log.stdout)
+        # These are what issue #13 reported missing.
+        self.assertIn('logged info line', log.stdout)
+        self.assertIn('logged warning line', log.stdout)
+
+    def test_logging_capture_restores_root_logger(self):
+        """
+        Confirm the temporary handler and level are removed after a run.
+
+        Leaving either in place would send every subsequent log record in the
+        process into a closed stream belonging to a finished job. See #13.
+        """
+        root_logger = logging.getLogger()
+        handlers_before = list(root_logger.handlers)
+        level_before = root_logger.level
+
+        job = Job.objects.create(
+            name="Test Job That Logs And Restores",
+            command="test_logger",
+            enabled=True,
+            next_run=timezone.now() - timedelta(days=1),
+        )
+        job.run(update_heartbeat=0)
+
+        self.assertEqual(list(root_logger.handlers), handlers_before)
+        self.assertEqual(root_logger.level, level_before)

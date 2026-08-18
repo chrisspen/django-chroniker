@@ -66,3 +66,8 @@ CHRONIKER_AUTO_END_STALE_JOBS = settings.CHRONIKER_AUTO_END_STALE_JOBS = getattr
 CHRONIKER_JOB_NK = settings.CHRONIKER_JOB_NK = getattr(settings, 'CHRONIKER_JOB_NK', ('name',))
 
 CHRONIKER_JOB_ERROR_CALLBACK = settings.CHRONIKER_JOB_ERROR_CALLBACK = getattr(settings, 'CHRONIKER_JOB_ERROR_CALLBACK', None)
+
+# Format used for logging-module records captured into a job's log. Only
+# applies to records captured while a job runs; it does not affect any handler
+# configured in settings.LOGGING. See issue #13.
+CHRONIKER_LOG_FORMAT = settings.CHRONIKER_LOG_FORMAT = getattr(settings, 'CHRONIKER_LOG_FORMAT', '%(levelname)s %(name)s %(message)s')
