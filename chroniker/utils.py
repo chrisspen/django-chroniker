@@ -17,7 +17,6 @@ except ImportError:
 import psutil
 
 from django.conf import settings
-from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db import connection
 from django.urls import reverse
@@ -61,12 +60,17 @@ def get_remaining_seconds(*args, **kwargs):
 
 
 def get_admin_change_url(obj):
+    # Imported lazily. A module-scope model import makes this module
+    # unimportable until the app registry is ready, which breaks
+    # spawn/forkserver children as they unpickle. See issue #397.
+    from django.contrib.contenttypes.models import ContentType # pylint: disable=import-outside-toplevel
     ct = ContentType.objects.get_for_model(obj)
     change_url_name = 'admin:%s_%s_change' % (ct.app_label, ct.model)
     return reverse(change_url_name, args=(obj.id,))
 
 
 def get_admin_changelist_url(obj):
+    from django.contrib.contenttypes.models import ContentType # pylint: disable=import-outside-toplevel
     ct = ContentType.objects.get_for_model(obj)
     list_url_name = 'admin:%s_%s_changelist' % (ct.app_label, ct.model)
     return reverse(list_url_name)
@@ -275,7 +279,12 @@ class TimedProcess(Process):
 
     def __init__(self, max_seconds, time_type=c.MAX_TIME, fout=None, check_freq=1, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fout = fout or sys.stdout
+        # Deliberately not falling back to sys.stdout here. The "spawn" and
+        # "forkserver" start methods pickle the Process object to reach the
+        # child, and an open stream can't be pickled, so storing one makes the
+        # process unstartable. Resolved lazily in the fout property instead.
+        # See issues #99, #208 and #397.
+        self._fout = fout
         self.t0 = time.process_time()
         self.t0_objective = time.time()
         self.max_seconds = float(max_seconds)
@@ -287,6 +296,29 @@ class TimedProcess(Process):
         self._p = None
         self._process_times = {} # {pid:user_seconds}
         self._last_duration_seconds = None
+
+    def __getstate__(self):
+        # An explicitly-supplied stream still can't be pickled, and fout is
+        # only ever read in the parent, so drop it when handing state to a
+        # spawn/forkserver child rather than letting start() fail.
+        state = self.__dict__.copy()
+        state['_fout'] = None
+        state['_p'] = None
+        return state
+
+    @property
+    def fout(self):
+        """
+        The stream progress messages are written to.
+
+        Resolved on access rather than stored, so the instance stays
+        picklable for spawn/forkserver. Only ever read in the parent.
+        """
+        return self._fout or sys.stdout
+
+    @fout.setter
+    def fout(self, value):
+        self._fout = value
 
     def terminate(self, sig=15, *args, **kwargs):
         """
