@@ -1225,9 +1225,25 @@ class Job(models.Model):
 
     @classmethod
     def update_progress(cls, *args, **kwargs):
+        """
+        Records progress for the job running in the current thread.
+
+        Call this from inside a management command while chroniker is running
+        it. The job is found through a thread-local set up by the runner, so
+        this is a classmethod and takes no job argument; calling it on an
+        instance still updates the running job rather than that instance.
+
+        Does nothing when no job is running in this thread, e.g. when the
+        command is run by hand. See issue #104.
+        """
         heartbeat = get_current_heartbeat()
         if heartbeat:
             return heartbeat.update_progress(*args, **kwargs)
+        logger.debug(
+            'Job.update_progress() called with no job running in this thread; '
+            'ignoring. It only has an effect inside a command being run by chroniker.'
+        )
+        return None
 
 
 class Log(models.Model):
