@@ -1056,8 +1056,7 @@ class Job(models.Model):
             next_run = self.next_run
             if not self.force_run:
                 print("Determining 'next_run' for job {}...".format(self.id))
-                if next_run < timezone.now():
-                    next_run = timezone.now()
+                next_run = max(next_run, timezone.now())
                 _next_run = next_run
                 next_run = self.rrule.after(next_run)
                 print(_next_run, next_run)
@@ -1090,7 +1089,7 @@ class Job(models.Model):
             if original_pid != os.getpid():
                 # We're a clone of the parent job, so exit immediately
                 # so we don't conflict.
-                return # pylint: disable=W0150
+                return # pylint: disable=W0150,W0134
 
             # Redirect output back to default
             sys.stdout = ostdout
