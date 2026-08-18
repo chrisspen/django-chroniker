@@ -25,7 +25,16 @@ This package contains the following improvements over the parent Chronograph pro
 
         from chroniker.models import Job
         Job.update_progress(total_parts=77, total_parts_complete=13)
-    
+
+    Call this from inside the management command, while it is being run by
+    chroniker. It is a classmethod that finds the job through a thread-local
+    set up by the runner, so there is no need to look the job up or pass it
+    around. It has no effect if the command is run directly, e.g. by hand from
+    `manage.py`, since there is no job running to report progress for. It also
+    cannot be used to update some other job from outside; calling it on an
+    instance such as `job.update_progress(...)` updates whichever job is
+    running in the current thread, not `job`.
+
 * Improved logging of management command stdout and stderr, and efficiently displaying these in admin.
 * Creation of the `Monitor` model, a proxy of the `Job` model, to allow easier setup of system and database state monitoring.
 * Addition of a model for documenting inter-job dependencies as well as flags for controlling job behavior based on these dependencies. e.g. You can configure one job to not run until another job has successfully run, or run at a later date.

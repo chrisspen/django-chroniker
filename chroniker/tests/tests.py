@@ -869,3 +869,29 @@ class JobTestCase(TestCase):
         # Log change form columns.
         self.assertTrue(LogAdmin.stdout_link(None, log))
         self.assertTrue(LogAdmin.stderr_link(None, log))
+
+    def test_update_progress_outside_a_job_is_a_noop(self):
+        """
+        Confirm update_progress() is harmless when no job is running.
+
+        It is a classmethod that finds the job through a thread-local set up
+        by the runner, so it cannot be used to update an arbitrary job from
+        outside. Calling it on an instance updates whichever job is running in
+        the current thread, not that instance, which is why it looked like
+        "nothing really happens" in issue #104.
+        """
+        job = Job.objects.create(
+            name="Test Job For Progress",
+            raw_command="true",
+            total_parts=0,
+            total_parts_complete=0,
+        )
+
+        # No job is running in this thread, so this must not raise and must
+        # not touch the instance it was called on.
+        self.assertIsNone(Job.update_progress(total_parts=77, total_parts_complete=13))
+        self.assertIsNone(job.update_progress(total_parts=77, total_parts_complete=13))
+
+        job.refresh_from_db()
+        self.assertEqual(job.total_parts, 0)
+        self.assertEqual(job.total_parts_complete, 0)
