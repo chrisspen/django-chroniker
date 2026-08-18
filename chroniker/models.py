@@ -994,6 +994,22 @@ class Job(models.Model):
         sys.stdout = stdout
         sys.stderr = stderr
 
+        # Swapping sys.stdout is not enough to capture the logging module.
+        # Handlers configured via settings.LOGGING hold a reference to whatever
+        # stream was current when they were built, which is the real stdout,
+        # long before this runs. So logger.info() bypasses the tee entirely and
+        # only print() ends up in the job log. Attach a handler bound to the
+        # tee for the duration of the run. See issue #13.
+        log_handler = logging.StreamHandler(stdout)
+        log_handler.setFormatter(logging.Formatter(_settings.CHRONIKER_LOG_FORMAT))
+        root_logger = logging.getLogger()
+        root_logger.addHandler(log_handler)
+        # A root logger left at its default WARNING would drop the info and
+        # debug calls this is meant to capture.
+        original_root_level = root_logger.level
+        if original_root_level > logging.INFO or original_root_level == logging.NOTSET:
+            root_logger.setLevel(logging.INFO)
+
         try:
             args, options = self.get_args()
 
@@ -1093,6 +1109,12 @@ class Job(models.Model):
                 print(t.render(ctx), file=sys.stderr)
 
         finally:
+            # Detach before the clone check below, so the early return can't
+            # leave the handler attached to the root logger.
+            root_logger.removeHandler(log_handler)
+            root_logger.setLevel(original_root_level)
+            log_handler.close()
+
             if original_pid != os.getpid():
                 # We're a clone of the parent job, so exit immediately
                 # so we don't conflict.
