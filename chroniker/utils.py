@@ -23,7 +23,7 @@ from django.db import connection
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import smart_str
-from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 from . import constants as c
 
@@ -527,8 +527,11 @@ def clean_samples(result):
     max_l = 10000
     if len(result) > max_l * 3:
         result = result[:max_l] + '\n...\n' + result[-max_l:]
+    # Already escaped above, and the <br/> substitutions below are markup we
+    # are adding on purpose, so this is mark_safe rather than format_html.
+    # format_html() with no args is an error as of Django 6. See issue #403.
     result = html.escape(result)
     result = result.replace('{', '  &#123;')
     result = result.replace('}', '&#125;')
     result = result.replace('\n', '<br/>')
-    return format_html(result)
+    return mark_safe(result)

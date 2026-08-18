@@ -13,6 +13,7 @@ from django.utils import dateformat, timezone
 from django.utils.datastructures import MultiValueDict
 from django.utils.formats import get_format
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from django.utils.text import capfirst
 try:
     from django.utils.translation import gettext_lazy as _
@@ -226,7 +227,7 @@ class JobAdmin(admin.ModelAdmin):
             except NoReverseMatch:
                 # New way
                 u = reverse('admin:chroniker_log_change', args=(log_id,))
-            return format_html('<a href="%s">%s</a>' % (u, value))
+            return format_html('<a href="{}">{}</a>', u, value)
         except Exception:
             return value
 
@@ -250,7 +251,7 @@ class JobAdmin(admin.ModelAdmin):
         dt = obj.next_run
         dt = utils.localtime(dt)
         value = capfirst(dateformat.format(dt, fmt))
-        return format_html("%s<br /><span class='mini'>(%s)</span>" % (value, obj.get_timeuntil()))
+        return format_html("{}<br /><span class='mini'>({})</span>", value, obj.get_timeuntil())
 
     get_timeuntil.admin_order_field = 'next_run'
     get_timeuntil.allow_tags = True
@@ -270,8 +271,7 @@ class JobAdmin(admin.ModelAdmin):
     def run_button(self, obj=None):
         if not obj or not obj.id:
             return ''
-        kwargs = dict(url='%d/run/?inline=1' % obj.id,)
-        return format_html('<a href="{url}" class="button">Run</a>'.format(**kwargs))
+        return format_html('<a href="{}" class="button">Run</a>', '%d/run/?inline=1' % obj.id)
 
     run_button.allow_tags = True
     run_button.short_description = 'Run'
@@ -279,11 +279,9 @@ class JobAdmin(admin.ModelAdmin):
     def stop_button(self, obj=None):
         if not obj or not obj.id:
             return ''
-        kwargs = dict(url='%d/stop/?inline=1' % obj.id, disabled='')
-        if not obj.is_running:
-            kwargs['disabled'] = 'disabled'
-        s = '<a href="{url}" class="button" {disabled}>Stop</a>'.format(**kwargs)
-        return format_html(s)
+        stop_url = '%d/stop/?inline=1' % obj.id
+        disabled = '' if obj.is_running else 'disabled'
+        return format_html('<a href="{}" class="button" {}>Stop</a>', stop_url, disabled)
 
     stop_button.allow_tags = True
     stop_button.short_description = 'Stop'
@@ -297,7 +295,9 @@ class JobAdmin(admin.ModelAdmin):
             id=obj.id,
             count=q.count(),
         )
-        return format_html('<a href="{url}?job__id__exact={id}"' ' target="_blank" class="button">View&nbsp;{count}</a>'.format(**kwargs))
+        return format_html(
+            '<a href="{}?job__id__exact={}" target="_blank" class="button">View&nbsp;{}</a>', kwargs['url'], kwargs['id'], kwargs['count']
+        )
 
     view_logs_button.allow_tags = True
     view_logs_button.short_description = 'Logs'
@@ -530,13 +530,13 @@ class LogAdmin(admin.ModelAdmin):
         return qs
 
     def stdout_link(self, obj):
-        return format_html('<a href="%s">Download</a>' % (reverse("admin:chroniker_log_stdout", args=(obj.id,)),))
+        return format_html('<a href="{}">Download</a>', reverse("admin:chroniker_log_stdout", args=(obj.id,)))
 
     stdout_link.allow_tags = True
     stdout_link.short_description = 'Stdout full'
 
     def stderr_link(self, obj):
-        return format_html('<a href="%s">Download</a>' % (reverse("admin:chroniker_log_stderr", args=(obj.id,)),))
+        return format_html('<a href="{}">Download</a>', reverse("admin:chroniker_log_stderr", args=(obj.id,)))
 
     stderr_link.allow_tags = True
     stderr_link.short_description = 'Stderr full'
@@ -607,7 +607,7 @@ class MonitorAdmin(admin.ModelAdmin):
         fmt = get_format('DATETIME_FORMAT')
         next_run = obj.next_run or timezone.now()
         value = capfirst(dateformat.format(utils.localtime(next_run), fmt))
-        return format_html("%s<br /><span class='mini'>(%s)</span>" % (value, obj.get_timeuntil()))
+        return format_html("{}<br /><span class='mini'>({})</span>", value, obj.get_timeuntil())
 
     get_timeuntil.admin_order_field = 'next_run'
     get_timeuntil.allow_tags = True
@@ -633,17 +633,18 @@ class MonitorAdmin(admin.ModelAdmin):
 
     def name_str(self, obj):
         if obj.monitor_url:
-            return format_html('<a href="%s" target="_blank">%s</a>' % (obj.monitor_url_rendered, obj.name))
+            return format_html('<a href="{}" target="_blank">{}</a>', obj.monitor_url_rendered, obj.name)
         return obj.name
 
     name_str.short_description = 'Name'
     name_str.allow_tags = True
 
     def action_buttons(self, obj):
-        buttons = []
-        buttons.append('<a href="%s" class="button">Check now</a>' % '%d/run/?inline=1' % obj.id)
-        buttons.append('<a href="/chroniker/job/%i/"' 'target="_blank" class="button">Edit</a>' % (obj.id,))
-        return format_html(' '.join(buttons))
+        buttons = [
+            format_html('<a href="{}" class="button">Check now</a>', '%d/run/?inline=1' % obj.id),
+            format_html('<a href="/chroniker/job/{}/" target="_blank" class="button">Edit</a>', obj.id),
+        ]
+        return mark_safe(' '.join(buttons))
 
     action_buttons.allow_tags = True
     action_buttons.short_description = 'Actions'
@@ -651,14 +652,14 @@ class MonitorAdmin(admin.ModelAdmin):
     def status(self, obj):
         if obj.is_running:
             help_text = 'The monitor is currently being checked.'
-            temp = '<img src="' + settings.STATIC_URL + 'admin/img/icon-unknown.svg" alt="%(help_text)s" title="%(help_text)s" />'
+            icon = 'admin/img/icon-unknown.svg'
         elif obj.last_run_successful:
             help_text = 'All checks passed.'
-            temp = '<img src="' + settings.STATIC_URL + 'admin/img/icon-yes.svg" alt="%(help_text)s" title="%(help_text)s" />'
+            icon = 'admin/img/icon-yes.svg'
         else:
             help_text = 'Requires attention.'
-            temp = '<img src="' + settings.STATIC_URL + 'admin/img/icon-no.svg" alt="%(help_text)s" title="%(help_text)s" />'
-        return format_html(temp % dict(help_text=help_text))
+            icon = 'admin/img/icon-no.svg'
+        return format_html('<img src="{}" alt="{}" title="{}" />', settings.STATIC_URL + icon, help_text, help_text)
 
     status.allow_tags = True
 
