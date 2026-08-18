@@ -762,3 +762,58 @@ class JobTestCase(TestCase):
 
         # Empty args must not raise.
         self.assertEqual(Job(args='').get_args(), ([], {}))
+    def test_is_due_display_ignores_hostname(self):
+        """
+        Confirm the admin's "is due" column ignores the target hostname.
+
+        due() filters on socket.gethostname() so the scheduler only picks up
+        jobs meant for this host. When the admin is served from a different
+        host than the cron runner, that made the column read False for every
+        job targeting the cron host. See issue #128.
+        """
+        job = Job.objects.create(
+            name="Test Job For Another Host",
+            raw_command="true",
+            enabled=True,
+            hostname='some-other-host.example.com',
+            next_run=timezone.now() - timedelta(days=1),
+        )
+
+        # The scheduler must still skip it; this host is not the target.
+        self.assertFalse(job.is_due())
+        self.assertNotIn(job.id, [j.id for j in Job.objects.due()])
+
+        # ...but the admin column reports it as due, which it is.
+        self.assertTrue(job.is_due_display())
+
+        # A job targeting no particular host is due either way.
+        local_job = Job.objects.create(
+            name="Test Job For Any Host",
+            raw_command="true",
+            enabled=True,
+            hostname='',
+            next_run=timezone.now() - timedelta(days=1),
+        )
+        self.assertTrue(local_job.is_due())
+        self.assertTrue(local_job.is_due_display())
+
+        # A disabled job is due under neither.
+        job.enabled = False
+        job.save()
+        self.assertFalse(job.is_due_display())
+
+    def test_due_accepts_job_id(self):
+        """
+        Confirm due() accepts a raw id as well as a Job instance.
+
+        The isinstance check was inverted, so passing an int raised
+        AttributeError: 'int' object has no attribute 'id'.
+        """
+        job = Job.objects.create(
+            name="Test Job By Id",
+            raw_command="true",
+            enabled=True,
+            next_run=timezone.now() - timedelta(days=1),
+        )
+        self.assertIn(job.id, [j.id for j in Job.objects.due(job=job.id)])
+        self.assertIn(job.id, [j.id for j in Job.objects.due(job=job)])

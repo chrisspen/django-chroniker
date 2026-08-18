@@ -247,12 +247,17 @@ class JobManager(models.Manager):
         kwargs = dict((_name, _value) for _name, _value in zip(_settings.CHRONIKER_JOB_NK, args))
         return self.get(**kwargs)
 
-    def due(self, job=None, check_running=True):
+    def due(self, job=None, check_running=True, check_hostname=True):
         """
         Returns a ``QuerySet`` of all jobs waiting to be run.  NOTE: this may
         return ``Job``s that are still currently running; it is your
         responsibility to call ``Job.check_is_running()`` to determine whether
         or not the ``Job`` actually needs to be run.
+
+        Set ``check_hostname=False`` to ignore the target hostname. That is
+        only appropriate for display, such as the admin's "is due" column,
+        where the question is whether the job is due at all rather than
+        whether this particular host should run it. See issue #128.
         """
 
         # Lock the Job record if possible with the backend.
@@ -265,20 +270,20 @@ class JobManager(models.Manager):
         else:
             q = self.all()
         q = q.filter(Q(next_run__lte=timezone.now()) | Q(force_run=True))
-        q = q.filter(
-            Q(hostname__isnull=True) | \
-            Q(hostname='') | \
-            Q(hostname=socket.gethostname()) | \
-            Q(hostname='*')
-            )
+        if check_hostname:
+            q = q.filter(
+                Q(hostname__isnull=True) | \
+                Q(hostname='') | \
+                Q(hostname=socket.gethostname()) | \
+                Q(hostname='*')
+                )
         q = q.filter(enabled=True)
         if check_running:
             # Get jobs that aren't running and potentially-running every-host jobs
             q = q.filter(Q(is_running=False) | Q(hostname="*"))
         if job is not None:
-            if isinstance(job, int):
-                job = job.id
-            q = q.filter(id=job.id)
+            # Accept either a Job or a raw id.
+            q = q.filter(id=job if isinstance(job, int) else job.id)
         return q
 
     def due_with_met_dependencies(self, jobs=None):
@@ -911,6 +916,20 @@ class Job(models.Model):
         return res
 
     is_due.boolean = True
+
+    def is_due_display(self):
+        """
+        Whether the job is due, ignoring the target hostname.
+
+        The admin may well be served from a different host than the one
+        running the jobs, in which case the hostname filter in due() makes
+        this column read False for every job targeting the cron host. For
+        display the hostname is not the interesting part. See issue #128.
+        """
+        return self.is_due(check_hostname=False)
+
+    is_due_display.boolean = True
+    is_due_display.short_description = _('is due')
 
     def is_due_with_dependencies_met(self, running_ids=None):
         """
