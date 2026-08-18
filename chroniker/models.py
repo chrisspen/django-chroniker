@@ -863,15 +863,22 @@ class Job(models.Model):
         Processes the args and returns a tuple or (args, options) for passing
         to ``call_command``.
 
+        Splits with shlex, so quoted values survive as a single argument and
+        the quotes themselves are stripped, matching how raw_command is
+        already handled. See issue #138.
+
         >>> job = Job(args="arg1 arg2 kwarg1='some value'")
         >>> job.get_args()
-        (['arg1', 'arg2', "value'"], {'kwarg1': "'some"})
+        (['arg1', 'arg2'], {'kwarg1': 'some value'})
+
+        >>> job = Job(args='arg1 kwarg1="a=b" kwarg2=plain')
+        >>> job.get_args()
+        (['arg1'], {'kwarg1': 'a=b', 'kwarg2': 'plain'})
         """
         args = []
         options = {}
-        for arg in self.args.split():
+        for arg in shlex.split(self.args or ''):
             if arg.find('=') > -1:
-                #key, value = arg.split('=')
                 parts = arg.split('=')
                 key = parts[0]
                 value = '='.join(parts[1:])
@@ -1056,8 +1063,7 @@ class Job(models.Model):
             next_run = self.next_run
             if not self.force_run:
                 print("Determining 'next_run' for job {}...".format(self.id))
-                if next_run < timezone.now():
-                    next_run = timezone.now()
+                next_run = max(next_run, timezone.now())
                 _next_run = next_run
                 next_run = self.rrule.after(next_run)
                 print(_next_run, next_run)
@@ -1090,7 +1096,7 @@ class Job(models.Model):
             if original_pid != os.getpid():
                 # We're a clone of the parent job, so exit immediately
                 # so we don't conflict.
-                return # pylint: disable=W0150
+                return # pylint: disable=W0150,W0134
 
             # Redirect output back to default
             sys.stdout = ostdout

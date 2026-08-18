@@ -4,7 +4,6 @@ import argparse
 import logging
 import os
 import sys
-from distutils.version import StrictVersion # pylint: disable=no-name-in-module
 
 INVALID_SETTINGS_ERROR = "Error: You must either set the environmental "\
     "variable DJANGO_SETTINGS_MODULE or pass it as "\
@@ -78,9 +77,7 @@ if __name__ == "__main__":
 
     # We should be good to go now
     import django
-    DJANGO_VERSION = StrictVersion(django.get_version())
-    if DJANGO_VERSION >= StrictVersion('1.7'):
-        django.setup()
+    django.setup()
     from django.core.management import call_command
 
     for extra_path in [None, '.', '..']:
