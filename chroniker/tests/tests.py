@@ -36,6 +36,7 @@ from django.test.client import Client
 from django.utils import timezone
 
 from chroniker import constants as c, settings as _settings, utils
+from chroniker.admin import JobAdmin, LogAdmin, MonitorAdmin
 from chroniker.models import Job, Log
 
 warnings.simplefilter('error', RuntimeWarning)
@@ -815,3 +816,56 @@ class JobTestCase(TestCase):
 
         self.assertEqual(list(root_logger.handlers), handlers_before)
         self.assertEqual(root_logger.level, level_before)
+
+    def test_format_html_escapes_job_name(self):
+        """
+        Confirm a job name is escaped when rendered into admin markup.
+
+        format_html() on an already-interpolated string marks the result safe
+        without escaping anything that went into it, so a name typed into the
+        admin was injected into the page verbatim. Passing the values as
+        arguments is what runs them through conditional_escape(). This is also
+        why Django 6 rejects the no-argument form outright. See issue #403.
+        """
+        job = Job.objects.create(
+            name='<script>alert("xss")</script>',
+            raw_command="true",
+            is_monitor=True,
+            monitor_url='http://example.com/',
+        )
+
+        rendered = MonitorAdmin.name_str(None, job)
+
+        self.assertNotIn('<script>', rendered)
+        self.assertIn('&lt;script&gt;', rendered)
+
+    def test_admin_columns_render(self):
+        """
+        Confirm the admin display methods still render.
+
+        On Django 6, format_html() without arguments raises TypeError, which
+        took out the job changelist and the log change form entirely. Calling
+        each accessor directly catches that without needing a live admin
+        request. See issue #403.
+        """
+        job = Job.objects.create(
+            name="Test Job For Admin Columns",
+            raw_command="true",
+            enabled=True,
+            next_run=timezone.now() - timedelta(days=1),
+        )
+        job.run(update_heartbeat=0, force_run=True)
+        job.refresh_from_db()
+        log = Log.objects.filter(job=job).order_by('-id').first()
+        self.assertIsNotNone(log)
+
+        # Job changelist columns.
+        self.assertTrue(JobAdmin.get_timeuntil(None, job))
+        self.assertTrue(JobAdmin.run_button(None, job))
+        self.assertTrue(JobAdmin.stop_button(None, job))
+        self.assertTrue(JobAdmin.view_logs_button(None, job))
+        self.assertTrue(JobAdmin.last_run_with_link(None, job))
+
+        # Log change form columns.
+        self.assertTrue(LogAdmin.stdout_link(None, log))
+        self.assertTrue(LogAdmin.stderr_link(None, log))

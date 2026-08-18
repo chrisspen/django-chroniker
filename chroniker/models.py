@@ -39,7 +39,6 @@ from django.utils.safestring import mark_safe
 from django.utils.timesince import timeuntil
 from django.utils.translation import ngettext as ungettext, gettext as ugettext, gettext_lazy as _
 from django.core.exceptions import ValidationError
-from django.utils.html import format_html
 from toposort import toposort_flatten
 
 import chroniker.constants as c
@@ -1364,7 +1363,11 @@ class Log(models.Model):
         result = self.stdout or ''
         if len(result) > 40:
             result = result[:40] + '...'
-        return format_html(result) or '(No output)'
+        # Returned as a plain string so the template escapes it. This is
+        # arbitrary job output, and format_html() on a pre-built string marked
+        # it safe without escaping anything. stderr_sample below has always
+        # done it this way. See issue #403.
+        return result or '(No output)'
 
     def stderr_sample(self):
         result = self.stderr or ''
