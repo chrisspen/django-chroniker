@@ -1,91 +1,9 @@
 from django.contrib import admin
 from django.contrib.admin.sites import site
 from django.contrib.admin.widgets import ManyToManyRawIdWidget, ForeignKeyRawIdWidget
-from django.forms.widgets import Select, TextInput
-try:
-    from django.forms.widgets import flatatt
-except ImportError:
-    from django.forms.utils import flatatt
-from django.template import Context, Template
 from django.urls import reverse
-try:
-    # force_unicode was deprecated in Django 1.5.
-    from django.utils.encoding import force_unicode as force_str
-    from django.utils.encoding import smart_unicode as smart_str
-except ImportError:
-    from django.utils.encoding import force_str
-    from django.utils.encoding import smart_str
+from django.utils.encoding import smart_str
 from django.utils.html import escape
-from django.utils.safestring import mark_safe
-
-from .utils import get_admin_change_url, get_admin_changelist_url
-
-
-class LinkedSelect(Select):
-
-    def render(self, name, value, attrs=None, renderer=None):
-        output = super().render(name, value, attrs=attrs, renderer=renderer)
-        model = self.choices.field.queryset.model
-        to_field_name = self.choices.field.to_field_name or 'id'
-        try:
-            kwargs = {to_field_name: value}
-            obj = model.objects.get(**kwargs)
-            view_url = get_admin_change_url(obj)
-            output += mark_safe('&nbsp;<a href="%s" target="_blank">view</a>&nbsp;' % (view_url,))
-        except model.DoesNotExist:
-            pass
-        return output
-
-
-class ForeignKeyTextInput(TextInput):
-    """
-    Implements the same markup as VerboseForeignKeyRawIdWidget but does not
-    require an explicit model relationship.
-    """
-
-    def __init__(self, model_class, value, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._model_class = model_class
-        self._raw_value = value
-        q = model_class.objects.filter(id=value)
-        self._instance = None
-        if q.count():
-            self._instance = q[0]
-
-    def render(self, name, value, attrs=None, renderer=None):
-        if value is None:
-            value = ''
-        final_attrs = self.build_attrs(attrs, extra_attrs={'type': self.input_type, 'name': name})
-        if value != '':
-            # Only add the 'value' attribute if a value is non-empty.
-            final_attrs['value'] = force_str(self._format_value(value))
-        final_attrs['size'] = 10
-        t = Template(
-            str(
-                """
-{% load staticfiles %}
-<input{{ attrs|safe }} />
-{% if instance %}
-    <a href="{{ changelist_url|safe }}?t=id" class="related-lookup" id="lookup_{{ id|safe }}" onclick="return showRelatedObjectLookupPopup(this);">
-        <img src="{% static 'admin/img/selector-search.gif' %}" width="16" height="16" alt="Lookup" />
-    </a>
-    <strong><a href="{{ url|safe }}" target="_blank">{{ instance|safe }}</a></strong>
-{% endif %}
-        """
-            )
-        )
-        c = Context(
-            dict(
-                id=final_attrs['id'],
-                attrs=flatatt(final_attrs),
-                raw_value=self._raw_value,
-                url=get_admin_change_url(self._instance),
-                changelist_url=get_admin_changelist_url(self._model_class),
-                instance=self._instance
-            )
-        )
-        return mark_safe(t.render(c))
-
 
 #http://djangosnippets.org/snippets/2217/
 
