@@ -1070,3 +1070,25 @@ class JobTestCase(TestCase):
         # positional request actually has to line up.
         name_field = Job._meta.get_field('name')
         self.assertIsNotNone(model_admin.formfield_for_dbfield(name_field, None))
+
+    def test_localtime_converts_to_current_timezone(self):
+        """
+        Confirm localtime() converts, rather than returning UTC unchanged.
+
+        It only called make_aware(), which returns an already-aware datetime
+        as-is. Values are stored in UTC and so are already aware, meaning the
+        admin displayed UTC no matter what TIME_ZONE was set to. See #88.
+        """
+        # settings.TIME_ZONE is America/New_York in the test settings, so a UTC
+        # value must come back with a non-zero offset.
+        stored = timezone.now()
+        converted = utils.localtime(stored)
+
+        self.assertEqual(converted, timezone.localtime(stored))
+        self.assertEqual(converted.utcoffset(), timezone.localtime(stored).utcoffset())
+        # Same instant, different wall clock.
+        self.assertEqual(converted.timestamp(), stored.timestamp())
+        self.assertNotEqual(converted.utcoffset(), stored.utcoffset())
+
+        # Must not blow up on None; the admin passes optional datetimes.
+        self.assertIsNone(utils.localtime(None))
