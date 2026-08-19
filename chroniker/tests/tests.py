@@ -7,6 +7,8 @@ Quick run with:
 from __future__ import print_function
 
 import logging
+import multiprocessing
+import pickle
 import os
 import socket
 import sys
@@ -36,6 +38,7 @@ from django.test.client import Client
 from django.utils import timezone
 
 from chroniker import constants as c, settings as _settings, utils
+from chroniker.management.commands import cron as chroniker_cron
 from chroniker.admin import JobAdmin, LogAdmin, MonitorAdmin
 from chroniker.models import Job, Log
 
@@ -895,3 +898,147 @@ class JobTestCase(TestCase):
         job.refresh_from_db()
         self.assertEqual(job.total_parts, 0)
         self.assertEqual(job.total_parts_complete, 0)
+
+    def test_is_due_display_ignores_hostname(self):
+        """
+        Confirm the admin's "is due" column ignores the target hostname.
+
+        due() filters on socket.gethostname() so the scheduler only picks up
+        jobs meant for this host. When the admin is served from a different
+        host than the cron runner, that made the column read False for every
+        job targeting the cron host. See issue #128.
+        """
+        job = Job.objects.create(
+            name="Test Job For Another Host",
+            raw_command="true",
+            enabled=True,
+            hostname='some-other-host.example.com',
+            next_run=timezone.now() - timedelta(days=1),
+        )
+
+        # The scheduler must still skip it; this host is not the target.
+        self.assertFalse(job.is_due())
+        self.assertNotIn(job.id, [j.id for j in Job.objects.due()])
+
+        # ...but the admin column reports it as due, which it is.
+        self.assertTrue(job.is_due_display())
+
+        # A job targeting no particular host is due either way.
+        local_job = Job.objects.create(
+            name="Test Job For Any Host",
+            raw_command="true",
+            enabled=True,
+            hostname='',
+            next_run=timezone.now() - timedelta(days=1),
+        )
+        self.assertTrue(local_job.is_due())
+        self.assertTrue(local_job.is_due_display())
+
+        # A disabled job is due under neither.
+        job.enabled = False
+        job.save()
+        self.assertFalse(job.is_due_display())
+
+    def test_due_accepts_job_id(self):
+        """
+        Confirm due() accepts a raw id as well as a Job instance.
+
+        The isinstance check was inverted, so passing an int raised
+        AttributeError: 'int' object has no attribute 'id'.
+        """
+        job = Job.objects.create(
+            name="Test Job By Id",
+            raw_command="true",
+            enabled=True,
+            next_run=timezone.now() - timedelta(days=1),
+        )
+        self.assertIn(job.id, [j.id for j in Job.objects.due(job=job.id)])
+        self.assertIn(job.id, [j.id for j in Job.objects.due(job=job)])
+
+    def test_timed_process_is_picklable(self):
+        """
+        Confirm a TimedProcess can be serialized for the spawn/forkserver
+        start methods.
+
+        These pickle the Process object to reach the child, so an open stream
+        stored on the instance makes every job unstartable. Python 3.14 made
+        forkserver the default on Linux, so this stopped being an edge case.
+        See issues #99, #208 and #397.
+        """
+        proc = utils.TimedProcess(max_seconds=10)
+
+        # The stream must not be held on the instance...
+        self.assertIsNone(proc.__dict__.get('_fout'))
+        # ...but must still resolve for the parent, which does the printing.
+        self.assertTrue(hasattr(proc.fout, 'write'))
+
+        # __getstate__ is what spawn/forkserver hand to the child. No open
+        # stream may survive it, whether or not one was supplied explicitly.
+        # (The Process object as a whole is never pickled directly here;
+        # multiprocessing blocks that for any Process, so the state dict is
+        # what we can meaningfully assert on.)
+        for supplied in (None, sys.stderr):
+            p = utils.TimedProcess(max_seconds=10, fout=supplied)
+            state = p.__getstate__()
+            self.assertIsNone(state['_fout'])
+            self.assertIsNone(state['_p'])
+            # Every remaining value must survive a round trip; an open stream
+            # here is exactly what used to break spawn.
+            for key, value in state.items():
+                if key == '_config':
+                    # multiprocessing's own bookkeeping, never our concern.
+                    continue
+                try:
+                    pickle.dumps(value)
+                except Exception as exc: # pylint: disable=broad-except
+                    self.fail('TimedProcess state %r is not picklable: %s' % (key, exc))
+
+    def test_cron_reports_failed_job_process(self):
+        """
+        Confirm cron notices a job process that dies without running.
+
+        The wait loop used to check only is_alive(), so a child that died on
+        import was indistinguishable from one that finished: cron printed
+        'All jobs complete!' and exited 0, leaving jobs silently un-run under
+        a supervisor or systemd timer. See issue #397.
+        """
+
+        # This test monkeypatches the process target, which means the target
+        # has to reach the child through inheritance rather than pickling: a
+        # local function can't be pickled, and a module-level one wouldn't help
+        # either, since a spawned child re-imports the unpatched module and
+        # never sees the patch. Defect 3 is start-method-independent, so pin
+        # fork for the duration and lose nothing. Reported by @tclancy, who hit
+        # this on macOS where spawn is the default.
+        original_start_method = multiprocessing.get_start_method(allow_none=True)
+        multiprocessing.set_start_method('fork', force=True)
+        if original_start_method:
+            self.addCleanup(multiprocessing.set_start_method, original_start_method, force=True)
+
+        job = Job.objects.create(
+            name="Test Job That Dies",
+            raw_command="true",
+            enabled=True,
+            next_run=timezone.now() - timedelta(days=1),
+        )
+
+        # Force the job process to die before it can record a log row, which
+        # is what an import error in a spawned child looks like from here.
+        original_run_job = chroniker_cron.run_job
+
+        def die_immediately(*args, **kwargs):
+            os._exit(1) # pylint: disable=protected-access
+
+        chroniker_cron.run_job = die_immediately
+        try:
+            failures = chroniker_cron.run_cron([job.id], update_heartbeat=0, force_run=True)
+        finally:
+            chroniker_cron.run_job = original_run_job
+
+        self.assertEqual(failures, 1)
+
+        job.refresh_from_db()
+        self.assertEqual(job.last_run_successful, False)
+        self.assertFalse(job.is_running)
+        # A failure that produced no log of its own must still be recorded.
+        self.assertTrue(Log.objects.filter(job=job, success=False).exists())

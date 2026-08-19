@@ -9,12 +9,26 @@ from multiprocessing import Queue
 
 import psutil
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
 from django.utils import timezone
 
-from chroniker import settings as _settings, utils
-from chroniker.models import Job, Log
+# Children created by the "spawn" and "forkserver" start methods are fresh
+# interpreters that don't inherit the parent's django.setup(). They import
+# this module to unpickle the Process object, which pulls in chroniker.models
+# and fails with AppRegistryNotReady unless the registry is already populated.
+# This has to happen at import time; anything later is too late. It is a no-op
+# in the parent and under "fork", where setup() has already run.
+# See issues #99, #208 and #397.
+import django
+from django.apps import apps as _django_apps
+
+if not _django_apps.ready: # pragma: no cover
+    django.setup()
+
+# These must follow the setup() call above, not precede it.
+from chroniker import settings as _settings, utils # pylint: disable=wrong-import-position
+from chroniker.models import Job, Log # pylint: disable=wrong-import-position
 
 
 def kill_stalled_processes(dryrun=True):
@@ -213,6 +227,7 @@ def run_cron(jobs=None, **kwargs):
 
         if not dryrun:
             print("%d Jobs are due." % len(procs))
+            failed_procs = []
 
             # Wait for all job processes to complete.
             while procs:
@@ -230,6 +245,35 @@ def run_cron(jobs=None, **kwargs):
                     if not proc.is_alive():
                         print('Process %s ended.' % (proc,))
                         procs.remove(proc)
+
+                        # A child that dies before it can record its own log
+                        # row, e.g. on an import error, is otherwise
+                        # indistinguishable here from one that completed, and
+                        # cron would report success. See issue #397.
+                        if proc.exitcode:
+                            failed_procs.append(proc)
+                            print('Process %s exited with code %s.' % (proc, proc.exitcode), file=sys.stderr)
+                            connection.close()
+                            Job.objects.update()
+                            j = Job.objects.get(id=proc.job.id)
+                            if not Log.objects.filter(job=j, run_start_datetime=j.last_run_start_timestamp).exists():
+                                # The child never got far enough to log, so
+                                # record the failure on its behalf.
+                                Log.objects.create(
+                                    job=proc.job,
+                                    run_start_datetime=j.last_run_start_timestamp or timezone.now(),
+                                    run_end_datetime=timezone.now(),
+                                    success=False,
+                                    on_time=False,
+                                    hostname=socket.gethostname(),
+                                    stdout=''.join(stdout_map[proc.pid]),
+                                    stderr=''.join(stderr_map[proc.pid] + ['Job process exited with code %s\n' % proc.exitcode]),
+                                )
+                            proc.job.is_running = False
+                            proc.job.force_run = False
+                            proc.job.force_stop = False
+                            proc.job.last_run_successful = False
+                            proc.job.save()
                     elif proc.is_expired:
                         print('Process %s expired.' % (proc,))
                         proc_id = proc.pid
@@ -261,7 +305,15 @@ def run_cron(jobs=None, **kwargs):
 
                 time.sleep(1)
             print('!' * 80)
-            print('All jobs complete!')
+            if failed_procs:
+                print(
+                    '%d of the job processes failed: %s' % (len(failed_procs), ', '.join(str(_p) for _p in failed_procs)),
+                    file=sys.stderr,
+                )
+            else:
+                print('All jobs complete!')
+            return len(failed_procs)
+        return 0
     finally:
         if _settings.CHRONIKER_USE_PID and os.path.isfile(pid_fn) and clear_pid:
             os.unlink(pid_fn)
@@ -293,10 +345,16 @@ class Command(BaseCommand):
         # Find specific job ids to run, if any.
         jobs = [int(_.strip()) for _ in options.get('jobs', '').strip().split(',') if _.strip().isdigit()]
 
-        run_cron(
+        failures = run_cron(
             jobs,
             update_heartbeat=int(options['update_heartbeat']),
             force_run=options['force_run'],
             dryrun=options['dryrun'],
             sync=options['sync'],
         )
+
+        # Exit non-zero so a supervisor or systemd timer sees the failure.
+        # Without this, a job process that dies without running is reported
+        # as a clean run. See issue #397.
+        if failures:
+            raise CommandError('%d job process(es) failed.' % failures)
