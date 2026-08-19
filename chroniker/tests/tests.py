@@ -9,6 +9,7 @@ from __future__ import print_function
 import logging
 import multiprocessing
 import pickle
+from django.contrib.admin import site as django_admin_site
 import os
 import socket
 import sys
@@ -1042,3 +1043,30 @@ class JobTestCase(TestCase):
         self.assertFalse(job.is_running)
         # A failure that produced no log of its own must still be recorded.
         self.assertTrue(Log.objects.filter(job=job, success=False).exists())
+
+    def test_formfield_for_dbfield_accepts_request(self):
+        """
+        Confirm the admin's formfield_for_dbfield matches Django's signature.
+
+        Django calls it as formfield_for_dbfield(db_field, request, **kwargs),
+        passing request positionally. JobAdmin declared it as
+        (self, db_field, **kwargs) and pulled request back out of kwargs, so
+        rendering the form raised:
+
+            TypeError: formfield_for_dbfield() missing 1 required positional
+            argument: 'request'
+
+        See issue #192.
+        """
+        model_admin = JobAdmin(Job, django_admin_site)
+
+        # The 'command' field takes the special-cased branch that builds a
+        # Select of available management commands.
+        command_field = Job._meta.get_field('command')
+        formfield = model_admin.formfield_for_dbfield(command_field, None)
+        self.assertIsNotNone(formfield)
+
+        # Any other field falls through to super(), which is where the
+        # positional request actually has to line up.
+        name_field = Job._meta.get_field('name')
+        self.assertIsNotNone(model_admin.formfield_for_dbfield(name_field, None))

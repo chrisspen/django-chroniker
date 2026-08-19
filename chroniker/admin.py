@@ -443,8 +443,7 @@ class JobAdmin(admin.ModelAdmin):
 
     enable_jobs.short_description = "Enable selected jobs"
 
-    def formfield_for_dbfield(self, db_field, **kwargs):
-        request = kwargs.pop("request", None)
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
 
         # Add a select field of available commands
         if db_field.name == 'command':
@@ -462,8 +461,7 @@ class JobAdmin(admin.ModelAdmin):
             kwargs['widget'] = forms.widgets.Select(choices=choices)
             return db_field.formfield(**kwargs)
 
-        kwargs['request'] = request
-        return super().formfield_for_dbfield(db_field, **kwargs)
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 
 class LogAdmin(admin.ModelAdmin):
