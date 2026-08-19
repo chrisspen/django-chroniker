@@ -1092,3 +1092,35 @@ class JobTestCase(TestCase):
 
         # Must not blow up on None; the admin passes optional datetimes.
         self.assertIsNone(utils.localtime(None))
+
+    def test_terminate_unstarted_process_does_not_raise(self):
+        """
+        Confirm terminate() is safe on a process with no live handle.
+
+        The final kill dereferenced self._p.pid outside the guard that checks
+        it, so terminating a process that was never started, or that had
+        already been reaped, raised
+
+            AttributeError: 'NoneType' object has no attribute 'pid'
+
+        That is reachable from cron's expiry branch, where it took down the
+        whole run rather than just the job being cleaned up. See issue #118.
+        """
+        proc = utils.TimedProcess(max_seconds=1)
+        self.assertIsNone(proc._p) # pylint: disable=protected-access
+        proc.terminate()
+
+    def test_kill_grace_seconds_default(self):
+        """
+        Confirm the SIGTERM-to-SIGKILL grace period is configurable.
+
+        SIGTERM cannot interrupt a process blocked in a syscall, e.g. one
+        waiting on a database query, so a job could sit well past its timeout
+        being "terminated" on every pass. See issue #118.
+        """
+        proc = utils.TimedProcess(max_seconds=1)
+        self.assertEqual(proc.kill_grace_seconds, _settings.CHRONIKER_KILL_GRACE_SECONDS)
+
+        # Explicit values win over the setting.
+        proc = utils.TimedProcess(max_seconds=1, kill_grace_seconds=5)
+        self.assertEqual(proc.kill_grace_seconds, 5)

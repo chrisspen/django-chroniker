@@ -277,7 +277,7 @@ class TimedProcess(Process):
 
     daemon = True
 
-    def __init__(self, max_seconds, time_type=c.MAX_TIME, fout=None, check_freq=1, *args, **kwargs):
+    def __init__(self, max_seconds, time_type=c.MAX_TIME, fout=None, check_freq=1, *args, kill_grace_seconds=None, **kwargs):
         super().__init__(*args, **kwargs)
         # Deliberately not falling back to sys.stdout here. The "spawn" and
         # "forkserver" start methods pickle the Process object to reach the
@@ -292,6 +292,10 @@ class TimedProcess(Process):
         self.t1_objective = None
         # The number of seconds the process waits between checks.
         self.check_freq = check_freq
+        # How long to wait after SIGTERM before escalating to SIGKILL.
+        if kill_grace_seconds is None:
+            kill_grace_seconds = getattr(settings, 'CHRONIKER_KILL_GRACE_SECONDS', 30)
+        self.kill_grace_seconds = kill_grace_seconds
         self.time_type = time_type
         self._p = None
         self._process_times = {} # {pid:user_seconds}
@@ -349,10 +353,16 @@ class TimedProcess(Process):
                 # Sum final time.
                 self._process_times[self._p.pid] = self._p.cpu_times().user
                 self._last_duration_seconds = sum(self._process_times.values())
-        os.system('kill -%i %i' % (
-            sig,
-            self._p.pid,
-        ))
+        # Guarded: a process that was never started, or that has already been
+        # reaped, has no _p, and this used to raise
+        # AttributeError: 'NoneType' object has no attribute 'pid'
+        # which took down the whole cron run rather than just this job.
+        # See issue #118.
+        if self._p:
+            os.system('kill -%i %i' % (
+                sig,
+                self._p.pid,
+            ))
         #return super(TimedProcess, self).terminate(*args, **kwargs)
 
     def get_duration_seconds_wall(self):
@@ -477,6 +487,23 @@ class TimedProcess(Process):
                     print('\nAttempting to terminate expired process %s...' % (self.pid,), file=self.fout)
                 timeout = True
                 self.terminate()
+
+                # SIGTERM does not interrupt a process blocked in a syscall,
+                # e.g. one waiting on a database query, so a job could sit
+                # well past its timeout while being "terminated" on every
+                # pass. Give it a grace period, then escalate to SIGKILL.
+                # See issue #118.
+                deadline = time.time() + self.kill_grace_seconds
+                while self.is_alive() and time.time() < deadline:
+                    time.sleep(0.5)
+                if self.is_alive():
+                    if verbose:
+                        print(
+                            '\nProcess %s ignored SIGTERM after %s seconds; sending SIGKILL.' %
+                            (self.pid, self.kill_grace_seconds),
+                            file=self.fout,
+                        )
+                    self.terminate(sig=9)
         self.t0 = time.process_time()
         self.t1_objective = time.time()
         return timeout
