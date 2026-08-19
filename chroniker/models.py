@@ -3,6 +3,7 @@ from __future__ import print_function
 import itertools
 import logging
 import os
+import random
 import shlex
 import socket
 import subprocess
@@ -460,6 +461,19 @@ class Job(models.Model):
 
     next_run = models.DateTimeField(_("next run"), blank=True, null=True, help_text=_("If you don't set this it will be determined automatically"))
 
+    jitter_seconds = models.PositiveIntegerField(
+        _("jitter seconds"),
+        default=0,
+        blank=False,
+        null=False,
+        help_text=_(
+            'If given, a random offset of up to this many seconds is added to '
+            'each scheduled run time.<br/>Useful for spreading load when '
+            'several jobs or servers would otherwise fire at the same instant.'
+            '<br/>A value of 0 disables jitter.'
+        )
+    )
+
     last_run_start_timestamp = models.DateTimeField(_("last run start timestamp"), editable=False, blank=True, null=True)
 
     last_run = models.DateTimeField(_("last run end timestamp"), editable=False, blank=True, null=True)
@@ -891,6 +905,18 @@ class Job(models.Model):
                 args.append(arg)
         return (args, options)
 
+    def apply_jitter(self, dt):
+        """
+        Offsets a scheduled datetime by a random amount up to jitter_seconds.
+
+        The offset is always forward, so a job never fires earlier than its
+        schedule says. Returns dt unchanged when jitter_seconds is 0, which is
+        the default, so existing jobs are unaffected. See issue #234.
+        """
+        if not self.jitter_seconds or dt is None:
+            return dt
+        return dt + timedelta(seconds=random.randint(0, self.jitter_seconds))
+
     def is_due(self, **kwargs):
         """
         >>> job = Job(next_run=timezone.now())
@@ -1102,6 +1128,9 @@ class Job(models.Model):
                 next_run = self.rrule.after(next_run)
                 print(_next_run, next_run)
                 assert next_run != _next_run, 'RRule failed to increment next run datetime.'
+                # Applied after the rrule so the schedule keeps its shape and
+                # only the exact instant moves. See issue #234.
+                next_run = self.apply_jitter(next_run)
             # next_run = next_run.replace(tzinfo=timezone.get_current_timezone())
 
             last_run_successful = not _raw_status and not bool(stderr.length)
