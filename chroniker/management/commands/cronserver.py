@@ -6,6 +6,7 @@ from threading import Thread
 
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
+from django.db import connection
 from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger('chroniker.commands.cronserver')
@@ -16,7 +17,20 @@ class CronThread(Thread):
 
     def run(self):
         logger.info("Running due jobs...")
-        call_command('cron')
+        try:
+            call_command('cron')
+        except Exception: # pylint: disable=broad-except
+            # A transient failure, most often the database being briefly
+            # unreachable, used to escape as an unhandled traceback in the
+            # thread and leave a dead connection behind. The outer loop keeps
+            # starting new threads either way, so log it and close the
+            # connection so the next tick starts clean rather than inheriting
+            # a broken one. See issue #193.
+            logger.exception('Error running due jobs; will retry on the next tick.')
+            try:
+                connection.close()
+            except Exception: # pylint: disable=broad-except
+                logger.exception('Error closing the database connection.')
 
 
 class Command(BaseCommand):
