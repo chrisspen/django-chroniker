@@ -182,6 +182,7 @@ class JobAdmin(admin.ModelAdmin):
             'fields': (
                 'frequency',
                 'next_run',
+                'jitter_seconds',
                 'params',
                 'timeout_seconds',
             )

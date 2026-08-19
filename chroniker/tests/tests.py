@@ -1124,3 +1124,41 @@ class JobTestCase(TestCase):
         # Explicit values win over the setting.
         proc = utils.TimedProcess(max_seconds=1, kill_grace_seconds=5)
         self.assertEqual(proc.kill_grace_seconds, 5)
+
+    def test_jitter_disabled_by_default(self):
+        """
+        Confirm jitter is off unless asked for, so existing jobs are unchanged.
+        """
+        job = Job.objects.create(name="Test Job No Jitter", raw_command="true")
+        self.assertEqual(job.jitter_seconds, 0)
+
+        dt = timezone.now()
+        self.assertEqual(job.apply_jitter(dt), dt)
+
+    def test_jitter_offsets_within_bounds(self):
+        """
+        Confirm jitter stays within [0, jitter_seconds] and never goes back.
+
+        The offset is deliberately forward-only: a job must not fire earlier
+        than its schedule says. See issue #234.
+        """
+        job = Job.objects.create(name="Test Job Jitter", raw_command="true", jitter_seconds=60)
+        dt = timezone.now()
+
+        seen = set()
+        for _ in range(200):
+            jittered = job.apply_jitter(dt)
+            offset = (jittered - dt).total_seconds()
+            self.assertGreaterEqual(offset, 0)
+            self.assertLessEqual(offset, 60)
+            seen.add(offset)
+
+        # It has to actually vary, or it is not jitter.
+        self.assertGreater(len(seen), 1)
+
+    def test_jitter_handles_none(self):
+        """
+        Confirm apply_jitter tolerates a null next_run, which the field allows.
+        """
+        job = Job.objects.create(name="Test Job Jitter None", raw_command="true", jitter_seconds=60)
+        self.assertIsNone(job.apply_jitter(None))
