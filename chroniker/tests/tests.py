@@ -39,6 +39,7 @@ from django.test.client import Client
 from django.utils import timezone
 
 from chroniker import constants as c, settings as _settings, utils
+from chroniker.management.commands import cronserver
 from chroniker.management.commands import cron as chroniker_cron
 from chroniker.admin import JobAdmin, LogAdmin, MonitorAdmin
 from chroniker.models import Job, Log
@@ -1162,3 +1163,28 @@ class JobTestCase(TestCase):
         """
         job = Job.objects.create(name="Test Job Jitter None", raw_command="true", jitter_seconds=60)
         self.assertIsNone(job.apply_jitter(None))
+
+    def test_cronserver_thread_survives_a_failing_tick(self):
+        """
+        Confirm a failing tick does not escape the cronserver thread.
+
+        call_command('cron') was called unguarded, so a transient failure,
+        most often the database being briefly unreachable, escaped as an
+        unhandled traceback and left a dead connection behind. The outer loop
+        keeps starting threads either way, so the failure should be logged and
+        the connection closed rather than propagated. See issue #193.
+        """
+        original = cronserver.call_command
+
+        def explode(*args, **kwargs):
+            raise RuntimeError('simulated database outage')
+
+        cronserver.call_command = explode
+        try:
+            thread = cronserver.CronThread()
+            # Must not raise; run() is called directly rather than via start()
+            # so an escaping exception would surface here.
+            with self.assertLogs('chroniker.commands.cronserver', level='ERROR'):
+                thread.run()
+        finally:
+            cronserver.call_command = original
