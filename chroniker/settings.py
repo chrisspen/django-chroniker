@@ -71,3 +71,9 @@ CHRONIKER_JOB_ERROR_CALLBACK = settings.CHRONIKER_JOB_ERROR_CALLBACK = getattr(s
 # applies to records captured while a job runs; it does not affect any handler
 # configured in settings.LOGGING. See issue #13.
 CHRONIKER_LOG_FORMAT = settings.CHRONIKER_LOG_FORMAT = getattr(settings, 'CHRONIKER_LOG_FORMAT', '%(levelname)s %(name)s %(message)s')
+
+# Seconds to wait after SIGTERM before sending SIGKILL to a job that has
+# exceeded its timeout. SIGTERM cannot interrupt a process blocked in a
+# syscall, e.g. one waiting on a database query, so without an escalation a
+# job can run far past its timeout. See issue #118.
+CHRONIKER_KILL_GRACE_SECONDS = settings.CHRONIKER_KILL_GRACE_SECONDS = getattr(settings, 'CHRONIKER_KILL_GRACE_SECONDS', 30)
